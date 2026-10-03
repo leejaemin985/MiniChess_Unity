@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1b17308ed7b4550bfaacea737f48f9f, type: 3}
+  m_Name: Warper
+  m_EditorClassIdentifier: 
+  kind: 7
+  displayName: 워프술사
+  role: 2
+  position: 3
+  passive: 3
+  description: 아군 위치를 즉시 재편해 위기 유닛을 구하거나 공격각을 만드는 유닛.
+  maxHP: 5
+  attackDamage: 2
+  attackRange: 2
+  aimRangeBonus: 0
+  skill: 7
+  skillName: 위치 교환
+  skillCost: 2
+  skillAPCost: 3
+  skillRange: 3
+  skillPower: 1
