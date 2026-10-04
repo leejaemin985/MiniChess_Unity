@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using MiniChess.Client.Board;
 using MiniChess.Client.Common;
 using MiniChess.Client.Interaction;
@@ -6,6 +8,8 @@ using MiniChess.Client.UI;
 using MiniChess.Client.Units;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
+using MiniChess.Core.Data;
+using MiniChess.Core.Presets;
 using MiniChess.Core.Setup;
 using MiniChess.Core.State;
 using UnityEngine;
@@ -19,6 +23,11 @@ namespace MiniChess.Client.Bootstrap
     /// </summary>
     public class GameSession : MonoBehaviour
     {
+        [Header("Lineup (비우면 프리셋 기본 구성)")]
+        [SerializeField] private List<CharacterChoice> player1Lineup = new List<CharacterChoice>();
+        [SerializeField] private List<CharacterChoice> player2Lineup = new List<CharacterChoice>();
+
+        [Header("View")]
         [SerializeField] private float cellSize = 1f;
         [SerializeField] private BoardView boardView;
         [SerializeField] private UnitsView unitsView;
@@ -29,6 +38,7 @@ namespace MiniChess.Client.Bootstrap
 
         public GameState State { get; private set; }
         public BoardCoordinates Coordinates { get; private set; }
+        public SelectionController Selection => selection;
 
         /// <summary>새 경기 시작 또는 행동 성공으로 코어 상태가 바뀐 뒤(뷰 동기화 후) 호출된다.</summary>
         public event Action StateChanged;
@@ -54,20 +64,59 @@ namespace MiniChess.Client.Bootstrap
             StartNewGame();
         }
 
+        /// <summary>Inspector 의 팀 구성으로 새 경기를 시작한다(재시작 시 바뀐 구성도 반영).</summary>
         public void StartNewGame()
         {
+            GameState state;
+            try
+            {
+                state = CreateGame();
+            }
+            catch (GameConfigException e)
+            {
+                Debug.LogError($"[GameSession] 경기를 만들 수 없음: {e.Message}");
+                return;
+            }
+
             // 이전 경기의 유닛을 계속 붙잡고 있지 않도록 먼저 해제한다.
             selection.Deselect();
 
-            State = QuickBattleFactory.CreateDefault();
+            State = state;
             Coordinates = new BoardCoordinates(State.Board.Width, State.Board.Height, cellSize);
 
             boardView.Build(State.Board, Coordinates);
+            boardView.SyncEffects(State.Board);
             unitsView.Build(State, Coordinates);
             cameraRig.Frame(Coordinates);
             boardInput.Initialize(cameraRig.Camera, Coordinates);
 
             StateChanged?.Invoke();
+        }
+
+        private GameState CreateGame()
+        {
+            string[] defaultLineup = PrototypeTestPreset.CreateStartingLineup();
+
+            return QuickBattleFactory.Create(
+                PrototypeTestPreset.CreateRules(),
+                PrototypeTestPreset.CreateTestMap(),
+                PrototypeTestPreset.CreateCharacters(),
+                ToLineup(player1Lineup, defaultLineup),
+                ToLineup(player2Lineup, defaultLineup),
+                PrototypeTestPreset.CreateSkills());
+        }
+
+        private static IReadOnlyList<string> ToLineup(List<CharacterChoice> choices, string[] fallback)
+        {
+            return choices == null || choices.Count == 0
+                ? fallback
+                : choices.Select(choice => choice.ToString()).ToList();
+        }
+
+        /// <summary>행동과 무관한 안내(예: 스킬 지정 불가)를 거부 메시지와 같은 경로로 띄운다.</summary>
+        public void ReportFailure(string message)
+        {
+            ActionFailed?.Invoke(message);
         }
 
         #region Actions
@@ -94,6 +143,17 @@ namespace MiniChess.Client.Bootstrap
             return Succeed();
         }
 
+        public bool TryUseSkill(Unit caster, string skillId, Position target)
+        {
+            var action = new UseSkillAction(caster, skillId, target);
+            SkillFailReason reason = action.Validate(State);
+            if (reason != SkillFailReason.None)
+                return Fail(FailReasonText.Describe(reason));
+
+            action.Execute(State);
+            return Succeed();
+        }
+
         public bool TryEndTurn()
         {
             var action = new EndTurnAction(State.CurrentTeam);
@@ -108,6 +168,7 @@ namespace MiniChess.Client.Bootstrap
         private bool Succeed()
         {
             unitsView.Sync();
+            boardView.SyncEffects(State.Board);
             StateChanged?.Invoke();
             return true;
         }

@@ -40,6 +40,25 @@ namespace MiniChess.Client.UI
             }
         }
 
+        public static string Describe(SkillFailReason reason)
+        {
+            switch (reason)
+            {
+                case SkillFailReason.NotBattlePhase: return "Not in battle";
+                case SkillFailReason.NotYourTurn: return "Not your turn";
+                case SkillFailReason.CasterNotOnBoard: return "Caster is not on the board";
+                case SkillFailReason.SkillNotOwned: return "Skill not available";
+                case SkillFailReason.ConfigMissing: return "Skill values not set (TBD)";
+                case SkillFailReason.ActionsEnded: return "This unit can't act this turn";
+                case SkillFailReason.AlreadyActed: return "This unit already acted";
+                case SkillFailReason.MoveLocked: return "Can't move after acting";
+                case SkillFailReason.ConditionNotMet: return "Skill limit reached";
+                case SkillFailReason.InvalidTarget: return "No valid target";
+                case SkillFailReason.NotEnoughAp: return "Not enough AP";
+                default: return reason.ToString();
+            }
+        }
+
         public static string Describe(EndTurnFailReason reason)
         {
             switch (reason)

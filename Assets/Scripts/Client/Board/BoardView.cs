@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using MiniChess.Client.Common;
 using MiniChess.Core.Common;
+using MiniChess.Core.Effects;
+using MiniChess.Core.Effects.Zones;
 using MiniChess.Core.State;
 using UnityEngine;
 using CoreBoard = MiniChess.Core.State.Board;
@@ -28,12 +30,62 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color selectedColor = new Color(1f, 0.9f, 0.2f);
         [SerializeField] private Color moveColor = new Color(0.3f, 0.85f, 0.4f);
         [SerializeField] private Color attackColor = new Color(0.95f, 0.2f, 0.2f);
+        [SerializeField] private Color skillTargetColor = new Color(0.2f, 0.8f, 0.95f);
+        [SerializeField] private Color skillAreaColor = new Color(1f, 0.55f, 0.1f);
         [SerializeField, Range(0f, 1f)] private float highlightStrength = 0.65f;
+
+        [Header("Cell Effects")]
+        [SerializeField] private Color healFieldColor = new Color(0.35f, 0.9f, 0.45f);
+        [SerializeField] private Color damageFieldColor = new Color(0.6f, 0.3f, 0.85f);
+        [SerializeField] private Color otherFieldColor = new Color(0.5f, 0.5f, 0.5f);
+        [SerializeField, Range(0f, 1f)] private float fieldTintStrength = 0.5f;
+        [SerializeField] private Color player1TrapColor = new Color(0.15f, 0.3f, 0.8f);
+        [SerializeField] private Color player2TrapColor = new Color(0.8f, 0.2f, 0.15f);
+        [SerializeField] private float trapMarkerSize = 0.45f;
 
         private readonly Dictionary<Position, CellView> _cells = new Dictionary<Position, CellView>();
         private readonly List<CellView> _highlighted = new List<CellView>();
+        private BoardCoordinates _coordinates;
 
         public IReadOnlyDictionary<Position, CellView> Cells => _cells;
+
+        /// <summary>
+        /// 칸 효과(장판/덫)를 현재 코어 상태대로 표시한다. 장판은 칸 색조, 덫은 설치한 팀 색의 표식.
+        /// [가정] 덫 공개 여부는 명세 TBD 이며, 지금은 양 팀 모두에게 보인다.
+        /// </summary>
+        public void SyncEffects(CoreBoard board)
+        {
+            foreach (KeyValuePair<Position, CellView> pair in _cells)
+            {
+                BoardCell cell = board.GetCell(pair.Key);
+                CellView view = pair.Value;
+
+                ICellEffect area = cell.GetEffect(CellEffectLayer.AreaEffect);
+                view.SetEffectTint(area == null ? (Color?)null : GetFieldColor(area), fieldTintStrength);
+
+                ICellEffect trap = cell.GetEffect(CellEffectLayer.Trap);
+                Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
+                view.SetTrapMarker(trap != null, GetTrapColor(trap), top, trapMarkerSize * _coordinates.CellSize);
+            }
+        }
+
+        private Color GetFieldColor(ICellEffect effect)
+        {
+            switch (effect)
+            {
+                case HealField _: return healFieldColor;
+                case DamageField _: return damageFieldColor;
+                default: return otherFieldColor;
+            }
+        }
+
+        private Color GetTrapColor(ICellEffect effect)
+        {
+            if (effect is ZoneCellEffect zoneEffect)
+                return zoneEffect.Zone.OwnerTeam == Team.Player1 ? player1TrapColor : player2TrapColor;
+
+            return otherFieldColor;
+        }
 
         public void Highlight(Position position, CellHighlight kind)
         {
@@ -62,6 +114,8 @@ namespace MiniChess.Client.Board
                 case CellHighlight.Selected: return selectedColor;
                 case CellHighlight.Move: return moveColor;
                 case CellHighlight.Attack: return attackColor;
+                case CellHighlight.SkillTarget: return skillTargetColor;
+                case CellHighlight.SkillArea: return skillAreaColor;
                 default: return Color.white;
             }
         }
@@ -69,6 +123,7 @@ namespace MiniChess.Client.Board
         public void Build(CoreBoard board, BoardCoordinates coordinates)
         {
             Clear();
+            _coordinates = coordinates;
 
             var spawnTints = new Dictionary<Position, Color>();
             foreach (Position p in board.GetSpawnPositions(Team.Player1)) spawnTints[p] = spawnPlayer1Tint;

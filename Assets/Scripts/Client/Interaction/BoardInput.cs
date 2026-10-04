@@ -20,12 +20,18 @@ namespace MiniChess.Client.Interaction
         /// <summary>우클릭(선택 취소용).</summary>
         public event Action CancelClicked;
 
+        /// <summary>마우스가 가리키는 칸이 바뀌었다. 보드 밖이나 UI 위면 null.</summary>
+        public event Action<Position?> HoverChanged;
+
         public bool InputEnabled { get; set; } = true;
+
+        public Position? HoveredCell { get; private set; }
 
         public void Initialize(Camera targetCamera, BoardCoordinates coordinates)
         {
             _camera = targetCamera;
             _coordinates = coordinates;
+            HoveredCell = null;
         }
 
         private void Update()
@@ -34,12 +40,27 @@ namespace MiniChess.Client.Interaction
                 return;
 
             if (IsPointerOverUi())
+            {
+                SetHovered(null);
                 return;
+            }
+
+            Position? cell = RaycastCell();
+            SetHovered(cell);
 
             if (Input.GetMouseButtonDown(0))
-                CellClicked?.Invoke(RaycastCell());
+                CellClicked?.Invoke(cell);
             else if (Input.GetMouseButtonDown(1))
                 CancelClicked?.Invoke();
+        }
+
+        private void SetHovered(Position? cell)
+        {
+            if (HoveredCell == cell)
+                return;
+
+            HoveredCell = cell;
+            HoverChanged?.Invoke(cell);
         }
 
         private Position? RaycastCell()

@@ -1,5 +1,6 @@
 using MiniChess.Client.Common;
 using MiniChess.Core.State;
+using MiniChess.Core.Statuses;
 using TMPro;
 using UnityEngine;
 
@@ -14,7 +15,8 @@ namespace MiniChess.Client.Units
 
         private const float BodyHeight = 1f;
         private const float BodyWidth = 0.6f;
-        private const float LabelHeight = 1.45f;
+        /// <summary>라벨 아래쪽 기준 높이. 줄이 늘어나면 위로 쌓인다.</summary>
+        private const float LabelHeight = 1.1f;
 
         private Renderer _body;
         private MaterialPropertyBlock _block;
@@ -56,7 +58,23 @@ namespace MiniChess.Client.Units
             SetBodyColor(turn.CombatActionUsed || turn.ActionsEnded ? _actedColor : _teamColor);
 
             // 기본 TMP 폰트에 한글 글리프가 없어 이름 대신 ASCII Id 를 표시한다.
-            _label.text = $"<size=70%>{Unit.Stats.Base.Id}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}";
+            _label.text = $"<size=70%>{Unit.Stats.Base.Id}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatStatuses()}";
+        }
+
+        /// <summary>걸린 상태를 "ROOT 1 · BURN 2"(남은 횟수) 형태의 작은 줄로 만든다. 없으면 빈 문자열.</summary>
+        private string FormatStatuses()
+        {
+            if (Unit.Statuses.Count == 0)
+                return string.Empty;
+
+            var parts = new string[Unit.Statuses.Count];
+            for (int i = 0; i < parts.Length; i++)
+            {
+                StatusEffect status = Unit.Statuses[i];
+                parts[i] = $"{status.Definition.Id} {status.Remaining}";
+            }
+
+            return $"\n<size=60%><color=#FFD24D>{string.Join(" · ", parts)}</color></size>";
         }
 
         private void SetBodyColor(Color color)
@@ -87,12 +105,13 @@ namespace MiniChess.Client.Units
 
             var label = go.AddComponent<TextMeshPro>();
             label.fontSize = 3f;
-            label.alignment = TextAlignmentOptions.Center;
+            label.alignment = TextAlignmentOptions.Bottom;
             label.enableWordWrapping = false;
             label.color = Color.white;
             label.outlineWidth = 0.25f;
             label.outlineColor = Color.black;
-            label.rectTransform.sizeDelta = new Vector2(2f, 1f);
+            label.rectTransform.pivot = new Vector2(0.5f, 0f);
+            label.rectTransform.sizeDelta = new Vector2(2.5f, 1.5f);
 
             return label;
         }

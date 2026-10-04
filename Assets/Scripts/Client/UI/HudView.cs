@@ -149,6 +149,7 @@ namespace MiniChess.Client.UI
             _endTurnButton = UiFactory.CreateButton(root, "EndTurn", "END TURN", new Color(0.15f, 0.15f, 0.18f, 0.9f), OnEndTurnClicked);
             UiFactory.Place((RectTransform)_endTurnButton.transform, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(280f, 90f));
 
+            SkillPanelView.Create(root, _session);
             BuildToast(root);
             BuildGameOverPanel(root);
         }
@@ -157,7 +158,7 @@ namespace MiniChess.Client.UI
         {
             Image background = UiFactory.CreatePanel(root, "Toast", new Color(0f, 0f, 0f, 0.7f));
             background.raycastTarget = false;
-            UiFactory.Place(background.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 160f), new Vector2(700f, 70f));
+            UiFactory.Place(background.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 240f), new Vector2(700f, 70f));
 
             _toastGroup = background.gameObject.AddComponent<CanvasGroup>();
             _toastGroup.alpha = 0f;
