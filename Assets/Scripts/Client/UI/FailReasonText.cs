@@ -16,6 +16,9 @@ namespace MiniChess.Client.UI
                 case MoveFailReason.NotStraightLine: return "Move in a straight line only";
                 case MoveFailReason.PathBlocked: return "Path is blocked";
                 case MoveFailReason.NotEnoughAp: return "Not enough AP";
+                case MoveFailReason.ActionsEnded: return "This unit can't act this turn";
+                case MoveFailReason.Rooted: return "This unit is rooted";
+                case MoveFailReason.DistanceLimited: return "Movement limit reached";
                 default: return reason.ToString();
             }
         }
@@ -32,6 +35,7 @@ namespace MiniChess.Client.UI
                 case AttackFailReason.TargetNotEnemy: return "Target is not an enemy";
                 case AttackFailReason.OutOfRange: return "Out of range";
                 case AttackFailReason.NotEnoughAp: return "Not enough AP";
+                case AttackFailReason.ActionsEnded: return "This unit can't act this turn";
                 default: return reason.ToString();
             }
         }

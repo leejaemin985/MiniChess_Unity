@@ -26,7 +26,7 @@ namespace MiniChess.Client.Units
 
         public static UnitView Create(Transform parent, Unit unit, Color teamColor, Color actedColor)
         {
-            var root = new GameObject($"Unit {unit.Id} {unit.Team} {unit.Stats.Base.Name}");
+            var root = new GameObject($"Unit {unit.Id} {unit.Team} {unit.Stats.Base.Id}");
             root.transform.SetParent(parent, false);
 
             var view = root.AddComponent<UnitView>();
@@ -52,8 +52,11 @@ namespace MiniChess.Client.Units
             gameObject.SetActive(true);
             transform.localPosition = coordinates.ToWorld(Unit.Position.Value);
 
-            SetBodyColor(Unit.HasActed ? _actedColor : _teamColor);
-            _label.text = $"<size=70%>{Unit.Stats.Base.Name}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}";
+            UnitTurnState turn = Unit.TurnState;
+            SetBodyColor(turn.CombatActionUsed || turn.ActionsEnded ? _actedColor : _teamColor);
+
+            // 기본 TMP 폰트에 한글 글리프가 없어 이름 대신 ASCII Id 를 표시한다.
+            _label.text = $"<size=70%>{Unit.Stats.Base.Id}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}";
         }
 
         private void SetBodyColor(Color color)
