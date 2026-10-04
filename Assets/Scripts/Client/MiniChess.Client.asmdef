@@ -1,0 +1,17 @@
+{
+    "name": "MiniChess.Client",
+    "rootNamespace": "MiniChess.Client",
+    "references": [
+        "MiniChess.Core",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
