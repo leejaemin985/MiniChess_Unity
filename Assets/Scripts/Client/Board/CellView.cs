@@ -44,6 +44,16 @@ namespace MiniChess.Client.Board
             return view;
         }
 
+        /// <summary>지형 기본 색(점령 칸 소멸 등으로 바뀔 때).</summary>
+        public void SetTerrainColor(Color color)
+        {
+            if (_terrainColor == color)
+                return;
+
+            _terrainColor = color;
+            Refresh();
+        }
+
         /// <summary>장판 색조. null 이면 장판 없음.</summary>
         public void SetEffectTint(Color? tint, float strength)
         {

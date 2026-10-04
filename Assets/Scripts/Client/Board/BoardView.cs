@@ -9,7 +9,7 @@ using CoreBoard = MiniChess.Core.State.Board;
 
 namespace MiniChess.Client.Board
 {
-    /// <summary>코어 Board 의 칸 구성(바닥/벽/점령 칸/시작 위치)을 큐브로 그린다.</summary>
+    /// <summary>코어 Board 의 칸 구성(바닥/벽/점령 칸/시작 위치)을 큐브로 그린다. 점령 칸이 소멸하면 SyncEffects 에서 바닥색으로 바뀐다.</summary>
     public class BoardView : MonoBehaviour
     {
         [Header("Shape")]
@@ -45,6 +45,7 @@ namespace MiniChess.Client.Board
 
         private readonly Dictionary<Position, CellView> _cells = new Dictionary<Position, CellView>();
         private readonly List<CellView> _highlighted = new List<CellView>();
+        private readonly Dictionary<Position, Color> _spawnTints = new Dictionary<Position, Color>();
         private BoardCoordinates _coordinates;
 
         public IReadOnlyDictionary<Position, CellView> Cells => _cells;
@@ -59,6 +60,9 @@ namespace MiniChess.Client.Board
             {
                 BoardCell cell = board.GetCell(pair.Key);
                 CellView view = pair.Value;
+
+                if (!cell.IsWall)
+                    view.SetTerrainColor(GetTerrainColor(pair.Key, cell));
 
                 ICellEffect area = cell.GetEffect(CellEffectLayer.AreaEffect);
                 view.SetEffectTint(area == null ? (Color?)null : GetFieldColor(area), fieldTintStrength);
@@ -125,9 +129,9 @@ namespace MiniChess.Client.Board
             Clear();
             _coordinates = coordinates;
 
-            var spawnTints = new Dictionary<Position, Color>();
-            foreach (Position p in board.GetSpawnPositions(Team.Player1)) spawnTints[p] = spawnPlayer1Tint;
-            foreach (Position p in board.GetSpawnPositions(Team.Player2)) spawnTints[p] = spawnPlayer2Tint;
+            _spawnTints.Clear();
+            foreach (Position p in board.GetSpawnPositions(Team.Player1)) _spawnTints[p] = spawnPlayer1Tint;
+            foreach (Position p in board.GetSpawnPositions(Team.Player2)) _spawnTints[p] = spawnPlayer2Tint;
 
             for (int x = 0; x < board.Width; x++)
             {
@@ -138,7 +142,7 @@ namespace MiniChess.Client.Board
 
                     _cells[position] = cell.IsWall
                         ? CreateWall(position, coordinates)
-                        : CreateGround(position, cell, coordinates, spawnTints);
+                        : CreateGround(position, cell, coordinates);
                 }
             }
         }
@@ -156,11 +160,9 @@ namespace MiniChess.Client.Board
             _cells.Clear();
         }
 
-        private CellView CreateGround(Position position, BoardCell cell, BoardCoordinates coordinates, Dictionary<Position, Color> spawnTints)
+        private CellView CreateGround(Position position, BoardCell cell, BoardCoordinates coordinates)
         {
-            Color color = GetGroundColor(position, cell);
-            if (spawnTints.TryGetValue(position, out Color tint))
-                color = Color.Lerp(color, tint, spawnTintStrength);
+            Color color = GetTerrainColor(position, cell);
 
             float size = coordinates.CellSize - tileGap;
             Vector3 center = coordinates.ToWorld(position) + Vector3.down * (tileThickness * 0.5f);
@@ -175,6 +177,16 @@ namespace MiniChess.Client.Board
             Vector3 center = coordinates.ToWorld(position) + Vector3.up * (height * 0.5f - tileThickness);
 
             return CellView.Create(transform, position, center, new Vector3(size, height, size), wallColor);
+        }
+
+        /// <summary>바닥 칸의 기본 색(점령 칸 / 체크 무늬 + 시작 위치 색조).</summary>
+        private Color GetTerrainColor(Position position, BoardCell cell)
+        {
+            Color color = GetGroundColor(position, cell);
+            if (_spawnTints.TryGetValue(position, out Color tint))
+                color = Color.Lerp(color, tint, spawnTintStrength);
+
+            return color;
         }
 
         private Color GetGroundColor(Position position, BoardCell cell)

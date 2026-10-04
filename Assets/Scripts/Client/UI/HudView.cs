@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using MiniChess.Client.Bootstrap;
+using MiniChess.Core.Capture;
 using MiniChess.Core.Common;
 using MiniChess.Core.State;
 using TMPro;
@@ -22,6 +23,7 @@ namespace MiniChess.Client.UI
         private Func<Team, Color> _teamColor;
 
         private TextMeshProUGUI _turnText;
+        private TextMeshProUGUI _captureText;
         private TextMeshProUGUI _player1ApText;
         private TextMeshProUGUI _player2ApText;
         private Button _endTurnButton;
@@ -30,6 +32,7 @@ namespace MiniChess.Client.UI
         private GameObject _gameOverPanel;
         private TextMeshProUGUI _gameOverText;
         private Coroutine _toastRoutine;
+        private GameState _captureAnnouncedFor;
 
         public void Initialize(GameSession session, Func<Team, Color> teamColor)
         {
@@ -73,6 +76,7 @@ namespace MiniChess.Client.UI
 
             RefreshAp(_player1ApText, state, Team.Player1);
             RefreshAp(_player2ApText, state, Team.Player2);
+            RefreshCapture(state);
 
             _endTurnButton.interactable = state.Phase == GamePhase.Battle;
 
@@ -89,6 +93,43 @@ namespace MiniChess.Client.UI
             Color color = _teamColor(team);
             color.a = team == state.CurrentTeam ? 1f : inactiveTeamAlpha;
             text.color = color;
+        }
+
+        /// <summary>점령 진행도 또는 점령 결과. 점령이 완료된 순간에는 토스트로도 알린다.</summary>
+        private void RefreshCapture(GameState state)
+        {
+            CaptureState capture = state.Capture;
+
+            if (capture.CapturedBy.HasValue)
+            {
+                Team team = capture.CapturedBy.Value;
+                string message = $"{TeamLabel(team)} CAPTURED  -  {DescribeReward(capture.Reward)}";
+                _captureText.text = message;
+                _captureText.color = _teamColor(team);
+
+                if (_captureAnnouncedFor != state)
+                {
+                    _captureAnnouncedFor = state;
+                    ShowToast(message);
+                }
+                return;
+            }
+
+            _captureText.color = Color.white;
+            _captureText.text = capture.IsActive
+                ? $"CAPTURE   P1 {capture.GetProgress(Team.Player1)}/{capture.Required}   P2 {capture.GetProgress(Team.Player2)}/{capture.Required}"
+                : string.Empty;
+        }
+
+        private static string DescribeReward(CaptureReward reward)
+        {
+            switch (reward)
+            {
+                case null: return "NO REWARD";
+                case ShieldReward shield: return $"SHIELD +{shield.Amount} (ALL UNITS)";
+                case BasicAttackStatusReward status: return $"BASIC ATTACK + {status.Status.Id}";
+                default: return reward.Id;
+            }
         }
 
         private static string TeamLabel(Team team)
@@ -139,6 +180,9 @@ namespace MiniChess.Client.UI
             _turnText = UiFactory.CreateText(root, "Turn", 48f, TextAlignmentOptions.Center);
             UiFactory.Place(_turnText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(800f, 70f));
             _turnText.fontStyle = FontStyles.Bold;
+
+            _captureText = UiFactory.CreateText(root, "Capture", 32f, TextAlignmentOptions.Center);
+            UiFactory.Place(_captureText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -100f), new Vector2(900f, 50f));
 
             _player1ApText = UiFactory.CreateText(root, "Player1 AP", 40f, TextAlignmentOptions.TopLeft);
             UiFactory.Place(_player1ApText.rectTransform, new Vector2(0f, 1f), new Vector2(40f, -30f), new Vector2(400f, 120f));

@@ -58,7 +58,14 @@ namespace MiniChess.Client.Units
             SetBodyColor(turn.CombatActionUsed || turn.ActionsEnded ? _actedColor : _teamColor);
 
             // 기본 TMP 폰트에 한글 글리프가 없어 이름 대신 ASCII Id 를 표시한다.
-            _label.text = $"<size=70%>{Unit.Stats.Base.Id}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatStatuses()}";
+            _label.text = $"<size=70%>{Unit.Stats.Base.Id}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatShield()}{FormatStatuses()}";
+        }
+
+        /// <summary>보호막이 있으면 HP 옆에 " +3" 형태(하늘색)로 붙인다.</summary>
+        private string FormatShield()
+        {
+            int shield = Unit.Stats.Shield;
+            return shield > 0 ? $" <color=#7FD4FF>+{shield}</color>" : string.Empty;
         }
 
         /// <summary>걸린 상태를 "ROOT 1 · BURN 2"(남은 횟수) 형태의 작은 줄로 만든다. 없으면 빈 문자열.</summary>
