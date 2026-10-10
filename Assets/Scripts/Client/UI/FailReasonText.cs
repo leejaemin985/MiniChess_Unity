@@ -19,6 +19,7 @@ namespace MiniChess.Client.UI
                 case MoveFailReason.ActionsEnded: return "This unit can't act this turn";
                 case MoveFailReason.Rooted: return "This unit is rooted";
                 case MoveFailReason.DistanceLimited: return "Movement limit reached";
+                case MoveFailReason.Installed: return "Installed units can't move";
                 default: return reason.ToString();
             }
         }
@@ -36,6 +37,7 @@ namespace MiniChess.Client.UI
                 case AttackFailReason.OutOfRange: return "Out of range";
                 case AttackFailReason.NotEnoughAp: return "Not enough AP";
                 case AttackFailReason.ActionsEnded: return "This unit can't act this turn";
+                case AttackFailReason.BlockedByStatus: return "This unit can't attack now";
                 default: return reason.ToString();
             }
         }
@@ -52,7 +54,7 @@ namespace MiniChess.Client.UI
                 case SkillFailReason.ActionsEnded: return "This unit can't act this turn";
                 case SkillFailReason.AlreadyActed: return "This unit already acted";
                 case SkillFailReason.MoveLocked: return "Can't move after acting";
-                case SkillFailReason.ConditionNotMet: return "Skill limit reached";
+                case SkillFailReason.ConditionNotMet: return "Skill condition not met";
                 case SkillFailReason.InvalidTarget: return "No valid target";
                 case SkillFailReason.NotEnoughAp: return "Not enough AP";
                 default: return reason.ToString();

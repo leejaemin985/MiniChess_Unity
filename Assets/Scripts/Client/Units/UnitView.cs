@@ -68,7 +68,7 @@ namespace MiniChess.Client.Units
             return shield > 0 ? $" <color=#7FD4FF>+{shield}</color>" : string.Empty;
         }
 
-        /// <summary>걸린 상태를 "ROOT 1 · BURN 2"(남은 횟수) 형태의 작은 줄로 만든다. 없으면 빈 문자열.</summary>
+        /// <summary>걸린 상태를 "ROOT 1 · BURN 2"(남은 횟수) 형태의 작은 줄로 만든다. 영구 상태는 이름만. 없으면 빈 문자열.</summary>
         private string FormatStatuses()
         {
             if (Unit.Statuses.Count == 0)
@@ -78,7 +78,9 @@ namespace MiniChess.Client.Units
             for (int i = 0; i < parts.Length; i++)
             {
                 StatusEffect status = Unit.Statuses[i];
-                parts[i] = $"{status.Definition.Id} {status.Remaining}";
+                parts[i] = status.Definition.IsPermanent
+                    ? status.Definition.Id
+                    : $"{status.Definition.Id} {status.Remaining}";
             }
 
             return $"\n<size=60%><color=#FFD24D>{string.Join(" · ", parts)}</color></size>";
