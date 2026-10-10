@@ -11,5 +11,8 @@ namespace MiniChess.Client.Board
 
         /// <summary>스킬 범위 미리보기.</summary>
         SkillArea,
+
+        /// <summary>여러 칸을 지정하는 스킬에서 이미 고른 칸.</summary>
+        SkillChosen,
     }
 }

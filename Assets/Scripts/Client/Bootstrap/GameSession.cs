@@ -145,7 +145,13 @@ namespace MiniChess.Client.Bootstrap
 
         public bool TryUseSkill(Unit caster, string skillId, Position target)
         {
-            var action = new UseSkillAction(caster, skillId, target);
+            return TryUseSkill(caster, skillId, new[] { target });
+        }
+
+        /// <summary>여러 칸을 지정하는 스킬(지정 순).</summary>
+        public bool TryUseSkill(Unit caster, string skillId, IReadOnlyList<Position> targets)
+        {
+            var action = new UseSkillAction(caster, skillId, targets);
             SkillFailReason reason = action.Validate(State);
             if (reason != SkillFailReason.None)
                 return Fail(FailReasonText.Describe(reason));

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MiniChess.Client.Board;
 using MiniChess.Client.Bootstrap;
 using MiniChess.Client.UI;
@@ -15,6 +16,8 @@ namespace MiniChess.Client.Interaction
     /// 유닛 선택과 행동 지시를 담당한다.
     ///   일반 모드: 클릭 → 현재 팀 유닛 선택 → 이동 가능 칸/공격 대상 하이라이트 → 칸/적 클릭 시 이동/공격 요청
     ///   스킬 모드: 스킬 버튼 → 지정 가능 칸 하이라이트(마우스를 올리면 범위 미리보기) → 클릭 시 스킬 사용 요청
+    ///     - 여러 칸 지정 스킬: 고른 칸을 표시하고 다음 후보를 다시 보여 준다. 다 고르면 사용. 우클릭은 마지막 선택 취소.
+    ///     - 자기 자신만 지정하는 스킬: 범위를 바로 보여 주고, 자기 칸이나 범위를 한 번 더 클릭하면 사용.
     /// 실행 가능 여부 판정은 GameSession(→ 코어)에 맡기고, 거부 이유 표시도 그쪽 이벤트로 처리된다.
     /// </summary>
     public class SelectionController : MonoBehaviour
@@ -29,6 +32,9 @@ namespace MiniChess.Client.Interaction
 
         private string _pendingSkillId;
         private readonly List<Position> _skillTargets = new List<Position>();
+        private readonly List<Position> _chosenTargets = new List<Position>();
+        private int _targetCount;
+        private bool _confirmSelf;
 
         public Unit Selected => _selected;
 
@@ -84,8 +90,11 @@ namespace MiniChess.Client.Interaction
             }
 
             _pendingSkillId = skillId;
+            _chosenTargets.Clear();
             _skillTargets.Clear();
             _skillTargets.AddRange(targets);
+            _targetCount = state.Skills.Find(skillId).Targeting.TargetCount;
+            _confirmSelf = _targetCount == 1 && targets.Count == 1 && targets[0] == _selected.Position.Value;
             Redraw();
             SelectionChanged?.Invoke();
         }
@@ -160,15 +169,68 @@ namespace MiniChess.Client.Interaction
 
         private void OnSkillTargetClicked(Position clicked)
         {
-            if (_skillTargets.Contains(clicked))
-                _session.TryUseSkill(_selected, _pendingSkillId, clicked);
-            else
+            if (_confirmSelf)
+            {
+                if (GetSelfPreview().Contains(clicked) || clicked == _selected.Position.Value)
+                    _session.TryUseSkill(_selected, _pendingSkillId, _selected.Position.Value);
+                else
+                    CancelSkill();
+                return;
+            }
+
+            if (!_skillTargets.Contains(clicked))
+            {
                 CancelSkill();
+                return;
+            }
+
+            _chosenTargets.Add(clicked);
+            if (_chosenTargets.Count >= _targetCount)
+            {
+                // 성공하면 StateChanged 에서 스킬 모드가 끝난다. 실패하면 처음부터 다시 고르게 한다.
+                if (!_session.TryUseSkill(_selected, _pendingSkillId, _chosenTargets.ToArray()))
+                    RestartTargeting();
+                return;
+            }
+
+            RefreshCandidates();
+        }
+
+        /// <summary>고른 칸 기준으로 다음 후보를 다시 구한다. 후보가 없으면 이유를 알리고 스킬 지정을 끝낸다.</summary>
+        private void RefreshCandidates()
+        {
+            List<Position> next = SkillQueries.GetValidTargets(_session.State, _selected, _pendingSkillId, _chosenTargets);
+            if (next.Count == 0)
+            {
+                _session.ReportFailure(FailReasonText.Describe(SkillFailReason.InvalidTarget));
+                CancelSkill();
+                return;
+            }
+
+            _skillTargets.Clear();
+            _skillTargets.AddRange(next);
+            Redraw();
+        }
+
+        private void RestartTargeting()
+        {
+            _chosenTargets.Clear();
+            RefreshCandidates();
+        }
+
+        private IReadOnlyList<Position> GetSelfPreview()
+        {
+            return SkillQueries.GetAffectedCells(_session.State, _selected, _pendingSkillId, _selected.Position.Value);
         }
 
         private void OnCancelClicked()
         {
-            if (_pendingSkillId != null)
+            if (_pendingSkillId != null && _chosenTargets.Count > 0)
+            {
+                _chosenTargets.RemoveAt(_chosenTargets.Count - 1);
+                RefreshCandidates();
+            }
+            else if (_pendingSkillId != null)
                 CancelSkill();
             else
                 Deselect();
@@ -217,6 +279,9 @@ namespace MiniChess.Client.Interaction
         {
             _pendingSkillId = null;
             _skillTargets.Clear();
+            _chosenTargets.Clear();
+            _targetCount = 0;
+            _confirmSelf = false;
         }
 
         private void Redraw()
@@ -232,13 +297,24 @@ namespace MiniChess.Client.Interaction
                 foreach (Position target in _skillTargets)
                     _boardView.Highlight(target, CellHighlight.SkillTarget);
 
-                Position? hovered = _input.HoveredCell;
-                if (hovered.HasValue && _skillTargets.Contains(hovered.Value))
+                if (_confirmSelf)
                 {
-                    GameState state = _session.State;
-                    foreach (Position cell in SkillQueries.GetAffectedCells(state, _selected, _pendingSkillId, hovered.Value))
+                    foreach (Position cell in GetSelfPreview())
                         _boardView.Highlight(cell, CellHighlight.SkillArea);
                 }
+                else
+                {
+                    Position? hovered = _input.HoveredCell;
+                    if (hovered.HasValue && _skillTargets.Contains(hovered.Value))
+                    {
+                        GameState state = _session.State;
+                        foreach (Position cell in SkillQueries.GetAffectedCells(state, _selected, _pendingSkillId, hovered.Value))
+                            _boardView.Highlight(cell, CellHighlight.SkillArea);
+                    }
+                }
+
+                foreach (Position chosen in _chosenTargets)
+                    _boardView.Highlight(chosen, CellHighlight.SkillChosen);
 
                 return;
             }

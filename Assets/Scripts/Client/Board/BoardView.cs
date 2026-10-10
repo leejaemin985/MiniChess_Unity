@@ -32,6 +32,7 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color attackColor = new Color(0.95f, 0.2f, 0.2f);
         [SerializeField] private Color skillTargetColor = new Color(0.2f, 0.8f, 0.95f);
         [SerializeField] private Color skillAreaColor = new Color(1f, 0.55f, 0.1f);
+        [SerializeField] private Color skillChosenColor = new Color(0.75f, 0.35f, 0.95f);
         [SerializeField, Range(0f, 1f)] private float highlightStrength = 0.65f;
 
         [Header("Cell Effects")]
@@ -120,6 +121,7 @@ namespace MiniChess.Client.Board
                 case CellHighlight.Attack: return attackColor;
                 case CellHighlight.SkillTarget: return skillTargetColor;
                 case CellHighlight.SkillArea: return skillAreaColor;
+                case CellHighlight.SkillChosen: return skillChosenColor;
                 default: return Color.white;
             }
         }
