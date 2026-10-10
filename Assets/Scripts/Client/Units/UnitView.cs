@@ -17,6 +17,8 @@ namespace MiniChess.Client.Units
         private const float BodyWidth = 0.6f;
         /// <summary>라벨 아래쪽 기준 높이. 줄이 늘어나면 위로 쌓인다.</summary>
         private const float LabelHeight = 1.1f;
+        /// <summary>소환물(분신)은 본체보다 작게 그린다.</summary>
+        private const float SummonScale = 0.75f;
 
         private Renderer _body;
         private MaterialPropertyBlock _block;
@@ -36,7 +38,7 @@ namespace MiniChess.Client.Units
             view._teamColor = teamColor;
             view._actedColor = actedColor;
             view._block = new MaterialPropertyBlock();
-            view._body = CreateBody(root.transform);
+            view._body = CreateBody(root.transform, unit.IsSummon ? SummonScale : 1f);
             view._label = CreateLabel(root.transform);
 
             return view;
@@ -93,14 +95,14 @@ namespace MiniChess.Client.Units
             _body.SetPropertyBlock(_block);
         }
 
-        private static Renderer CreateBody(Transform parent)
+        private static Renderer CreateBody(Transform parent, float scale)
         {
             // 기본 캡슐은 높이 2, 지름 1.
             GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             body.name = "Body";
             body.transform.SetParent(parent, false);
-            body.transform.localPosition = Vector3.up * (BodyHeight * 0.5f);
-            body.transform.localScale = new Vector3(BodyWidth, BodyHeight * 0.5f, BodyWidth);
+            body.transform.localPosition = Vector3.up * (BodyHeight * 0.5f * scale);
+            body.transform.localScale = new Vector3(BodyWidth, BodyHeight * 0.5f, BodyWidth) * scale;
 
             return body.GetComponent<Renderer>();
         }

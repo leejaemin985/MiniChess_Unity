@@ -6,30 +6,42 @@ using UnityEngine;
 
 namespace MiniChess.Client.Units
 {
-    /// <summary>경기의 모든 유닛 뷰를 Unit.Id 기준으로 관리한다.</summary>
+    /// <summary>
+    /// 경기의 모든 유닛 뷰를 Unit.Id 기준으로 관리한다.
+    /// 경기 중에 생기는 유닛(분신 등 소환물)은 Sync 때 뷰를 새로 만든다.
+    /// </summary>
     public class UnitsView : MonoBehaviour
     {
         [SerializeField] private Color player1Color = new Color(0.25f, 0.45f, 0.95f);
         [SerializeField] private Color player2Color = new Color(0.9f, 0.3f, 0.25f);
         [SerializeField, Range(0f, 1f)] private float actedDarken = 0.55f;
+        [SerializeField, Range(0f, 1f)] private float summonLighten = 0.45f;
 
         private readonly Dictionary<int, UnitView> _views = new Dictionary<int, UnitView>();
         private BoardCoordinates _coordinates;
+        private GameState _state;
 
         public void Build(GameState state, BoardCoordinates coordinates)
         {
             Clear();
             _coordinates = coordinates;
-
-            CreateTeam(state.GetPlayer(Team.Player1), player1Color);
-            CreateTeam(state.GetPlayer(Team.Player2), player2Color);
+            _state = state;
 
             Sync();
         }
 
-        /// <summary>모든 유닛 뷰를 현재 코어 상태로 맞춘다.</summary>
+        /// <summary>모든 유닛 뷰를 현재 코어 상태로 맞춘다. 뷰가 없는 유닛(새 소환물)은 뷰를 만든다.</summary>
         public void Sync()
         {
+            if (_state == null)
+                return;
+
+            foreach (Unit unit in _state.AllUnits())
+            {
+                if (!_views.ContainsKey(unit.Id))
+                    _views[unit.Id] = CreateView(unit);
+            }
+
             foreach (UnitView view in _views.Values)
                 view.Sync(_coordinates);
         }
@@ -53,14 +65,18 @@ namespace MiniChess.Client.Units
             }
 
             _views.Clear();
+            _state = null;
         }
 
-        private void CreateTeam(PlayerState player, Color teamColor)
+        /// <summary>소환물은 팀 색을 옅게 해 본체와 구분한다.</summary>
+        private UnitView CreateView(Unit unit)
         {
-            Color actedColor = Color.Lerp(teamColor, Color.gray, actedDarken);
+            Color color = GetTeamColor(unit.Team);
+            if (unit.IsSummon)
+                color = Color.Lerp(color, Color.white, summonLighten);
 
-            foreach (Unit unit in player.Units)
-                _views[unit.Id] = UnitView.Create(transform, unit, teamColor, actedColor);
+            Color actedColor = Color.Lerp(color, Color.gray, actedDarken);
+            return UnitView.Create(transform, unit, color, actedColor);
         }
     }
 }
