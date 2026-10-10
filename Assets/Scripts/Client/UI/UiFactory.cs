@@ -1,3 +1,4 @@
+using MiniChess.Client.Common;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -54,6 +55,7 @@ namespace MiniChess.Client.UI
         {
             RectTransform rect = CreateRect(parent, name);
             var text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+            KoreanFont.Apply(text);
             text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = Color.white;

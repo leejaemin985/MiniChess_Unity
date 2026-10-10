@@ -59,8 +59,7 @@ namespace MiniChess.Client.Units
             UnitTurnState turn = Unit.TurnState;
             SetBodyColor(turn.CombatActionUsed || turn.ActionsEnded ? _actedColor : _teamColor);
 
-            // 기본 TMP 폰트에 한글 글리프가 없어 이름 대신 ASCII Id 를 표시한다.
-            _label.text = $"<size=70%>{Unit.Stats.Base.Id}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatShield()}{FormatStatuses()}";
+            _label.text = $"<size=70%>{Unit.Stats.Base.Name}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatShield()}{FormatStatuses()}";
         }
 
         /// <summary>보호막이 있으면 HP 옆에 " +3" 형태(하늘색)로 붙인다.</summary>
@@ -115,6 +114,7 @@ namespace MiniChess.Client.Units
             go.AddComponent<Billboard>();
 
             var label = go.AddComponent<TextMeshPro>();
+            KoreanFont.Apply(label);
             label.fontSize = 3f;
             label.alignment = TextAlignmentOptions.Bottom;
             label.enableWordWrapping = false;

@@ -198,6 +198,7 @@ namespace MiniChess.Client.Board
             labelObject.transform.SetParent(transform.parent, false);
             labelObject.AddComponent<Billboard>();
             _obstacleLabel = labelObject.AddComponent<TextMeshPro>();
+            KoreanFont.Apply(_obstacleLabel);
             _obstacleLabel.fontSize = 3f;
             _obstacleLabel.alignment = TextAlignmentOptions.Center;
             _obstacleLabel.color = Color.white;

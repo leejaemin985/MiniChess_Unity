@@ -101,7 +101,7 @@ namespace MiniChess.Client.UI
             }
 
             List<(string Id, SkillDefinition Definition)> skills = SkillQueries.GetSkills(state, unit);
-            _title.text = skills.Count == 0 ? $"{unit.Stats.Base.Id}  -  no skills" : unit.Stats.Base.Id;
+            _title.text = skills.Count == 0 ? $"{unit.Stats.Base.Name}  -  스킬 없음" : unit.Stats.Base.Name;
             EnsureButtons(skills.Count);
             SetButtonsVisible(skills.Count);
             LayoutButtons(skills.Count);
@@ -115,7 +115,7 @@ namespace MiniChess.Client.UI
                 bool active = _selection.PendingSkillId == id;
                 string cost = definition?.ApCost != null ? $"{definition.ApCost} AP" : "TBD";
 
-                _buttons[i].Label.text = $"{ShortName(unit, id)}\n<size=75%>{cost}</size>";
+                _buttons[i].Label.text = $"{DisplayName(unit, id, definition)}\n<size=75%>{cost}</size>";
                 _buttons[i].Background.color = active ? ActiveColor : usable ? UsableColor : UnusableColor;
             }
         }
@@ -142,9 +142,12 @@ namespace MiniChess.Client.UI
                 _selection.BeginSkill(skillId);
         }
 
-        /// <summary>"WARRIOR_SMASH" → "SMASH". 캐릭터 Id 접두어를 뗀다. (기본 TMP 폰트에 한글이 없어 Id 를 쓴다)</summary>
-        private static string ShortName(Unit unit, string skillId)
+        /// <summary>스킬 정의의 이름(예: "강타"). 정의가 없으면 Id 에서 캐릭터 접두어를 뗀 것("WARRIOR_SMASH" → "SMASH").</summary>
+        private static string DisplayName(Unit unit, string skillId, SkillDefinition definition)
         {
+            if (!string.IsNullOrEmpty(definition?.Name))
+                return definition.Name;
+
             string prefix = unit.Stats.Base.Id + "_";
             return skillId.StartsWith(prefix) ? skillId.Substring(prefix.Length) : skillId;
         }
