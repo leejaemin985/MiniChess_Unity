@@ -86,6 +86,7 @@ namespace MiniChess.Client.Bootstrap
 
             boardView.Build(State.Board, Coordinates);
             boardView.SyncEffects(State.Board);
+            boardView.SyncStrikes(State);
             unitsView.Build(State, Coordinates);
             cameraRig.Frame(Coordinates);
             boardInput.Initialize(cameraRig.Camera, Coordinates);
@@ -187,6 +188,7 @@ namespace MiniChess.Client.Bootstrap
         {
             unitsView.Sync();
             boardView.SyncEffects(State.Board);
+            boardView.SyncStrikes(State);
             StateChanged?.Invoke();
             return true;
         }

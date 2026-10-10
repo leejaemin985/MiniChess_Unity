@@ -7,7 +7,7 @@ namespace MiniChess.Client.Board
 {
     /// <summary>
     /// 보드 한 칸의 표시. 색은 지형 → 장판 색조 → 하이라이트 순으로 겹쳐 그린다.
-    /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자로 그린다. 게임 상태는 갖지 않는다.
+    /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자, 예약 포격은 칸 위의 X 자로 그린다. 게임 상태는 갖지 않는다.
     /// </summary>
     public class CellView : MonoBehaviour
     {
@@ -25,6 +25,9 @@ namespace MiniChess.Client.Board
         private GameObject _trapMarker;
         private Renderer _trapRenderer;
         private MaterialPropertyBlock _trapBlock;
+
+        private GameObject _strikeMarker;
+        private MaterialPropertyBlock _strikeBlock;
 
         private GameObject _obstacle;
         private Renderer _obstacleRenderer;
@@ -106,6 +109,49 @@ namespace MiniChess.Client.Board
             _trapRenderer.SetPropertyBlock(_trapBlock);
         }
 
+        /// <summary>예약 포격 조준 표식(칸 위의 X 자)을 보이거나 숨긴다.</summary>
+        public void SetStrikeMarker(bool visible, Color color, Vector3 worldTop, float size)
+        {
+            if (!visible)
+            {
+                if (_strikeMarker != null)
+                    _strikeMarker.SetActive(false);
+                return;
+            }
+
+            if (_strikeMarker == null)
+                CreateStrikeMarker();
+
+            _strikeMarker.SetActive(true);
+            _strikeMarker.transform.position = worldTop + Vector3.up * 0.03f;
+            _strikeMarker.transform.localScale = Vector3.one * size;
+
+            foreach (Renderer bar in _strikeMarker.GetComponentsInChildren<Renderer>())
+            {
+                bar.GetPropertyBlock(_strikeBlock);
+                _strikeBlock.SetColor(ColorId, color);
+                bar.SetPropertyBlock(_strikeBlock);
+            }
+        }
+
+        private void CreateStrikeMarker()
+        {
+            // 칸은 납작하게 늘린 큐브라, 표식은 크기 왜곡이 없도록 칸의 부모(보드) 아래에 둔다.
+            _strikeMarker = new GameObject($"Strike {Position}");
+            _strikeMarker.transform.SetParent(transform.parent, false);
+            _strikeBlock = new MaterialPropertyBlock();
+
+            foreach (float angle in new[] { 45f, -45f })
+            {
+                GameObject bar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                bar.name = "Bar";
+                Destroy(bar.GetComponent<Collider>()); // 클릭은 칸이 받는다
+                bar.transform.SetParent(_strikeMarker.transform, false);
+                bar.transform.localRotation = Quaternion.Euler(0f, angle, 0f);
+                bar.transform.localScale = new Vector3(1f, 0.02f, 0.12f);
+            }
+        }
+
         /// <summary>
         /// 장애물 블록을 보이거나 숨긴다. 칸 윗면 위에 놓인 상자이며, 위에 파괴까지 남은 피격 횟수를 표시한다.
         /// </summary>
@@ -174,6 +220,8 @@ namespace MiniChess.Client.Board
         {
             if (_obstacleLabel != null)
                 Destroy(_obstacleLabel.gameObject);
+            if (_strikeMarker != null)
+                Destroy(_strikeMarker);
         }
 
         private void Refresh()

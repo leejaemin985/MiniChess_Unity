@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using MiniChess.Client.Common;
 using MiniChess.Core.Common;
 using MiniChess.Core.Effects;
+using MiniChess.Core.Effects.Scheduled;
 using MiniChess.Core.Effects.Zones;
 using MiniChess.Core.State;
 using UnityEngine;
@@ -47,6 +48,9 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color player2ObstacleColor = new Color(0.65f, 0.35f, 0.3f);
         [SerializeField] private float obstacleSize = 0.7f;
         [SerializeField] private float obstacleHeight = 0.6f;
+        [SerializeField] private Color player1StrikeColor = new Color(0.2f, 0.55f, 1f);
+        [SerializeField] private Color player2StrikeColor = new Color(1f, 0.3f, 0.2f);
+        [SerializeField] private float strikeMarkerSize = 0.8f;
 
         private readonly Dictionary<Position, CellView> _cells = new Dictionary<Position, CellView>();
         private readonly List<CellView> _highlighted = new List<CellView>();
@@ -90,6 +94,29 @@ namespace MiniChess.Client.Board
                 case HealField _: return healFieldColor;
                 case DamageField _: return damageFieldColor;
                 default: return otherFieldColor;
+            }
+        }
+
+        /// <summary>
+        /// 예약 포격의 조준 칸을 쏜 팀 색의 X 자로 표시한다.
+        /// [가정] 공개 여부는 명세 TBD 이며, 지금은 양 팀 모두에게 보인다(한 화면 교대 플레이).
+        /// </summary>
+        public void SyncStrikes(GameState state)
+        {
+            var strikeTeams = new Dictionary<Position, Team>();
+            foreach (ScheduledStrike strike in state.ScheduledStrikes)
+            {
+                foreach (Position cell in strike.Cells)
+                    strikeTeams[cell] = strike.Source.Team;
+            }
+
+            foreach (KeyValuePair<Position, CellView> pair in _cells)
+            {
+                CellView view = pair.Value;
+                bool marked = strikeTeams.TryGetValue(pair.Key, out Team team);
+                Color color = team == Team.Player1 ? player1StrikeColor : player2StrikeColor;
+                Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
+                view.SetStrikeMarker(marked, color, top, strikeMarkerSize * _coordinates.CellSize);
             }
         }
 
