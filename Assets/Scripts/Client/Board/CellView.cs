@@ -1,11 +1,13 @@
+using MiniChess.Client.Common;
 using MiniChess.Core.Common;
+using TMPro;
 using UnityEngine;
 
 namespace MiniChess.Client.Board
 {
     /// <summary>
     /// 보드 한 칸의 표시. 색은 지형 → 장판 색조 → 하이라이트 순으로 겹쳐 그린다.
-    /// 덫은 칸 위의 작은 표식으로 그린다. 게임 상태는 갖지 않는다.
+    /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자로 그린다. 게임 상태는 갖지 않는다.
     /// </summary>
     public class CellView : MonoBehaviour
     {
@@ -23,6 +25,11 @@ namespace MiniChess.Client.Board
         private GameObject _trapMarker;
         private Renderer _trapRenderer;
         private MaterialPropertyBlock _trapBlock;
+
+        private GameObject _obstacle;
+        private Renderer _obstacleRenderer;
+        private MaterialPropertyBlock _obstacleBlock;
+        private TextMeshPro _obstacleLabel;
 
         public Position Position { get; private set; }
 
@@ -99,6 +106,60 @@ namespace MiniChess.Client.Board
             _trapRenderer.SetPropertyBlock(_trapBlock);
         }
 
+        /// <summary>
+        /// 장애물 블록을 보이거나 숨긴다. 칸 윗면 위에 놓인 상자이며, 위에 파괴까지 남은 피격 횟수를 표시한다.
+        /// </summary>
+        public void SetObstacle(bool visible, Color color, int hitsRemaining, Vector3 worldTop, float size, float height)
+        {
+            if (!visible)
+            {
+                if (_obstacle != null)
+                {
+                    _obstacle.SetActive(false);
+                    _obstacleLabel.gameObject.SetActive(false);
+                }
+                return;
+            }
+
+            if (_obstacle == null)
+                CreateObstacle();
+
+            _obstacle.SetActive(true);
+            _obstacleLabel.gameObject.SetActive(true);
+            _obstacle.transform.position = worldTop + Vector3.up * (height * 0.5f);
+            _obstacle.transform.localScale = new Vector3(
+                size / transform.lossyScale.x, height / transform.lossyScale.y, size / transform.lossyScale.z);
+
+            _obstacleRenderer.GetPropertyBlock(_obstacleBlock);
+            _obstacleBlock.SetColor(ColorId, color);
+            _obstacleRenderer.SetPropertyBlock(_obstacleBlock);
+
+            _obstacleLabel.transform.position = worldTop + Vector3.up * (height + 0.15f);
+            _obstacleLabel.text = hitsRemaining.ToString();
+        }
+
+        private void CreateObstacle()
+        {
+            _obstacle = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _obstacle.name = "Obstacle";
+            _obstacle.transform.SetParent(transform, true);
+            Destroy(_obstacle.GetComponent<Collider>()); // 클릭은 칸이 받는다
+            _obstacleRenderer = _obstacle.GetComponent<Renderer>();
+            _obstacleBlock = new MaterialPropertyBlock();
+
+            // 칸은 납작하게 늘린 큐브라, 라벨은 크기 왜곡이 없도록 칸의 부모(보드) 아래에 둔다.
+            var labelObject = new GameObject($"Obstacle Hits {Position}");
+            labelObject.transform.SetParent(transform.parent, false);
+            labelObject.AddComponent<Billboard>();
+            _obstacleLabel = labelObject.AddComponent<TextMeshPro>();
+            _obstacleLabel.fontSize = 3f;
+            _obstacleLabel.alignment = TextAlignmentOptions.Center;
+            _obstacleLabel.color = Color.white;
+            _obstacleLabel.outlineWidth = 0.25f;
+            _obstacleLabel.outlineColor = Color.black;
+            _obstacleLabel.rectTransform.sizeDelta = new Vector2(1f, 0.6f);
+        }
+
         private void CreateTrapMarker()
         {
             _trapMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -107,6 +168,12 @@ namespace MiniChess.Client.Board
             Destroy(_trapMarker.GetComponent<Collider>()); // 클릭은 칸이 받는다
             _trapRenderer = _trapMarker.GetComponent<Renderer>();
             _trapBlock = new MaterialPropertyBlock();
+        }
+
+        private void OnDestroy()
+        {
+            if (_obstacleLabel != null)
+                Destroy(_obstacleLabel.gameObject);
         }
 
         private void Refresh()

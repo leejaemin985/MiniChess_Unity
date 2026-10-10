@@ -44,5 +44,13 @@ namespace MiniChess.Client.Interaction
                 .Where(target => new AttackAction(unit, target).Validate(state) == AttackFailReason.None)
                 .ToList();
         }
+
+        /// <summary>유닛이 지금 기본 공격으로 칠 수 있는 장애물 칸(사거리 안 + Validate 통과).</summary>
+        public static List<Position> GetAttackableObstacles(GameState state, Unit unit)
+        {
+            return AttackObstacleAction.GetObstaclesInRange(state, unit)
+                .Where(position => new AttackObstacleAction(unit, position).Validate(state) == AttackFailReason.None)
+                .ToList();
+        }
     }
 }

@@ -14,7 +14,7 @@ namespace MiniChess.Client.Interaction
 {
     /// <summary>
     /// 유닛 선택과 행동 지시를 담당한다.
-    ///   일반 모드: 클릭 → 현재 팀 유닛 선택 → 이동 가능 칸/공격 대상 하이라이트 → 칸/적 클릭 시 이동/공격 요청
+    ///   일반 모드: 클릭 → 현재 팀 유닛 선택 → 이동 가능 칸/공격 대상(적, 장애물) 하이라이트 → 칸/적/장애물 클릭 시 이동/공격 요청
     ///   스킬 모드: 스킬 버튼 → 지정 가능 칸 하이라이트(마우스를 올리면 범위 미리보기) → 클릭 시 스킬 사용 요청
     ///     - 여러 칸 지정 스킬: 고른 칸을 표시하고 다음 후보를 다시 보여 준다. 다 고르면 사용. 우클릭은 마지막 선택 취소.
     ///     - 자기 자신만 지정하는 스킬: 범위를 바로 보여 주고, 자기 칸이나 범위를 한 번 더 클릭하면 사용.
@@ -29,6 +29,7 @@ namespace MiniChess.Client.Interaction
         private Unit _selected;
         private readonly List<Position> _moveDestinations = new List<Position>();
         private readonly List<Unit> _attackTargets = new List<Unit>();
+        private readonly List<Position> _attackObstacles = new List<Position>();
 
         private string _pendingSkillId;
         private readonly List<Position> _skillTargets = new List<Position>();
@@ -63,6 +64,7 @@ namespace MiniChess.Client.Interaction
             _selected = null;
             _moveDestinations.Clear();
             _attackTargets.Clear();
+            _attackObstacles.Clear();
             ClearSkillMode();
             _boardView.ClearHighlights();
             SelectionChanged?.Invoke();
@@ -157,6 +159,13 @@ namespace MiniChess.Client.Interaction
             if (_selected == null || cell.IsWall)
             {
                 Deselect();
+                return;
+            }
+
+            // 장애물 클릭 → 장애물 공격 시도(실패해도 선택 유지)
+            if (cell.HasObstacle)
+            {
+                _session.TryAttackObstacle(_selected, clicked.Value);
                 return;
             }
 
@@ -270,6 +279,8 @@ namespace MiniChess.Client.Interaction
             _attackTargets.Clear();
             _moveDestinations.AddRange(ActionQueries.GetMoveDestinations(state, unit));
             _attackTargets.AddRange(ActionQueries.GetAttackableTargets(state, unit));
+            _attackObstacles.Clear();
+            _attackObstacles.AddRange(ActionQueries.GetAttackableObstacles(state, unit));
 
             Redraw();
             SelectionChanged?.Invoke();
@@ -323,6 +334,8 @@ namespace MiniChess.Client.Interaction
                 _boardView.Highlight(destination, CellHighlight.Move);
             foreach (Unit target in _attackTargets)
                 _boardView.Highlight(target.Position.Value, CellHighlight.Attack);
+            foreach (Position obstacle in _attackObstacles)
+                _boardView.Highlight(obstacle, CellHighlight.Attack);
         }
     }
 }

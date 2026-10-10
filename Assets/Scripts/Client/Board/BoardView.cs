@@ -43,6 +43,10 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color player1TrapColor = new Color(0.15f, 0.3f, 0.8f);
         [SerializeField] private Color player2TrapColor = new Color(0.8f, 0.2f, 0.15f);
         [SerializeField] private float trapMarkerSize = 0.45f;
+        [SerializeField] private Color player1ObstacleColor = new Color(0.3f, 0.4f, 0.65f);
+        [SerializeField] private Color player2ObstacleColor = new Color(0.65f, 0.35f, 0.3f);
+        [SerializeField] private float obstacleSize = 0.7f;
+        [SerializeField] private float obstacleHeight = 0.6f;
 
         private readonly Dictionary<Position, CellView> _cells = new Dictionary<Position, CellView>();
         private readonly List<CellView> _highlighted = new List<CellView>();
@@ -52,7 +56,7 @@ namespace MiniChess.Client.Board
         public IReadOnlyDictionary<Position, CellView> Cells => _cells;
 
         /// <summary>
-        /// 칸 효과(장판/덫)를 현재 코어 상태대로 표시한다. 장판은 칸 색조, 덫은 설치한 팀 색의 표식.
+        /// 칸 효과(장판/덫/장애물)를 현재 코어 상태대로 표시한다. 장판은 칸 색조, 덫은 설치한 팀 색의 표식, 장애물은 설치한 팀 색의 상자.
         /// [가정] 덫 공개 여부는 명세 TBD 이며, 지금은 양 팀 모두에게 보인다.
         /// </summary>
         public void SyncEffects(CoreBoard board)
@@ -71,6 +75,11 @@ namespace MiniChess.Client.Board
                 ICellEffect trap = cell.GetEffect(CellEffectLayer.Trap);
                 Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
                 view.SetTrapMarker(trap != null, GetTrapColor(trap), top, trapMarkerSize * _coordinates.CellSize);
+
+                var obstacle = cell.GetEffect(CellEffectLayer.Obstacle) as Obstacle;
+                view.SetObstacle(
+                    obstacle != null, GetObstacleColor(obstacle), obstacle?.HitsRemaining ?? 0,
+                    top, obstacleSize * _coordinates.CellSize, obstacleHeight);
             }
         }
 
@@ -82,6 +91,14 @@ namespace MiniChess.Client.Board
                 case DamageField _: return damageFieldColor;
                 default: return otherFieldColor;
             }
+        }
+
+        private Color GetObstacleColor(Obstacle obstacle)
+        {
+            if (obstacle == null)
+                return otherFieldColor;
+
+            return obstacle.Zone.OwnerTeam == Team.Player1 ? player1ObstacleColor : player2ObstacleColor;
         }
 
         private Color GetTrapColor(ICellEffect effect)

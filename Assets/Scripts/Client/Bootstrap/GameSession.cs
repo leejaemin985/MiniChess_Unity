@@ -143,6 +143,18 @@ namespace MiniChess.Client.Bootstrap
             return Succeed();
         }
 
+        /// <summary>기본 공격으로 장애물을 친다.</summary>
+        public bool TryAttackObstacle(Unit attacker, Position target)
+        {
+            var action = new AttackObstacleAction(attacker, target);
+            AttackFailReason reason = action.Validate(State);
+            if (reason != AttackFailReason.None)
+                return Fail(FailReasonText.Describe(reason));
+
+            action.Execute(State);
+            return Succeed();
+        }
+
         public bool TryUseSkill(Unit caster, string skillId, Position target)
         {
             return TryUseSkill(caster, skillId, new[] { target });
