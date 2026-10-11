@@ -11,6 +11,7 @@ using MiniChess.Core.Common;
 using MiniChess.Core.Data;
 using MiniChess.Core.Presets;
 using MiniChess.Core.Setup;
+using MiniChess.Core.Skills.Areas;
 using MiniChess.Core.State;
 using UnityEngine;
 
@@ -161,10 +162,10 @@ namespace MiniChess.Client.Bootstrap
             return TryUseSkill(caster, skillId, new[] { target });
         }
 
-        /// <summary>여러 칸을 지정하는 스킬(지정 순).</summary>
-        public bool TryUseSkill(Unit caster, string skillId, IReadOnlyList<Position> targets)
+        /// <summary>여러 칸을 지정하는 스킬(지정 순). rotation 은 회전하는 범위의 스킬에만 의미가 있다.</summary>
+        public bool TryUseSkill(Unit caster, string skillId, IReadOnlyList<Position> targets, AreaRotation rotation = AreaRotation.R0)
         {
-            var action = new UseSkillAction(caster, skillId, targets);
+            var action = new UseSkillAction(caster, skillId, targets, rotation);
             SkillFailReason reason = action.Validate(State);
             if (reason != SkillFailReason.None)
                 return Fail(FailReasonText.Describe(reason));

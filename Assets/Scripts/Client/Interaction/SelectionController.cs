@@ -7,6 +7,7 @@ using MiniChess.Client.UI;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
 using MiniChess.Core.Skills;
+using MiniChess.Core.Skills.Areas;
 using MiniChess.Core.State;
 using UnityEngine;
 
@@ -18,6 +19,7 @@ namespace MiniChess.Client.Interaction
     ///   스킬 모드: 스킬 버튼 → 지정 가능 칸 하이라이트(마우스를 올리면 범위 미리보기) → 클릭 시 스킬 사용 요청
     ///     - 여러 칸 지정 스킬: 고른 칸을 표시하고 다음 후보를 다시 보여 준다. 다 고르면 사용. 우클릭은 마지막 선택 취소.
     ///     - 자기 자신만 지정하는 스킬: 범위를 바로 보여 주고, 자기 칸이나 범위를 한 번 더 클릭하면 사용.
+    ///     - 회전하는 범위의 스킬: 우클릭으로 범위를 시계 방향 90도씩 돌린다(이때 우클릭은 취소가 아니다. 취소는 다른 칸 좌클릭이나 스킬 버튼).
     /// 실행 가능 여부 판정은 GameSession(→ 코어)에 맡기고, 거부 이유 표시도 그쪽 이벤트로 처리된다.
     /// </summary>
     public class SelectionController : MonoBehaviour
@@ -36,11 +38,19 @@ namespace MiniChess.Client.Interaction
         private readonly List<Position> _chosenTargets = new List<Position>();
         private int _targetCount;
         private bool _confirmSelf;
+        private bool _canRotate;
+        private AreaRotation _rotation;
 
         public Unit Selected => _selected;
 
         /// <summary>스킬 지정 중인 스킬 Id. 일반 모드면 null.</summary>
         public string PendingSkillId => _pendingSkillId;
+
+        /// <summary>지정 중인 스킬의 범위를 회전할 수 있는지.</summary>
+        public bool CanRotatePending => _pendingSkillId != null && _canRotate;
+
+        /// <summary>지정 중인 스킬의 범위 회전(시계 방향).</summary>
+        public AreaRotation PendingRotation => _rotation;
 
         /// <summary>선택 유닛 또는 스킬 지정 모드가 바뀌었다.</summary>
         public event Action SelectionChanged;
@@ -97,6 +107,22 @@ namespace MiniChess.Client.Interaction
             _skillTargets.AddRange(targets);
             _targetCount = state.Skills.Find(skillId).Targeting.TargetCount;
             _confirmSelf = _targetCount == 1 && targets.Count == 1 && targets[0] == _selected.Position.Value;
+            _canRotate = SkillQueries.CanRotate(state, skillId);
+            _rotation = AreaRotation.R0;
+            Redraw();
+            SelectionChanged?.Invoke();
+        }
+
+        /// <summary>지정 중인 스킬의 범위를 시계 방향 90도씩 steps 번 돌린다(음수면 반시계). 회전할 수 없으면 무시.</summary>
+        public void RotateSkill(int steps)
+        {
+            if (!CanRotatePending)
+                return;
+
+            int turns = ((steps % 4) + 4) % 4;
+            for (int i = 0; i < turns; i++)
+                _rotation = _rotation.Next();
+
             Redraw();
             SelectionChanged?.Invoke();
         }
@@ -181,7 +207,7 @@ namespace MiniChess.Client.Interaction
             if (_confirmSelf)
             {
                 if (GetSelfPreview().Contains(clicked) || clicked == _selected.Position.Value)
-                    _session.TryUseSkill(_selected, _pendingSkillId, _selected.Position.Value);
+                    _session.TryUseSkill(_selected, _pendingSkillId, new[] { _selected.Position.Value }, _rotation);
                 else
                     CancelSkill();
                 return;
@@ -197,7 +223,7 @@ namespace MiniChess.Client.Interaction
             if (_chosenTargets.Count >= _targetCount)
             {
                 // 성공하면 StateChanged 에서 스킬 모드가 끝난다. 실패하면 처음부터 다시 고르게 한다.
-                if (!_session.TryUseSkill(_selected, _pendingSkillId, _chosenTargets.ToArray()))
+                if (!_session.TryUseSkill(_selected, _pendingSkillId, _chosenTargets.ToArray(), _rotation))
                     RestartTargeting();
                 return;
             }
@@ -229,11 +255,18 @@ namespace MiniChess.Client.Interaction
 
         private IReadOnlyList<Position> GetSelfPreview()
         {
-            return SkillQueries.GetAffectedCells(_session.State, _selected, _pendingSkillId, _selected.Position.Value);
+            return SkillQueries.GetAffectedCells(_session.State, _selected, _pendingSkillId, _selected.Position.Value, _rotation);
         }
 
         private void OnCancelClicked()
         {
+            // 회전하는 범위의 스킬을 지정 중이면 우클릭은 회전이다.
+            if (CanRotatePending)
+            {
+                RotateSkill(1);
+                return;
+            }
+
             if (_pendingSkillId != null && _chosenTargets.Count > 0)
             {
                 _chosenTargets.RemoveAt(_chosenTargets.Count - 1);
@@ -293,6 +326,8 @@ namespace MiniChess.Client.Interaction
             _chosenTargets.Clear();
             _targetCount = 0;
             _confirmSelf = false;
+            _canRotate = false;
+            _rotation = AreaRotation.R0;
         }
 
         private void Redraw()
@@ -319,7 +354,7 @@ namespace MiniChess.Client.Interaction
                     if (hovered.HasValue && _skillTargets.Contains(hovered.Value))
                     {
                         GameState state = _session.State;
-                        foreach (Position cell in SkillQueries.GetAffectedCells(state, _selected, _pendingSkillId, hovered.Value))
+                        foreach (Position cell in SkillQueries.GetAffectedCells(state, _selected, _pendingSkillId, hovered.Value, _rotation))
                             _boardView.Highlight(cell, CellHighlight.SkillArea);
                     }
                 }
