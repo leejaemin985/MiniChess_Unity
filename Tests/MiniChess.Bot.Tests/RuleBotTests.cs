@@ -100,6 +100,45 @@ namespace MiniChess.Bot.Tests
             _output.WriteLine($"승자 {game.State.Winner}, 턴 {game.State.TurnNumber}");
         }
 
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        public void Eliminates_a_passive_opponent(int seed)
+        {
+            // 앞서면 신중해지지만, 상대가 다가오지 않아 교착이면 들어가서 끝낸다.
+            GameController game = BotMatchTests.CreatePresetGame(seed);
+
+            BotMatch.Run(game, new RuleBot(seed), new PassiveBot(seed));
+
+            Assert.Equal(Team.Player1, game.State.Winner);
+            Assert.Equal(GameEndReason.Elimination.ToString(), LastEndReason(game));
+        }
+
+        [Fact]
+        public void One_on_one_endgame_does_not_loop_on_shield_and_shot()
+        {
+            // 정원사가 매 턴 자기 보호막만 다시 걸고 궁수가 그 보호막만 깎는 반복으로 턴 제한까지 가지 않아야 한다.
+            GameController game = CreateSmallBattle(
+                new[]
+                {
+                    ".....2.",
+                    ".......",
+                    "...#...",
+                    "#.....#",
+                    "...#...",
+                    ".......",
+                    ".1.....",
+                },
+                new[] { GardenerPiece.PieceId },
+                new[] { ArcherPiece.PieceId });
+
+            BotMatch.Run(game, new RuleBot(1), new RuleBot(2));
+
+            Assert.Equal(GameEndReason.Elimination.ToString(), LastEndReason(game));
+            _output.WriteLine($"승자 {game.State.Winner}, 턴 {game.State.TurnNumber}");
+        }
+
         [Fact]
         public void RuleBot_beats_RandomBot_in_most_matches()
         {

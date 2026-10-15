@@ -35,7 +35,8 @@ namespace MiniChess.Bot.Rules
         public List<Unit> Allies { get; }
         public List<Unit> Enemies { get; }
 
-        public BoardAnalysis(GameController game, Team team, BotWeights weights)
+        /// <param name="stalled">교착 상태면 형세와 무관하게 신중함을 CautionStalled 이하로 낮춘다.</param>
+        public BoardAnalysis(GameController game, Team team, BotWeights weights, bool stalled = false)
         {
             Game = game;
             State = game.State;
@@ -49,10 +50,13 @@ namespace MiniChess.Bot.Rules
                 _threat[unit.Id] = ComputeThreat(unit);
 
             _danger = ComputeDanger();
-            Caution = ComputeCaution();
+            Caution = stalled ? Math.Min(ComputeCaution(), weights.CautionStalled) : ComputeCaution();
         }
 
-        /// <summary>위협도 감점 배수. 형세(턴 제한 판정 기준)가 앞서면 1, 같거나 뒤지면 낮춰 공격적으로 움직인다.</summary>
+        /// <summary>
+        /// 위협도 감점 배수. 형세(턴 제한 판정 기준)가 앞서면 1, 같거나 뒤지면 낮춰 공격적으로 움직인다.
+        /// 교착이면 CautionStalled 이하.
+        /// </summary>
         public double Caution { get; }
 
         /// <summary>턴 제한 판정과 같은 기준(생존 수 → 남은 체력 합, 소환물 제외)으로 형세를 본다.</summary>
@@ -94,6 +98,12 @@ namespace MiniChess.Bot.Rules
         }
 
         public static int EffectiveHp(Unit unit) => unit.Stats.CurrentHp + unit.Stats.Shield;
+
+        /// <summary>팀의 소환물 아닌 살아 있는 유닛의 체력 + 보호막 합. 교착 판정에 쓴다.</summary>
+        public static int TeamEffectiveHp(GameState state, Team team)
+        {
+            return state.GetPlayer(team).AliveUnits.Where(unit => !unit.IsSummon).Sum(EffectiveHp);
+        }
 
         public static bool IsRooted(Unit unit) => unit.FindStatus(StatusLibrary.RootId) != null;
         public static bool IsInstalled(Unit unit) => unit.FindStatus(StatusLibrary.InstalledId) != null;

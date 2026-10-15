@@ -4,6 +4,8 @@ using System.Linq;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
+using MiniChess.Core.Skills;
+using MiniChess.Core.Turns;
 
 namespace MiniChess.Bot.Rules
 {
@@ -18,6 +20,11 @@ namespace MiniChess.Bot.Rules
         /// <summary>공격하려고 이동해 다음 행동을 이어서 해야 하는 유닛(0 이면 없음)과 그 턴 번호.</summary>
         private int _committedUnitId;
         private int _committedTurn = -1;
+
+        /// <summary>교착 판정: 마지막으로 본 적 체력 합, 줄지 않은 내 턴 수, 이미 센 턴 번호.</summary>
+        private int _lastEnemyHp = int.MaxValue;
+        private int _turnsWithoutProgress;
+        private int _stallCheckedTurn = -1;
 
         public BotWeights Weights { get; }
 
@@ -44,20 +51,22 @@ namespace MiniChess.Bot.Rules
             if (candidates.Count == 0)
                 return null;
 
-            var scorer = new ActionScorer(new BoardAnalysis(game, team, Weights));
+            UpdateStall(game, team);
+
+            var scorer = new ActionScorer(new BoardAnalysis(game, team, Weights, IsStalled));
             LastScores = candidates
                 .Select(action => (action, scorer.Score(action)))
                 .OrderByDescending(pair => pair.Item2)
                 .ToList();
 
-            // 공격하려고 이동한 유닛이 있으면 다른 유닛이 AP 를 먼저 쓰지 않도록 그 유닛의 행동을 이어서 한다.
+            // 공격하려고 이동한 유닛이 있으면 다른 유닛이 AP 를 먼저 쓰지 않도록 그 유닛의 공격을 이어서 한다.
             int committed = _committedTurn == game.State.TurnNumber ? _committedUnitId : 0;
             _committedUnitId = 0;
             if (committed != 0)
             {
                 foreach ((BotAction action, double score) in LastScores)
                 {
-                    if (action.UnitId == committed && action.Kind != BotActionKind.Move && score > Weights.MinActionScore)
+                    if (action.UnitId == committed && IsDamaging(game, action) && score > Weights.MinActionScore)
                         return action;
                 }
             }
@@ -73,6 +82,31 @@ namespace MiniChess.Bot.Rules
             }
 
             return best;
+        }
+
+        /// <summary>교착 상태인지: 내 턴이 StallTurns 번 지나도록 적 체력(보호막 포함) 합이 줄지 않았다.</summary>
+        public bool IsStalled => _turnsWithoutProgress >= Weights.StallTurns;
+
+        /// <summary>내 턴이 바뀔 때마다 적 체력 합을 비교해 교착 카운트를 갱신한다.</summary>
+        private void UpdateStall(GameController game, Team team)
+        {
+            if (_stallCheckedTurn == game.State.TurnNumber)
+                return;
+            _stallCheckedTurn = game.State.TurnNumber;
+
+            int enemyHp = BoardAnalysis.TeamEffectiveHp(game.State, TurnSystem.GetOpponent(team));
+            _turnsWithoutProgress = enemyHp < _lastEnemyHp ? 0 : _turnsWithoutProgress + 1;
+            _lastEnemyHp = enemyHp;
+        }
+
+        /// <summary>적에게 피해를 주는 행동(기본 공격 또는 피해 스킬)인지.</summary>
+        private static bool IsDamaging(GameController game, BotAction action)
+        {
+            if (action.Kind == BotActionKind.Attack)
+                return true;
+
+            SkillDefinition skill = action.Kind == BotActionKind.UseSkill ? game.State.Skills.Find(action.SkillId) : null;
+            return skill != null && SkillEstimates.EnemyDamage(skill) > 0;
         }
     }
 }

@@ -238,6 +238,10 @@ namespace MiniChess.Bot.Rules
             int cost = skill.ApCost ?? 0;
             var context = new SkillGuess(caster, skill, action, _a.Game.GetSkillArea(caster.Id, skill.Id, action.Targets[0], action.Rotation), _a.Ap - cost);
 
+            // 예약 포격이 적을 하나도 노리지 않으면 부수 효과(설치 보호막 등)만 보고 쓰지 않는다.
+            if (skill.Effects.OfType<ScheduleStrikeEffect>().Any() && UnitsIn(context.Area, TargetFilter.Enemy, caster).Count == 0)
+                return 0;
+
             double value = skill.Effects.Sum(effect => EffectValue(effect, context));
             return value - ApPenalty(cost, _a.Ap);
         }
@@ -397,7 +401,7 @@ namespace MiniChess.Bot.Rules
                 if (target == caster)
                     return 0;
                 double danger = _a.DangerAt(target.Position.Value);
-                return Math.Min(danger, BoardAnalysis.EffectiveHp(target)) * _w.Protection;
+                return Math.Min(danger, BoardAnalysis.EffectiveHp(target)) * _a.Caution * _w.Protection;
             }
 
             return _w.OtherStatus;
@@ -449,7 +453,7 @@ namespace MiniChess.Bot.Rules
                 return 0;
 
             double uncovered = Math.Max(0, _a.DangerAt(unit.Position.Value) - unit.Stats.Shield);
-            return Math.Min(gained, uncovered) * _w.Protection + gained * _w.ShieldIdle;
+            return Math.Min(gained, uncovered) * _a.Caution * _w.Protection + gained * _w.ShieldIdle;
         }
 
         /// <summary>

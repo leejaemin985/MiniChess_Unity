@@ -42,6 +42,12 @@ namespace MiniChess.Bot.Rules
         /// <summary>형세가 뒤질 때 위협도 감점에 곱하는 배수. 턴 제한 판정으로 지지 않도록 들어간다.</summary>
         public double CautionBehind { get; set; } = 0.3;
 
+        /// <summary>내 턴이 이 횟수만큼 지나도록 적의 체력(보호막 포함) 합이 줄지 않으면 교착으로 본다.</summary>
+        public int StallTurns { get; set; } = 3;
+
+        /// <summary>교착일 때 위협도 감점 배수. 형세와 무관하게 이 값 이하로 낮춰 들어간다.</summary>
+        public double CautionStalled { get; set; } = 0.15;
+
         /// <summary>남은 체력 합 차이가 이 값 미만이면(생존 수가 같을 때) 형세가 같다고 본다.</summary>
         public int EvenHpMargin { get; set; } = 3;
 
@@ -78,7 +84,7 @@ namespace MiniChess.Bot.Rules
         /// <summary>당장 위협이 없어도 보호막 1 이 가지는 가치.</summary>
         public double ShieldIdle { get; set; } = 0.25;
 
-        /// <summary>위협받는 아군에게 준 보호막/호위 1 의 가치.</summary>
+        /// <summary>위협받는 아군에게 준 보호막/호위 1 의 가치. 위치 판단과 같게 신중함 배수를 곱한다.</summary>
         public double Protection { get; set; } = 0.8;
 
         /// <summary>밀어내기 대상 1명당 가치.</summary>
