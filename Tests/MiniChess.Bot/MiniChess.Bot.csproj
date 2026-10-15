@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Assets/Scripts/Bot 의 소스를 Unity 없이 빌드한다(봇끼리 대전 테스트용).
+    Unity 2022.3 과 같은 조건(netstandard2.1, C# 9)으로 컴파일해 호환성을 함께 확인한다.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>MiniChess.Bot</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Assets\Scripts\Bot\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Assets\Scripts\Core\src\MiniChess.Core\MiniChess.Core.csproj" />
+  </ItemGroup>
+
+</Project>
