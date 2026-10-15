@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniChess.Bot;
 using MiniChess.Client.Board;
 using MiniChess.Client.Common;
 using MiniChess.Client.Interaction;
+using MiniChess.Client.Players;
 using MiniChess.Client.UI;
 using MiniChess.Client.Units;
 using MiniChess.Core.Actions;
@@ -26,6 +28,14 @@ namespace MiniChess.Client.Bootstrap
     /// </summary>
     public class GameSession : MonoBehaviour
     {
+        [Header("Players")]
+        [SerializeField] private PlayerControl player1Control = PlayerControl.Human;
+        [SerializeField] private PlayerControl player2Control = PlayerControl.Bot;
+        [Tooltip("봇 행동 사이 간격(초). 행동을 눈으로 따라갈 수 있게 한다.")]
+        [SerializeField, Min(0f)] private float botActionDelay = 0.5f;
+        [Tooltip("봇 무작위 시드. 0 이면 매 경기 다르게.")]
+        [SerializeField] private int botSeed;
+
         [Header("Quick Start (켜면 배치 단계를 건너뛰고 아래 라인업을 자동 배치)")]
         [SerializeField] private bool quickStart;
 
@@ -43,6 +53,7 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private PlacementController placement;
         [SerializeField] private PlacementPreviewView placementPreview;
         [SerializeField] private HudView hud;
+        [SerializeField] private BotDriver botDriver;
 
         /// <summary>코어 단일 진입점(명령 + 조회). 경기를 만들지 못했으면 null.</summary>
         public GameController Game { get; private set; }
@@ -52,6 +63,15 @@ namespace MiniChess.Client.Bootstrap
         public BoardCoordinates Coordinates { get; private set; }
         public SelectionController Selection => selection;
         public PlacementController Placement => placement;
+
+        public float BotActionDelay => botActionDelay;
+        public int BotSeed => botSeed;
+
+        /// <summary>팀을 봇이 조작하는지.</summary>
+        public bool IsBot(Team team)
+        {
+            return (team == Team.Player1 ? player1Control : player2Control) == PlayerControl.Bot;
+        }
 
         /// <summary>새 경기 시작 또는 행동 성공으로 코어 상태가 바뀐 뒤(뷰 동기화 후) 호출된다.</summary>
         public event Action StateChanged;
@@ -69,6 +89,7 @@ namespace MiniChess.Client.Bootstrap
             if (placement == null) placement = CreateChild<PlacementController>("Placement");
             if (placementPreview == null) placementPreview = CreateChild<PlacementPreviewView>("PlacementPreview");
             if (hud == null) hud = CreateChild<HudView>("Hud");
+            if (botDriver == null) botDriver = CreateChild<BotDriver>("BotDriver");
         }
 
         private void Start()
@@ -78,6 +99,7 @@ namespace MiniChess.Client.Bootstrap
             placement.Initialize(this, boardInput, boardView);
             placementPreview.Initialize(placement, () => Coordinates, unitsView.GetTeamColor, id => Game?.State.Characters.Find(id)?.Name ?? id);
             hud.Initialize(this, unitsView.GetTeamColor);
+            botDriver.Initialize(this);
 
             StartNewGame();
         }
@@ -186,6 +208,27 @@ namespace MiniChess.Client.Bootstrap
         public bool TryEndTurn()
         {
             return Handle(Game.EndTurn(new EndTurnRequest(State.CurrentTeam)), FailReasonText.Describe);
+        }
+
+        /// <summary>봇이 고른 행동을 사람 입력과 같은 경로(뷰 동기화 포함)로 요청한다. 요청 팀은 행동의 팀이다.</summary>
+        public bool TryBotAction(BotAction action)
+        {
+            switch (action.Kind)
+            {
+                case BotActionKind.Move:
+                    return Handle(Game.Move(new MoveRequest(action.Team, action.UnitId, action.Cell)), FailReasonText.Describe);
+                case BotActionKind.Attack:
+                    return Handle(Game.Attack(new AttackRequest(action.Team, action.UnitId, action.TargetUnitId)), FailReasonText.Describe);
+                case BotActionKind.AttackObstacle:
+                    return Handle(Game.AttackObstacle(new AttackObstacleRequest(action.Team, action.UnitId, action.Cell)), FailReasonText.Describe);
+                case BotActionKind.UseSkill:
+                    var request = new UseSkillRequest(action.Team, action.UnitId, action.SkillId, action.Targets, action.Rotation);
+                    return Handle(Game.UseSkill(request), FailReasonText.Describe);
+                case BotActionKind.EndTurn:
+                    return Handle(Game.EndTurn(new EndTurnRequest(action.Team)), FailReasonText.Describe);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(action), action.Kind, null);
+            }
         }
 
         /// <summary>성공이면 뷰를 동기화하고, 실패면 사유를 알린다. 실패한 요청은 코어 상태를 바꾸지 않는다.</summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using MiniChess.Client.Bootstrap;
+using MiniChess.Client.Interaction;
 using MiniChess.Core.Capture;
 using MiniChess.Core.Common;
 using MiniChess.Core.State;
@@ -71,7 +72,7 @@ namespace MiniChess.Client.UI
         {
             GameState state = _session.State;
 
-            Team? placingTeam = _session.Placement.PlacingTeam;
+            Team? placingTeam = PlacementController.GetNextPlacingTeam(state);
             if (state.Phase == GamePhase.Setup && placingTeam.HasValue)
             {
                 _turnText.text = $"SETUP  -  {TeamLabel(placingTeam.Value)}";
@@ -87,7 +88,8 @@ namespace MiniChess.Client.UI
             RefreshAp(_player2ApText, state, Team.Player2);
             RefreshCapture(state);
 
-            _endTurnButton.interactable = state.Phase == GamePhase.Battle;
+            // 봇 팀의 턴에는 사람이 턴을 끝낼 수 없다.
+            _endTurnButton.interactable = state.Phase == GamePhase.Battle && !_session.IsBot(state.CurrentTeam);
 
             _gameOverPanel.SetActive(state.IsGameOver);
             if (state.IsGameOver)
@@ -141,9 +143,11 @@ namespace MiniChess.Client.UI
             }
         }
 
-        private static string TeamLabel(Team team)
+        /// <summary>"PLAYER 1", 봇 팀이면 "PLAYER 2 (BOT)".</summary>
+        private string TeamLabel(Team team)
         {
-            return team == Team.Player1 ? "PLAYER 1" : "PLAYER 2";
+            string label = team == Team.Player1 ? "PLAYER 1" : "PLAYER 2";
+            return _session.IsBot(team) ? $"{label} (BOT)" : label;
         }
 
         #endregion

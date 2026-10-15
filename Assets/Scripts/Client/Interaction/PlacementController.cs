@@ -14,7 +14,7 @@ using UnityEngine;
 namespace MiniChess.Client.Interaction
 {
     /// <summary>
-    /// 배치(Setup) 단계의 입력. 한 화면 교대 플레이라 선공 팀부터 한 팀씩 배치한다.
+    /// 배치(Setup) 단계의 입력. 한 화면 교대 플레이라 선공 팀부터 한 팀씩 배치한다. 봇 팀은 BotDriver 가 배치한다.
     ///   캐릭터 버튼 선택 → 자기 시작 칸(하이라이트) 클릭 → 배치. 놓인 칸을 다시 클릭하면 빼고 그 캐릭터를 다시 고른 상태가 된다.
     ///   팀 인원을 다 놓으면 확정할 수 있고, 확정은 코어 배치 요청으로 보낸다(규칙 검사는 코어가 한다).
     /// 확정 전 배치는 클라이언트에만 있는 임시 목록이다.
@@ -108,6 +108,10 @@ namespace MiniChess.Client.Interaction
             GameState state = _session.State;
             Team? team = state != null && state.Phase == GamePhase.Setup ? GetNextPlacingTeam(state) : null;
 
+            // 봇 팀의 배치는 BotDriver 가 한다. 사람 배치 UI 는 비활성.
+            if (team.HasValue && _session.IsBot(team.Value))
+                team = null;
+
             // 다음 팀으로 넘어가거나 새 경기가 시작되면 임시 배치를 비운다.
             if (team != PlacingTeam || _session.Game != _game)
             {
@@ -121,8 +125,8 @@ namespace MiniChess.Client.Interaction
             Changed?.Invoke();
         }
 
-        /// <summary>선공 팀부터, 아직 배치하지 않은 팀.</summary>
-        private static Team? GetNextPlacingTeam(GameState state)
+        /// <summary>선공 팀부터, 아직 배치하지 않은 팀. 둘 다 배치했으면 null.</summary>
+        public static Team? GetNextPlacingTeam(GameState state)
         {
             Team first = state.Rules.Match.FirstTeam;
             if (!state.GetPlayer(first).HasPlaced)

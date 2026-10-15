@@ -165,8 +165,8 @@ namespace MiniChess.Client.Interaction
         {
             GameState state = _session.State;
 
-            // 배치 단계 입력은 PlacementController 가 처리한다.
-            if (state != null && state.Phase == GamePhase.Setup)
+            // 배치 단계 입력은 PlacementController 가, 봇 팀의 턴은 BotDriver 가 처리한다.
+            if (!AcceptsInput(state))
                 return;
 
             if (state == null || state.IsGameOver || !clicked.HasValue)
@@ -269,7 +269,7 @@ namespace MiniChess.Client.Interaction
 
         private void OnCancelClicked()
         {
-            if (_session.State != null && _session.State.Phase == GamePhase.Setup)
+            if (!AcceptsInput(_session.State))
                 return;
 
             // 회전하는 범위의 스킬을 지정 중이면 우클릭은 회전이다.
@@ -288,6 +288,16 @@ namespace MiniChess.Client.Interaction
                 CancelSkill();
             else
                 Deselect();
+        }
+
+        /// <summary>사람이 조작할 차례인지. 배치 단계와 봇 팀의 턴에는 입력을 받지 않는다.</summary>
+        private bool AcceptsInput(GameState state)
+        {
+            if (state == null)
+                return true;
+            if (state.Phase == GamePhase.Setup)
+                return false;
+            return !(state.Phase == GamePhase.Battle && _session.IsBot(state.CurrentTeam));
         }
 
         private void OnHoverChanged(Position? hovered)

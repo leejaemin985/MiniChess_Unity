@@ -3,6 +3,7 @@
     "rootNamespace": "MiniChess.Client",
     "references": [
         "MiniChess.Core",
+        "MiniChess.Bot",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
