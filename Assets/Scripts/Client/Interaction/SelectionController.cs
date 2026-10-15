@@ -6,6 +6,7 @@ using MiniChess.Client.Bootstrap;
 using MiniChess.Client.UI;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
+using MiniChess.Core.Controller;
 using MiniChess.Core.Skills;
 using MiniChess.Core.Skills.Areas;
 using MiniChess.Core.State;
@@ -83,18 +84,21 @@ namespace MiniChess.Client.Interaction
         /// <summary>선택한 유닛의 스킬 지정 모드로 들어간다. 사용할 수 없으면 이유를 알리고 그대로 둔다.</summary>
         public void BeginSkill(string skillId)
         {
-            GameState state = _session.State;
-            if (_selected == null || state == null)
+            GameController game = _session.Game;
+            if (_selected == null || game == null)
                 return;
 
-            SkillFailReason reason = UseSkillAction.ValidateUsable(state, _selected, skillId);
-            if (reason != SkillFailReason.None)
+            SkillInfo skill = game.GetSkills(_selected.Id).FirstOrDefault(info => info.Id == skillId);
+            if (skill == null)
+                return;
+
+            if (skill.Usable != SkillFailReason.None)
             {
-                _session.ReportFailure(FailReasonText.Describe(reason));
+                _session.ReportFailure(FailReasonText.Describe(skill.Usable));
                 return;
             }
 
-            List<Position> targets = SkillQueries.GetValidTargets(state, _selected, skillId);
+            List<Position> targets = game.GetSkillTargets(_selected.Id, skillId);
             if (targets.Count == 0)
             {
                 _session.ReportFailure(FailReasonText.Describe(SkillFailReason.InvalidTarget));
@@ -105,9 +109,9 @@ namespace MiniChess.Client.Interaction
             _chosenTargets.Clear();
             _skillTargets.Clear();
             _skillTargets.AddRange(targets);
-            _targetCount = state.Skills.Find(skillId).Targeting.TargetCount;
+            _targetCount = skill.Definition.Targeting.TargetCount;
             _confirmSelf = _targetCount == 1 && targets.Count == 1 && targets[0] == _selected.Position.Value;
-            _canRotate = SkillQueries.CanRotate(state, skillId);
+            _canRotate = skill.CanRotate;
             _rotation = AreaRotation.R0;
             Redraw();
             SelectionChanged?.Invoke();
@@ -160,6 +164,11 @@ namespace MiniChess.Client.Interaction
         private void OnCellClicked(Position? clicked)
         {
             GameState state = _session.State;
+
+            // 배치 단계 입력은 PlacementController 가 처리한다.
+            if (state != null && state.Phase == GamePhase.Setup)
+                return;
+
             if (state == null || state.IsGameOver || !clicked.HasValue)
             {
                 Deselect();
@@ -234,7 +243,7 @@ namespace MiniChess.Client.Interaction
         /// <summary>고른 칸 기준으로 다음 후보를 다시 구한다. 후보가 없으면 이유를 알리고 스킬 지정을 끝낸다.</summary>
         private void RefreshCandidates()
         {
-            List<Position> next = SkillQueries.GetValidTargets(_session.State, _selected, _pendingSkillId, _chosenTargets);
+            List<Position> next = _session.Game.GetSkillTargets(_selected.Id, _pendingSkillId, _chosenTargets);
             if (next.Count == 0)
             {
                 _session.ReportFailure(FailReasonText.Describe(SkillFailReason.InvalidTarget));
@@ -255,11 +264,14 @@ namespace MiniChess.Client.Interaction
 
         private IReadOnlyList<Position> GetSelfPreview()
         {
-            return SkillQueries.GetAffectedCells(_session.State, _selected, _pendingSkillId, _selected.Position.Value, _rotation);
+            return _session.Game.GetSkillArea(_selected.Id, _pendingSkillId, _selected.Position.Value, _rotation);
         }
 
         private void OnCancelClicked()
         {
+            if (_session.State != null && _session.State.Phase == GamePhase.Setup)
+                return;
+
             // 회전하는 범위의 스킬을 지정 중이면 우클릭은 회전이다.
             if (CanRotatePending)
             {
@@ -307,13 +319,13 @@ namespace MiniChess.Client.Interaction
             _selected = unit;
             ClearSkillMode();
 
-            GameState state = _session.State;
+            GameController game = _session.Game;
             _moveDestinations.Clear();
             _attackTargets.Clear();
-            _moveDestinations.AddRange(ActionQueries.GetMoveDestinations(state, unit));
-            _attackTargets.AddRange(ActionQueries.GetAttackableTargets(state, unit));
+            _moveDestinations.AddRange(game.GetMoveDestinations(unit.Id));
+            _attackTargets.AddRange(game.GetAttackTargets(unit.Id));
             _attackObstacles.Clear();
-            _attackObstacles.AddRange(ActionQueries.GetAttackableObstacles(state, unit));
+            _attackObstacles.AddRange(game.GetAttackableObstacles(unit.Id));
 
             Redraw();
             SelectionChanged?.Invoke();
@@ -353,8 +365,7 @@ namespace MiniChess.Client.Interaction
                     Position? hovered = _input.HoveredCell;
                     if (hovered.HasValue && _skillTargets.Contains(hovered.Value))
                     {
-                        GameState state = _session.State;
-                        foreach (Position cell in SkillQueries.GetAffectedCells(state, _selected, _pendingSkillId, hovered.Value, _rotation))
+                        foreach (Position cell in _session.Game.GetSkillArea(_selected.Id, _pendingSkillId, hovered.Value, _rotation))
                             _boardView.Highlight(cell, CellHighlight.SkillArea);
                     }
                 }

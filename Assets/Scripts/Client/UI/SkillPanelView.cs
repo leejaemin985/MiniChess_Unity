@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using MiniChess.Client.Bootstrap;
 using MiniChess.Client.Interaction;
 using MiniChess.Core.Actions;
+using MiniChess.Core.Controller;
 using MiniChess.Core.Skills;
 using MiniChess.Core.State;
 using TMPro;
@@ -100,7 +101,7 @@ namespace MiniChess.Client.UI
                 return;
             }
 
-            List<(string Id, SkillDefinition Definition)> skills = SkillQueries.GetSkills(state, unit);
+            List<SkillInfo> skills = _session.Game.GetSkills(unit.Id);
             _title.text = skills.Count == 0 ? $"{unit.Stats.Base.Name}  -  스킬 없음" : unit.Stats.Base.Name;
             EnsureButtons(skills.Count);
             SetButtonsVisible(skills.Count);
@@ -108,10 +109,12 @@ namespace MiniChess.Client.UI
 
             for (int i = 0; i < skills.Count; i++)
             {
-                (string id, SkillDefinition definition) = skills[i];
+                SkillInfo skill = skills[i];
+                string id = skill.Id;
+                SkillDefinition definition = skill.Definition;
                 _buttonSkillIds[i] = id;
 
-                bool usable = UseSkillAction.ValidateUsable(state, unit, id) == SkillFailReason.None;
+                bool usable = skill.Usable == SkillFailReason.None;
                 bool active = _selection.PendingSkillId == id;
                 string cost = definition?.ApCost != null ? $"{definition.ApCost} AP" : "TBD";
 

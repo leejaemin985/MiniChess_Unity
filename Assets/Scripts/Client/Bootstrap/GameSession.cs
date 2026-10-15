@@ -8,6 +8,7 @@ using MiniChess.Client.UI;
 using MiniChess.Client.Units;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
+using MiniChess.Core.Controller;
 using MiniChess.Core.Data;
 using MiniChess.Core.Presets;
 using MiniChess.Core.Setup;
@@ -18,13 +19,17 @@ using UnityEngine;
 namespace MiniChess.Client.Bootstrap
 {
     /// <summary>
-    /// 한 경기의 코어 GameState 를 소유하는 진입점.
-    /// 클라이언트는 이 상태를 읽어 그리기만 하고, 변경은 이 클래스의 Try* 를 거쳐 코어 Action 으로만 한다.
+    /// 한 경기의 코어 GameController 를 소유하는 진입점.
+    /// 클라이언트는 Game.State 를 읽어 그리기만 하고, 변경은 이 클래스의 Try* 를 거쳐 컨트롤러 요청으로만 한다.
+    /// 요청 팀은 현재 턴의 팀이다(한 화면 교대 플레이). 표시용 조회는 Game 의 Get* 를 직접 쓴다.
     /// 뷰 참조가 비어 있으면 자식 오브젝트로 직접 만든다.
     /// </summary>
     public class GameSession : MonoBehaviour
     {
-        [Header("Lineup (비우면 프리셋 기본 구성)")]
+        [Header("Quick Start (켜면 배치 단계를 건너뛰고 아래 라인업을 자동 배치)")]
+        [SerializeField] private bool quickStart;
+
+        [Header("Quick Start Lineup (비우면 프리셋 기본 구성)")]
         [SerializeField] private List<CharacterChoice> player1Lineup = new List<CharacterChoice>();
         [SerializeField] private List<CharacterChoice> player2Lineup = new List<CharacterChoice>();
 
@@ -35,11 +40,18 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private BoardCameraRig cameraRig;
         [SerializeField] private BoardInput boardInput;
         [SerializeField] private SelectionController selection;
+        [SerializeField] private PlacementController placement;
+        [SerializeField] private PlacementPreviewView placementPreview;
         [SerializeField] private HudView hud;
 
-        public GameState State { get; private set; }
+        /// <summary>코어 단일 진입점(명령 + 조회). 경기를 만들지 못했으면 null.</summary>
+        public GameController Game { get; private set; }
+
+        /// <summary>읽기 전용 경기 상태(Game.State).</summary>
+        public GameState State => Game?.State;
         public BoardCoordinates Coordinates { get; private set; }
         public SelectionController Selection => selection;
+        public PlacementController Placement => placement;
 
         /// <summary>새 경기 시작 또는 행동 성공으로 코어 상태가 바뀐 뒤(뷰 동기화 후) 호출된다.</summary>
         public event Action StateChanged;
@@ -54,27 +66,35 @@ namespace MiniChess.Client.Bootstrap
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
             if (boardInput == null) boardInput = CreateChild<BoardInput>("BoardInput");
             if (selection == null) selection = CreateChild<SelectionController>("Selection");
+            if (placement == null) placement = CreateChild<PlacementController>("Placement");
+            if (placementPreview == null) placementPreview = CreateChild<PlacementPreviewView>("PlacementPreview");
             if (hud == null) hud = CreateChild<HudView>("Hud");
         }
 
         private void Start()
         {
+            // 둘 다 보드 하이라이트를 쓰므로, 상태 변경 시 선택(지우기) → 배치(다시 그리기) 순으로 처리되도록 이 순서로 초기화한다.
             selection.Initialize(this, boardInput, boardView);
+            placement.Initialize(this, boardInput, boardView);
+            placementPreview.Initialize(placement, () => Coordinates, unitsView.GetTeamColor, id => Game?.State.Characters.Find(id)?.Name ?? id);
             hud.Initialize(this, unitsView.GetTeamColor);
 
             StartNewGame();
         }
 
-        /// <summary>Inspector 의 팀 구성으로 새 경기를 시작한다(재시작 시 바뀐 구성도 반영).</summary>
+        /// <summary>
+        /// 새 경기를 시작한다. 기본은 배치 단계부터 시작하고, Quick Start 면 Inspector 라인업을 자동 배치해 바로 Battle 로 시작한다.
+        /// </summary>
         public void StartNewGame()
         {
-            GameState state;
+            GameController game;
             try
             {
-                state = CreateGame();
+                game = CreateGame();
             }
-            catch (GameConfigException e)
+            catch (Exception e) when (e is GameConfigException || e is InvalidOperationException)
             {
+                // 설정 누락(GameConfigException) 또는 배치 규칙 위반(같은 캐릭터 중복 등, InvalidOperationException)
                 Debug.LogError($"[GameSession] 경기를 만들 수 없음: {e.Message}");
                 return;
             }
@@ -82,7 +102,7 @@ namespace MiniChess.Client.Bootstrap
             // 이전 경기의 유닛을 계속 붙잡고 있지 않도록 먼저 해제한다.
             selection.Deselect();
 
-            State = state;
+            Game = game;
             Coordinates = new BoardCoordinates(State.Board.Width, State.Board.Height, cellSize);
 
             boardView.Build(State.Board, Coordinates);
@@ -95,8 +115,19 @@ namespace MiniChess.Client.Bootstrap
             StateChanged?.Invoke();
         }
 
-        private GameState CreateGame()
+        private GameController CreateGame()
         {
+            if (!quickStart)
+            {
+                return GameController.Create(new GameConfig
+                {
+                    Rules = PrototypeTestPreset.CreateRules(),
+                    Map = PrototypeTestPreset.CreateTestMap(),
+                    Characters = PrototypeTestPreset.CreateCharacters(),
+                    Skills = PrototypeTestPreset.CreateSkills(),
+                });
+            }
+
             string[] defaultLineup = PrototypeTestPreset.CreateStartingLineup();
 
             return QuickBattleFactory.Create(
@@ -123,66 +154,46 @@ namespace MiniChess.Client.Bootstrap
 
         #region Actions
 
+        /// <summary>한 팀의 배치를 확정한다. 두 팀이 모두 확정하면 코어가 Battle 을 시작한다.</summary>
+        public bool TryPlaceUnits(Team team, IReadOnlyList<UnitPlacement> placements)
+        {
+            return Handle(Game.PlaceUnits(new PlaceUnitsRequest(team, placements)), FailReasonText.Describe);
+        }
+
         public bool TryMove(Unit unit, Position destination)
         {
-            var action = new MoveAction(unit, destination);
-            MoveFailReason reason = action.Validate(State);
-            if (reason != MoveFailReason.None)
-                return Fail(FailReasonText.Describe(reason));
-
-            action.Execute(State);
-            return Succeed();
+            return Handle(Game.Move(new MoveRequest(State.CurrentTeam, unit.Id, destination)), FailReasonText.Describe);
         }
 
         public bool TryAttack(Unit attacker, Unit target)
         {
-            var action = new AttackAction(attacker, target);
-            AttackFailReason reason = action.Validate(State);
-            if (reason != AttackFailReason.None)
-                return Fail(FailReasonText.Describe(reason));
-
-            action.Execute(State);
-            return Succeed();
+            return Handle(Game.Attack(new AttackRequest(State.CurrentTeam, attacker.Id, target.Id)), FailReasonText.Describe);
         }
 
         /// <summary>기본 공격으로 장애물을 친다.</summary>
         public bool TryAttackObstacle(Unit attacker, Position target)
         {
-            var action = new AttackObstacleAction(attacker, target);
-            AttackFailReason reason = action.Validate(State);
-            if (reason != AttackFailReason.None)
-                return Fail(FailReasonText.Describe(reason));
-
-            action.Execute(State);
-            return Succeed();
+            return Handle(Game.AttackObstacle(new AttackObstacleRequest(State.CurrentTeam, attacker.Id, target)), FailReasonText.Describe);
         }
 
-        public bool TryUseSkill(Unit caster, string skillId, Position target)
-        {
-            return TryUseSkill(caster, skillId, new[] { target });
-        }
-
-        /// <summary>여러 칸을 지정하는 스킬(지정 순). rotation 은 회전하는 범위의 스킬에만 의미가 있다.</summary>
+        /// <summary>스킬을 사용한다. 지정 칸은 지정 순, rotation 은 회전하는 범위의 스킬에만 의미가 있다.</summary>
         public bool TryUseSkill(Unit caster, string skillId, IReadOnlyList<Position> targets, AreaRotation rotation = AreaRotation.R0)
         {
-            var action = new UseSkillAction(caster, skillId, targets, rotation);
-            SkillFailReason reason = action.Validate(State);
-            if (reason != SkillFailReason.None)
-                return Fail(FailReasonText.Describe(reason));
-
-            action.Execute(State);
-            return Succeed();
+            var request = new UseSkillRequest(State.CurrentTeam, caster.Id, skillId, targets, rotation);
+            return Handle(Game.UseSkill(request), FailReasonText.Describe);
         }
 
         public bool TryEndTurn()
         {
-            var action = new EndTurnAction(State.CurrentTeam);
-            EndTurnFailReason reason = action.Validate(State);
-            if (reason != EndTurnFailReason.None)
-                return Fail(FailReasonText.Describe(reason));
+            return Handle(Game.EndTurn(new EndTurnRequest(State.CurrentTeam)), FailReasonText.Describe);
+        }
 
-            action.Execute(State);
-            return Succeed();
+        /// <summary>성공이면 뷰를 동기화하고, 실패면 사유를 알린다. 실패한 요청은 코어 상태를 바꾸지 않는다.</summary>
+        private bool Handle<TReason, TResult>(GameResponse<TReason, TResult> response, Func<TReason, string> describe)
+            where TReason : struct, Enum
+            where TResult : class
+        {
+            return response.Success ? Succeed() : Fail(describe(response.Reason));
         }
 
         private bool Succeed()

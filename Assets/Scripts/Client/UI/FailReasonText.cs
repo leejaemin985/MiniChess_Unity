@@ -20,6 +20,8 @@ namespace MiniChess.Client.UI
                 case MoveFailReason.Rooted: return "This unit is rooted";
                 case MoveFailReason.DistanceLimited: return "Movement limit reached";
                 case MoveFailReason.Installed: return "Installed units can't move";
+                case MoveFailReason.UnknownUnit: return "Unknown unit";
+                case MoveFailReason.NotYourUnit: return "Not your unit";
                 default: return reason.ToString();
             }
         }
@@ -38,6 +40,8 @@ namespace MiniChess.Client.UI
                 case AttackFailReason.NotEnoughAp: return "Not enough AP";
                 case AttackFailReason.ActionsEnded: return "This unit can't act this turn";
                 case AttackFailReason.BlockedByStatus: return "This unit can't attack now";
+                case AttackFailReason.UnknownUnit: return "Unknown unit";
+                case AttackFailReason.NotYourUnit: return "Not your unit";
                 default: return reason.ToString();
             }
         }
@@ -57,6 +61,24 @@ namespace MiniChess.Client.UI
                 case SkillFailReason.ConditionNotMet: return "Skill condition not met";
                 case SkillFailReason.InvalidTarget: return "No valid target";
                 case SkillFailReason.NotEnoughAp: return "Not enough AP";
+                case SkillFailReason.UnknownUnit: return "Unknown unit";
+                case SkillFailReason.NotYourUnit: return "Not your unit";
+                default: return reason.ToString();
+            }
+        }
+
+        public static string Describe(PlaceFailReason reason)
+        {
+            switch (reason)
+            {
+                case PlaceFailReason.NotSetupPhase: return "배치 단계가 아닙니다";
+                case PlaceFailReason.AlreadyPlaced: return "이미 배치를 확정했습니다";
+                case PlaceFailReason.WrongUnitCount: return "팀 인원 수를 맞춰야 합니다";
+                case PlaceFailReason.UnknownCharacter: return "알 수 없는 캐릭터";
+                case PlaceFailReason.CharacterNotConfigured: return "수치가 설정되지 않은 캐릭터";
+                case PlaceFailReason.DuplicateCharacter: return "같은 캐릭터는 한 번만 배치할 수 있습니다";
+                case PlaceFailReason.NotSpawnCell: return "자기 영역(시작 칸)에만 배치할 수 있습니다";
+                case PlaceFailReason.DuplicatePosition: return "한 칸에 하나만 배치할 수 있습니다";
                 default: return reason.ToString();
             }
         }

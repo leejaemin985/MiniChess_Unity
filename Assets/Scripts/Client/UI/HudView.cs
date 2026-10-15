@@ -71,8 +71,17 @@ namespace MiniChess.Client.UI
         {
             GameState state = _session.State;
 
-            _turnText.text = $"TURN {state.TurnNumber}  -  {TeamLabel(state.CurrentTeam)}";
-            _turnText.color = _teamColor(state.CurrentTeam);
+            Team? placingTeam = _session.Placement.PlacingTeam;
+            if (state.Phase == GamePhase.Setup && placingTeam.HasValue)
+            {
+                _turnText.text = $"SETUP  -  {TeamLabel(placingTeam.Value)}";
+                _turnText.color = _teamColor(placingTeam.Value);
+            }
+            else
+            {
+                _turnText.text = $"TURN {state.TurnNumber}  -  {TeamLabel(state.CurrentTeam)}";
+                _turnText.color = _teamColor(state.CurrentTeam);
+            }
 
             RefreshAp(_player1ApText, state, Team.Player1);
             RefreshAp(_player2ApText, state, Team.Player2);
@@ -194,6 +203,7 @@ namespace MiniChess.Client.UI
             UiFactory.Place((RectTransform)_endTurnButton.transform, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(280f, 90f));
 
             SkillPanelView.Create(root, _session);
+            PlacementPanelView.Create(root, _session, _session.Placement);
             BuildToast(root);
             BuildGameOverPanel(root);
         }
