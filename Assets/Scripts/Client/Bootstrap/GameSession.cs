@@ -46,6 +46,8 @@ namespace MiniChess.Client.Bootstrap
 
         [Header("Visuals (비우면 Resources/CharacterVisualCatalog 를 불러옴)")]
         [SerializeField] private CharacterVisualCatalog characterVisuals;
+        [Tooltip("기본 공격 아이콘을 띄우는 시간(초).")]
+        [SerializeField, Min(0f)] private float actionIconDuration = 0.7f;
 
         [Header("View")]
         [SerializeField] private float cellSize = 1f;
@@ -196,13 +198,13 @@ namespace MiniChess.Client.Bootstrap
 
         public bool TryAttack(Unit attacker, Unit target)
         {
-            return Handle(Game.Attack(new AttackRequest(State.CurrentTeam, attacker.Id, target.Id)), FailReasonText.Describe);
+            return RequestAttack(new AttackRequest(State.CurrentTeam, attacker.Id, target.Id));
         }
 
         /// <summary>기본 공격으로 장애물을 친다.</summary>
         public bool TryAttackObstacle(Unit attacker, Position target)
         {
-            return Handle(Game.AttackObstacle(new AttackObstacleRequest(State.CurrentTeam, attacker.Id, target)), FailReasonText.Describe);
+            return RequestAttackObstacle(new AttackObstacleRequest(State.CurrentTeam, attacker.Id, target));
         }
 
         /// <summary>스킬을 사용한다. 지정 칸은 지정 순, rotation 은 회전하는 범위의 스킬에만 의미가 있다.</summary>
@@ -225,9 +227,9 @@ namespace MiniChess.Client.Bootstrap
                 case BotActionKind.Move:
                     return Handle(Game.Move(new MoveRequest(action.Team, action.UnitId, action.Cell)), FailReasonText.Describe);
                 case BotActionKind.Attack:
-                    return Handle(Game.Attack(new AttackRequest(action.Team, action.UnitId, action.TargetUnitId)), FailReasonText.Describe);
+                    return RequestAttack(new AttackRequest(action.Team, action.UnitId, action.TargetUnitId));
                 case BotActionKind.AttackObstacle:
-                    return Handle(Game.AttackObstacle(new AttackObstacleRequest(action.Team, action.UnitId, action.Cell)), FailReasonText.Describe);
+                    return RequestAttackObstacle(new AttackObstacleRequest(action.Team, action.UnitId, action.Cell));
                 case BotActionKind.UseSkill:
                     var request = new UseSkillRequest(action.Team, action.UnitId, action.SkillId, action.Targets, action.Rotation);
                     return Handle(Game.UseSkill(request), FailReasonText.Describe);
@@ -236,6 +238,34 @@ namespace MiniChess.Client.Bootstrap
                 default:
                     throw new ArgumentOutOfRangeException(nameof(action), action.Kind, null);
             }
+        }
+
+        /// <summary>기본 공격 요청(사람/봇 공용). 성공하면 공격자 위에 기본 공격 아이콘을 띄운다.</summary>
+        private bool RequestAttack(AttackRequest request)
+        {
+            var response = Game.Attack(request);
+            if (!Handle(response, FailReasonText.Describe))
+                return false;
+
+            ShowBasicAttackIcon(response.Result.Attacker);
+            return true;
+        }
+
+        /// <summary>장애물 기본 공격 요청(사람/봇 공용). 성공하면 공격자 위에 기본 공격 아이콘을 띄운다.</summary>
+        private bool RequestAttackObstacle(AttackObstacleRequest request)
+        {
+            var response = Game.AttackObstacle(request);
+            if (!Handle(response, FailReasonText.Describe))
+                return false;
+
+            ShowBasicAttackIcon(response.Result.Attacker);
+            return true;
+        }
+
+        private void ShowBasicAttackIcon(Unit attacker)
+        {
+            if (characterVisuals != null)
+                unitsView.ShowActionIcon(attacker, characterVisuals.BasicAttackIcon, actionIconDuration);
         }
 
         /// <summary>성공이면 뷰를 동기화하고, 실패면 사유를 알린다. 실패한 요청은 코어 상태를 바꾸지 않는다.</summary>

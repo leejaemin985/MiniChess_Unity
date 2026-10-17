@@ -55,6 +55,13 @@ namespace MiniChess.Client.Units
             return team == Team.Player1 ? player1Color : player2Color;
         }
 
+        /// <summary>유닛 위에 행동 아이콘을 잠깐 띄운다. 뷰가 없거나 아이콘이 없으면 무시.</summary>
+        public void ShowActionIcon(Unit unit, Sprite icon, float duration)
+        {
+            if (unit != null && icon != null && _views.TryGetValue(unit.Id, out UnitView view))
+                view.ShowActionIcon(icon, duration);
+        }
+
         public bool TryGetView(Unit unit, out UnitView view)
         {
             return _views.TryGetValue(unit.Id, out view);
@@ -80,7 +87,7 @@ namespace MiniChess.Client.Units
                 color = Color.Lerp(color, Color.white, summonLighten);
 
             Color actedColor = Color.Lerp(color, Color.gray, actedDarken);
-            return UnitView.Create(transform, unit, color, actedColor, FindFace(unit));
+            return UnitView.Create(transform, unit, color, actedColor, FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame);
         }
 
         /// <summary>유닛의 얼굴. 소환물은 자기 데이터가 없으면 소환자의 얼굴을 쓴다.</summary>
