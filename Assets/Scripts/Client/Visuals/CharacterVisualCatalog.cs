@@ -23,6 +23,8 @@ namespace MiniChess.Client.Visuals
         [Header("Action Icons")]
         [Tooltip("기본 공격(유닛/장애물) 때 공격자 얼굴 위에 잠깐 띄우는 아이콘.")]
         [SerializeField] private Sprite basicAttackIcon;
+        [Tooltip("스킬 시전 때 시전자 얼굴 위에 잠깐 띄우는 아이콘(모든 스킬 공통).")]
+        [SerializeField] private Sprite skillCastIcon;
 
         public IReadOnlyList<CharacterVisual> Visuals => visuals;
 
@@ -34,6 +36,9 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>기본 공격 아이콘. 지정하지 않았으면 null(표시 안 함).</summary>
         public Sprite BasicAttackIcon => basicAttackIcon;
+
+        /// <summary>스킬 시전 아이콘. 지정하지 않았으면 null(표시 안 함).</summary>
+        public Sprite SkillCastIcon => skillCastIcon;
 
         /// <summary>캐릭터 Id 의 시각 데이터. 없으면 null.</summary>
         public CharacterVisual Find(string characterId)

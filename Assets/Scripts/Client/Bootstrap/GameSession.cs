@@ -46,7 +46,7 @@ namespace MiniChess.Client.Bootstrap
 
         [Header("Visuals (비우면 Resources/CharacterVisualCatalog 를 불러옴)")]
         [SerializeField] private CharacterVisualCatalog characterVisuals;
-        [Tooltip("기본 공격 아이콘을 띄우는 시간(초).")]
+        [Tooltip("기본 공격/스킬 시전 아이콘을 띄우는 시간(초).")]
         [SerializeField, Min(0f)] private float actionIconDuration = 0.7f;
 
         [Header("View")]
@@ -211,7 +211,7 @@ namespace MiniChess.Client.Bootstrap
         public bool TryUseSkill(Unit caster, string skillId, IReadOnlyList<Position> targets, AreaRotation rotation = AreaRotation.R0)
         {
             var request = new UseSkillRequest(State.CurrentTeam, caster.Id, skillId, targets, rotation);
-            return Handle(Game.UseSkill(request), FailReasonText.Describe);
+            return RequestUseSkill(request);
         }
 
         public bool TryEndTurn()
@@ -232,7 +232,7 @@ namespace MiniChess.Client.Bootstrap
                     return RequestAttackObstacle(new AttackObstacleRequest(action.Team, action.UnitId, action.Cell));
                 case BotActionKind.UseSkill:
                     var request = new UseSkillRequest(action.Team, action.UnitId, action.SkillId, action.Targets, action.Rotation);
-                    return Handle(Game.UseSkill(request), FailReasonText.Describe);
+                    return RequestUseSkill(request);
                 case BotActionKind.EndTurn:
                     return Handle(Game.EndTurn(new EndTurnRequest(action.Team)), FailReasonText.Describe);
                 default:
@@ -259,6 +259,18 @@ namespace MiniChess.Client.Bootstrap
                 return false;
 
             ShowBasicAttackIcon(response.Result.Attacker);
+            return true;
+        }
+
+        /// <summary>스킬 사용 요청(사람/봇 공용). 성공하면 시전자 위에 스킬 시전 아이콘을 띄운다.</summary>
+        private bool RequestUseSkill(UseSkillRequest request)
+        {
+            var response = Game.UseSkill(request);
+            if (!Handle(response, FailReasonText.Describe))
+                return false;
+
+            if (characterVisuals != null)
+                unitsView.ShowActionIcon(response.Result.Caster, characterVisuals.SkillCastIcon, actionIconDuration);
             return true;
         }
 
