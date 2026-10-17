@@ -40,6 +40,7 @@ namespace MiniChess.Client.Board
         [Header("Cell Effects")]
         [SerializeField] private Color healFieldColor = new Color(0.35f, 0.9f, 0.45f);
         [SerializeField] private Color damageFieldColor = new Color(0.6f, 0.3f, 0.85f);
+        [SerializeField] private Color poisonFieldColor = new Color(0.55f, 0.85f, 0.15f);
         [SerializeField] private Color otherFieldColor = new Color(0.5f, 0.5f, 0.5f);
         [SerializeField, Range(0f, 1f)] private float fieldTintStrength = 0.5f;
         [SerializeField] private Color player1TrapColor = new Color(0.15f, 0.3f, 0.8f);
@@ -94,6 +95,7 @@ namespace MiniChess.Client.Board
             {
                 case HealField _: return healFieldColor;
                 case DamageField _: return damageFieldColor;
+                case PoisonField _: return poisonFieldColor;
                 default: return otherFieldColor;
             }
         }

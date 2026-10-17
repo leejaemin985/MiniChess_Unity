@@ -62,10 +62,10 @@ namespace MiniChess.Bot.Rules
             return Reach(skill) - (skill.Targeting is CellTargeting || skill.Targeting is StraightMoveTargeting ? 1 : 0);
         }
 
-        /// <summary>지속 피해 상태(화상)의 총 피해. 피해 상태가 아니면 0.</summary>
+        /// <summary>지속 피해 상태(화상, 중독)의 총 피해. 피해 상태가 아니면 0.</summary>
         public static double StatusDamage(StatusDefinition status)
         {
-            return status.Behavior is BurnBehavior burn ? burn.DamagePerTrigger * status.Duration : 0;
+            return status.Behavior is DamageOverTimeBehavior dot ? dot.DamagePerTrigger * status.Duration : 0;
         }
 
         /// <summary>유닛에 걸린 상태의 행동(Behavior). 없으면 null.</summary>

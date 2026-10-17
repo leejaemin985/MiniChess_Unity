@@ -387,7 +387,7 @@ namespace MiniChess.Bot.Rules
                         return already ? _w.OtherStatus : _w.Root;
                     case DistanceLimitBehavior _:
                         return already ? 0 : _w.DistanceLimit;
-                    case BurnBehavior _:
+                    case DamageOverTimeBehavior _:
                         return SkillEstimates.StatusDamage(status) * _w.DamageOverTime;
                     case CurseMarkBehavior mark:
                         return mark.BonusDamage * _w.DamageOverTime;
