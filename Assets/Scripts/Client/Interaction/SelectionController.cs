@@ -30,6 +30,7 @@ namespace MiniChess.Client.Interaction
         private BoardView _boardView;
 
         private Unit _selected;
+        private Unit _inspected;
         private readonly List<Position> _moveDestinations = new List<Position>();
         private readonly List<Unit> _attackTargets = new List<Unit>();
         private readonly List<Position> _attackObstacles = new List<Position>();
@@ -43,6 +44,12 @@ namespace MiniChess.Client.Interaction
         private AreaRotation _rotation;
 
         public Unit Selected => _selected;
+
+        /// <summary>행동 없이 정보만 보는 유닛(상대 유닛 등). 선택한 유닛이 있으면 null.</summary>
+        public Unit Inspected => _inspected;
+
+        /// <summary>정보 패널에 보여줄 유닛: 선택한 유닛, 없으면 보는 중인 유닛.</summary>
+        public Unit Displayed => _selected ?? _inspected;
 
         /// <summary>스킬 지정 중인 스킬 Id. 일반 모드면 null.</summary>
         public string PendingSkillId => _pendingSkillId;
@@ -73,6 +80,7 @@ namespace MiniChess.Client.Interaction
         public void Deselect()
         {
             _selected = null;
+            _inspected = null;
             _moveDestinations.Clear();
             _attackTargets.Clear();
             _attackObstacles.Clear();
@@ -165,9 +173,20 @@ namespace MiniChess.Client.Interaction
         {
             GameState state = _session.State;
 
-            // 배치 단계 입력은 PlacementController 가, 봇 팀의 턴은 BotDriver 가 처리한다.
-            if (!AcceptsInput(state))
+            // 배치 단계 입력은 PlacementController 가 처리한다.
+            if (state != null && state.Phase == GamePhase.Setup)
                 return;
+
+            // 봇 팀의 턴(BotDriver 진행 중)에는 유닛 정보 보기만 된다.
+            if (!AcceptsInput(state))
+            {
+                Unit unit = clicked.HasValue ? state.Board.GetCell(clicked.Value).Occupant : null;
+                if (unit != null)
+                    Inspect(unit);
+                else
+                    Deselect();
+                return;
+            }
 
             if (state == null || state.IsGameOver || !clicked.HasValue)
             {
@@ -191,6 +210,13 @@ namespace MiniChess.Client.Interaction
                 return;
             }
 
+            // 상대 유닛 클릭 → 지금 공격할 수 있으면 공격, 아니면(선택 없음/사거리 밖 등) 정보 보기
+            if (occupant != null && !(_selected != null && _attackTargets.Contains(occupant)))
+            {
+                Inspect(occupant);
+                return;
+            }
+
             if (_selected == null || cell.IsWall)
             {
                 Deselect();
@@ -204,7 +230,7 @@ namespace MiniChess.Client.Interaction
                 return;
             }
 
-            // 적 클릭 → 공격 시도(실패해도 선택 유지), 빈 칸 클릭 → 이동 시도(실패하면 선택 해제)
+            // 공격 가능한 적 클릭 → 공격, 빈 칸 클릭 → 이동 시도(실패하면 선택 해제)
             if (occupant != null)
                 _session.TryAttack(_selected, occupant);
             else if (!_session.TryMove(_selected, clicked.Value))
@@ -333,16 +359,35 @@ namespace MiniChess.Client.Interaction
 
             if (unit == null || !unit.IsPlaced || state.IsGameOver || unit.Team != state.CurrentTeam)
             {
+                // 보던 유닛은 살아 있으면 계속 보여준다(봇 턴 동안 지켜보기 등).
+                Unit inspected = _inspected;
                 Deselect();
+                if (inspected != null && inspected.IsPlaced && state != null && !state.IsGameOver)
+                    Inspect(inspected);
                 return;
             }
 
             Select(unit);
         }
 
+        /// <summary>행동 없이 유닛 정보만 보여준다(상대 유닛, 봇 턴 중 유닛 등). 칸만 표시하고 이동/공격 범위는 그리지 않는다.</summary>
+        private void Inspect(Unit unit)
+        {
+            _selected = null;
+            _inspected = unit;
+            _moveDestinations.Clear();
+            _attackTargets.Clear();
+            _attackObstacles.Clear();
+            ClearSkillMode();
+
+            Redraw();
+            SelectionChanged?.Invoke();
+        }
+
         private void Select(Unit unit)
         {
             _selected = unit;
+            _inspected = null;
             ClearSkillMode();
 
             GameController game = _session.Game;
@@ -371,6 +416,13 @@ namespace MiniChess.Client.Interaction
         private void Redraw()
         {
             _boardView.ClearHighlights();
+
+            if (_selected == null && _inspected != null && _inspected.IsPlaced)
+            {
+                _boardView.Highlight(_inspected.Position.Value, CellHighlight.Selected);
+                return;
+            }
+
             if (_selected == null || !_selected.IsPlaced)
                 return;
 

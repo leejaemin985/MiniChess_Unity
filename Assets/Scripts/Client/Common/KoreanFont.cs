@@ -35,6 +35,18 @@ namespace MiniChess.Client.Common
                 text.font = asset;
         }
 
+        /// <summary>
+        /// root 아래(비활성 포함) 글자 중 기본 TMP 폰트를 쓰는 것만 한글 폰트로 바꾼다. 프리팹에서 다른 폰트를 지정했다면 그대로 둔다.
+        /// </summary>
+        public static void ApplyToDefaultTexts(GameObject root)
+        {
+            foreach (TMP_Text text in root.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text.font == null || text.font == TMP_Settings.defaultFontAsset)
+                    Apply(text);
+            }
+        }
+
         private static void Load()
         {
             _loaded = true;

@@ -12,21 +12,16 @@ using UnityEngine.UI;
 namespace MiniChess.Client.UI
 {
     /// <summary>
-    /// 턴/AP 표시, 턴 종료 버튼, 실패 이유 토스트, 경기 종료 패널.
+    /// 턴 종료 버튼, 실패 이유/점령 알림 토스트, 경기 종료 패널. 위 정보 바(TopBar)와 아래 유닛 패널(UnitInfoPanel)은 프리팹으로 띄운다.
     /// GameSession 이벤트를 받아 상태를 다시 그리고, 버튼 입력은 GameSession 에 요청한다.
     /// </summary>
     public class HudView : MonoBehaviour
     {
         [SerializeField] private float toastDuration = 1.5f;
-        [SerializeField, Range(0f, 1f)] private float inactiveTeamAlpha = 0.4f;
 
         private GameSession _session;
         private Func<Team, Color> _teamColor;
 
-        private TextMeshProUGUI _turnText;
-        private TextMeshProUGUI _captureText;
-        private TextMeshProUGUI _player1ApText;
-        private TextMeshProUGUI _player2ApText;
         private Button _endTurnButton;
         private CanvasGroup _toastGroup;
         private TextMeshProUGUI _toastText;
@@ -42,7 +37,7 @@ namespace MiniChess.Client.UI
             _session = session;
             _teamColor = teamColor;
 
-            if (_turnText == null)
+            if (_endTurnButton == null)
                 Build();
 
             _session.StateChanged += Refresh;
@@ -72,21 +67,7 @@ namespace MiniChess.Client.UI
         {
             GameState state = _session.State;
 
-            Team? placingTeam = PlacementController.GetNextPlacingTeam(state);
-            if (state.Phase == GamePhase.Setup && placingTeam.HasValue)
-            {
-                _turnText.text = $"SETUP  -  {TeamLabel(placingTeam.Value)}";
-                _turnText.color = _teamColor(placingTeam.Value);
-            }
-            else
-            {
-                _turnText.text = $"TURN {state.TurnNumber}  -  {TeamLabel(state.CurrentTeam)}";
-                _turnText.color = _teamColor(state.CurrentTeam);
-            }
-
-            RefreshAp(_player1ApText, state, Team.Player1);
-            RefreshAp(_player2ApText, state, Team.Player2);
-            RefreshCapture(state);
+            AnnounceCapture(state);
 
             // 봇 팀의 턴에는 사람이 턴을 끝낼 수 없다.
             _endTurnButton.interactable = state.Phase == GamePhase.Battle && !_session.IsBot(state.CurrentTeam);
@@ -96,40 +77,15 @@ namespace MiniChess.Client.UI
                 _gameOverText.text = state.Winner.HasValue ? $"{TeamLabel(state.Winner.Value)} WINS" : "DRAW";
         }
 
-        private void RefreshAp(TextMeshProUGUI text, GameState state, Team team)
-        {
-            ApPool ap = state.GetPlayer(team).Ap;
-            text.text = $"{TeamLabel(team)}\nAP {ap.Current}/{ap.Max}";
-
-            Color color = _teamColor(team);
-            color.a = team == state.CurrentTeam ? 1f : inactiveTeamAlpha;
-            text.color = color;
-        }
-
-        /// <summary>점령 진행도 또는 점령 결과. 점령이 완료된 순간에는 토스트로도 알린다.</summary>
-        private void RefreshCapture(GameState state)
+        /// <summary>점령이 완료되면 한 번 토스트로 알린다(진행도는 TopBar 가 보여준다).</summary>
+        private void AnnounceCapture(GameState state)
         {
             CaptureState capture = state.Capture;
-
-            if (capture.CapturedBy.HasValue)
-            {
-                Team team = capture.CapturedBy.Value;
-                string message = $"{TeamLabel(team)} CAPTURED  -  {DescribeReward(capture.Reward)}";
-                _captureText.text = message;
-                _captureText.color = _teamColor(team);
-
-                if (_captureAnnouncedFor != state)
-                {
-                    _captureAnnouncedFor = state;
-                    ShowToast(message);
-                }
+            if (!capture.CapturedBy.HasValue || _captureAnnouncedFor == state)
                 return;
-            }
 
-            _captureText.color = Color.white;
-            _captureText.text = capture.IsActive
-                ? $"CAPTURE   P1 {capture.GetProgress(Team.Player1)}/{capture.Required}   P2 {capture.GetProgress(Team.Player2)}/{capture.Required}"
-                : string.Empty;
+            _captureAnnouncedFor = state;
+            ShowToast($"{TeamLabel(capture.CapturedBy.Value)} CAPTURED  -  {DescribeReward(capture.Reward)}");
         }
 
         private static string DescribeReward(CaptureReward reward)
@@ -190,26 +146,28 @@ namespace MiniChess.Client.UI
             Canvas canvas = UiFactory.CreateCanvas(transform, "HudCanvas");
             Transform root = canvas.transform;
 
-            _turnText = UiFactory.CreateText(root, "Turn", 48f, TextAlignmentOptions.Center);
-            UiFactory.Place(_turnText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(800f, 70f));
-            _turnText.fontStyle = FontStyles.Bold;
-
-            _captureText = UiFactory.CreateText(root, "Capture", 32f, TextAlignmentOptions.Center);
-            UiFactory.Place(_captureText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -100f), new Vector2(900f, 50f));
-
-            _player1ApText = UiFactory.CreateText(root, "Player1 AP", 40f, TextAlignmentOptions.TopLeft);
-            UiFactory.Place(_player1ApText.rectTransform, new Vector2(0f, 1f), new Vector2(40f, -30f), new Vector2(400f, 120f));
-
-            _player2ApText = UiFactory.CreateText(root, "Player2 AP", 40f, TextAlignmentOptions.TopRight);
-            UiFactory.Place(_player2ApText.rectTransform, new Vector2(1f, 1f), new Vector2(-40f, -30f), new Vector2(400f, 120f));
-
             _endTurnButton = UiFactory.CreateButton(root, "EndTurn", "END TURN", new Color(0.15f, 0.15f, 0.18f, 0.9f), OnEndTurnClicked);
-            UiFactory.Place((RectTransform)_endTurnButton.transform, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(280f, 90f));
+            // 하단은 유닛 패널이 쓰므로 턴 종료는 오른쪽 위(정보 바 아래)에 둔다.
+            UiFactory.Place((RectTransform)_endTurnButton.transform, new Vector2(1f, 1f), new Vector2(-40f, -160f), new Vector2(280f, 80f));
 
-            SkillPanelView.Create(root, _session);
+            CreatePrefabPanel<TopBarView>(TopBarView.ResourcePath)?.Bind(_session, _teamColor);
+            CreatePrefabPanel<UnitInfoPanel>(UnitInfoPanel.ResourcePath)?.Bind(_session, _teamColor);
             PlacementPanelView.Create(root, _session, _session.Placement);
             BuildToast(root);
             BuildGameOverPanel(root);
+        }
+
+        /// <summary>Resources 의 패널 프리팹을 띄운다. 프리팹은 자체 캔버스라 HUD 캔버스 밖(Hud 오브젝트 아래)에 둔다. 없으면 null.</summary>
+        private T CreatePrefabPanel<T>(string resourcePath) where T : Component
+        {
+            var prefab = Resources.Load<T>(resourcePath);
+            if (prefab == null)
+            {
+                Debug.LogError($"[HudView] 패널 프리팹(Resources/{resourcePath})이 없음");
+                return null;
+            }
+
+            return Instantiate(prefab, transform);
         }
 
         private void BuildToast(Transform root)

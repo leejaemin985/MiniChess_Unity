@@ -245,9 +245,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d1f6a2b8c4e4f0a9b7d5e6c1a2b3c4d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player1Control: 0
+  player2Control: 1
+  botActionDelay: 0.5
+  botSeed: 0
+  quickStart: 0
+  player1Lineup: 
+  player2Lineup: 
+  characterVisuals: {fileID: 0}
+  actionIconDuration: 0.7
   cellSize: 1
   boardView: {fileID: 0}
+  unitsView: {fileID: 0}
   cameraRig: {fileID: 0}
+  boardInput: {fileID: 0}
+  selection: {fileID: 0}
+  placement: {fileID: 0}
+  placementPreview: {fileID: 0}
+  hud: {fileID: 0}
+  botDriver: {fileID: 0}
 --- !u!4 &961735124
 Transform:
   m_ObjectHideFlags: 0
