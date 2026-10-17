@@ -1,0 +1,19 @@
+{
+    "name": "MiniChess.Client.Editor",
+    "rootNamespace": "MiniChess.Client.Editor",
+    "references": [
+        "MiniChess.Client",
+        "MiniChess.Core"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

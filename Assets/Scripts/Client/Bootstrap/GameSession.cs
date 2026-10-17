@@ -8,6 +8,7 @@ using MiniChess.Client.Interaction;
 using MiniChess.Client.Players;
 using MiniChess.Client.UI;
 using MiniChess.Client.Units;
+using MiniChess.Client.Visuals;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
@@ -43,6 +44,9 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private List<CharacterChoice> player1Lineup = new List<CharacterChoice>();
         [SerializeField] private List<CharacterChoice> player2Lineup = new List<CharacterChoice>();
 
+        [Header("Visuals (비우면 Resources/CharacterVisualCatalog 를 불러옴)")]
+        [SerializeField] private CharacterVisualCatalog characterVisuals;
+
         [Header("View")]
         [SerializeField] private float cellSize = 1f;
         [SerializeField] private BoardView boardView;
@@ -63,6 +67,8 @@ namespace MiniChess.Client.Bootstrap
         public BoardCoordinates Coordinates { get; private set; }
         public SelectionController Selection => selection;
         public PlacementController Placement => placement;
+        /// <summary>캐릭터 얼굴 등 시각 데이터. 없으면 null.</summary>
+        public CharacterVisualCatalog CharacterVisuals => characterVisuals;
 
         public float BotActionDelay => botActionDelay;
         public int BotSeed => botSeed;
@@ -81,6 +87,7 @@ namespace MiniChess.Client.Bootstrap
 
         private void Awake()
         {
+            if (characterVisuals == null) characterVisuals = Resources.Load<CharacterVisualCatalog>(CharacterVisualCatalog.ResourcePath);
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
@@ -130,7 +137,7 @@ namespace MiniChess.Client.Bootstrap
             boardView.Build(State.Board, Coordinates);
             boardView.SyncEffects(State.Board);
             boardView.SyncStrikes(State);
-            unitsView.Build(State, Coordinates);
+            unitsView.Build(State, Coordinates, characterVisuals);
             cameraRig.Frame(Coordinates);
             boardInput.Initialize(cameraRig.Camera, Coordinates);
 

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MiniChess.Client.Common;
+using MiniChess.Client.Visuals;
 using MiniChess.Core.Common;
 using MiniChess.Core.State;
 using UnityEngine;
@@ -20,12 +21,15 @@ namespace MiniChess.Client.Units
         private readonly Dictionary<int, UnitView> _views = new Dictionary<int, UnitView>();
         private BoardCoordinates _coordinates;
         private GameState _state;
+        private CharacterVisualCatalog _visuals;
 
-        public void Build(GameState state, BoardCoordinates coordinates)
+        /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>
+        public void Build(GameState state, BoardCoordinates coordinates, CharacterVisualCatalog visuals)
         {
             Clear();
             _coordinates = coordinates;
             _state = state;
+            _visuals = visuals;
 
             Sync();
         }
@@ -76,7 +80,20 @@ namespace MiniChess.Client.Units
                 color = Color.Lerp(color, Color.white, summonLighten);
 
             Color actedColor = Color.Lerp(color, Color.gray, actedDarken);
-            return UnitView.Create(transform, unit, color, actedColor);
+            return UnitView.Create(transform, unit, color, actedColor, FindFace(unit));
+        }
+
+        /// <summary>유닛의 얼굴. 소환물은 자기 데이터가 없으면 소환자의 얼굴을 쓴다.</summary>
+        private Sprite FindFace(Unit unit)
+        {
+            if (_visuals == null)
+                return null;
+
+            Sprite face = _visuals.FindFace(unit.Stats.Base.Id);
+            if (face == null && unit.IsSummon && unit.SummonOwner != null)
+                face = _visuals.FindFace(unit.SummonOwner.Stats.Base.Id);
+
+            return face;
         }
     }
 }
