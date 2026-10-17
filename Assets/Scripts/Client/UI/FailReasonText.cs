@@ -20,6 +20,7 @@ namespace MiniChess.Client.UI
                 case MoveFailReason.Rooted: return "This unit is rooted";
                 case MoveFailReason.DistanceLimited: return "Movement limit reached";
                 case MoveFailReason.Installed: return "Installed units can't move";
+                case MoveFailReason.Sealed: return "Sealed units can't move";
                 case MoveFailReason.UnknownUnit: return "Unknown unit";
                 case MoveFailReason.NotYourUnit: return "Not your unit";
                 default: return reason.ToString();
@@ -61,6 +62,7 @@ namespace MiniChess.Client.UI
                 case SkillFailReason.ConditionNotMet: return "Skill condition not met";
                 case SkillFailReason.InvalidTarget: return "No valid target";
                 case SkillFailReason.NotEnoughAp: return "Not enough AP";
+                case SkillFailReason.BlockedByStatus: return "This unit can't use skills now";
                 case SkillFailReason.UnknownUnit: return "Unknown unit";
                 case SkillFailReason.NotYourUnit: return "Not your unit";
                 default: return reason.ToString();

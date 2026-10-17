@@ -300,6 +300,22 @@ namespace MiniChess.Client.Interaction
             return !(state.Phase == GamePhase.Battle && _session.IsBot(state.CurrentTeam));
         }
 
+        /// <summary>
+        /// 미는 스킬(자리 교정 등)의 마지막 지정 칸에 마우스를 올리면, 대상이 밀려 도착할 칸을 표시한다.
+        /// 막혀서 밀리지 않으면 대상의 현재 칸이 표시된다. 미는 스킬이 아니면 코어가 null 을 돌려줘 아무것도 하지 않는다.
+        /// </summary>
+        private void HighlightPushPreview()
+        {
+            Position? hovered = _input.HoveredCell;
+            if (!hovered.HasValue || !_skillTargets.Contains(hovered.Value) || _chosenTargets.Count != _targetCount - 1)
+                return;
+
+            var targets = new List<Position>(_chosenTargets) { hovered.Value };
+            Position? landing = _session.Game.GetPushPreview(_selected.Id, _pendingSkillId, targets);
+            if (landing.HasValue)
+                _boardView.Highlight(landing.Value, CellHighlight.PushDestination);
+        }
+
         private void OnHoverChanged(Position? hovered)
         {
             if (_pendingSkillId != null)
@@ -383,6 +399,7 @@ namespace MiniChess.Client.Interaction
                 foreach (Position chosen in _chosenTargets)
                     _boardView.Highlight(chosen, CellHighlight.SkillChosen);
 
+                HighlightPushPreview();
                 return;
             }
 

@@ -14,5 +14,8 @@ namespace MiniChess.Client.Board
 
         /// <summary>여러 칸을 지정하는 스킬에서 이미 고른 칸.</summary>
         SkillChosen,
+
+        /// <summary>미는 스킬로 대상이 밀려 도착할 칸(미리보기).</summary>
+        PushDestination,
     }
 }
