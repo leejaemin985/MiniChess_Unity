@@ -48,6 +48,7 @@ namespace MiniChess.Client.UI
                 case MoveFailReason.DistanceLimited: return "Movement limit reached";
                 case MoveFailReason.Installed: return "Installed units can't move";
                 case MoveFailReason.Sealed: return "Sealed units can't move";
+                case MoveFailReason.Stunned: return "Stunned units can't move";
                 case MoveFailReason.UnknownUnit: return "Unknown unit";
                 case MoveFailReason.NotYourUnit: return "Not your unit";
                 default: return reason.ToString();

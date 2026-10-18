@@ -9,6 +9,7 @@ using MiniChess.Core.Effects;
 using MiniChess.Core.Effects.Scheduled;
 using MiniChess.Core.Effects.Zones;
 using MiniChess.Core.Skills;
+using MiniChess.Core.Skills.Conditions;
 using MiniChess.Core.State;
 using MiniChess.Core.Statuses.Library;
 using MiniChess.Core.Turns;
@@ -107,6 +108,7 @@ namespace MiniChess.Bot.Rules
 
         public static bool IsRooted(Unit unit) => unit.FindStatus(StatusLibrary.RootId) != null;
         public static bool IsInstalled(Unit unit) => unit.FindStatus(StatusLibrary.InstalledId) != null;
+        public static bool IsStunned(Unit unit) => unit.FindStatus(StatusLibrary.StunnedId) != null;
 
         /// <summary>이번 턴에 아직 전투 행동(기본 공격/전투 스킬)을 할 수 있는지.</summary>
         public static bool CanStillFight(Unit unit)
@@ -302,10 +304,17 @@ namespace MiniChess.Bot.Rules
         /// <summary>적 하나가 다음 턴에 이 칸을 칠 수 있으면 그 피해, 아니면 0.</summary>
         private double EnemyHitAt(Unit enemy, Position position)
         {
-            bool immobile = IsRooted(enemy) || IsInstalled(enemy);
-            int mobility = immobile ? 0 : Weights.EnemyMobility;
-            if (!immobile)
-                mobility = Math.Max(mobility, SkillsOf(enemy).Select(SkillEstimates.SelfMoveReach).DefaultIfEmpty(0).Max());
+            // 기절한 적은 스스로 아무것도 못 한다.
+            if (IsStunned(enemy))
+                return 0;
+
+            // 걷기는 속박/설치면 못 한다. 스킬 이동은 그 스킬의 이동 조건으로 본다(돌진은 속박을 무시하고, 도약은 막힌다).
+            int mobility = IsRooted(enemy) || IsInstalled(enemy) ? 0 : Weights.EnemyMobility;
+            mobility = Math.Max(mobility, SkillsOf(enemy)
+                .Where(skill => skill.Conditions.OfType<CanMoveCondition>().All(condition => condition.IsMet(State, enemy)))
+                .Select(SkillEstimates.SelfMoveReach)
+                .DefaultIfEmpty(0)
+                .Max());
 
             int distance = RangeCalculator.GetDistance(enemy.Position.Value, position);
             double best = 0;

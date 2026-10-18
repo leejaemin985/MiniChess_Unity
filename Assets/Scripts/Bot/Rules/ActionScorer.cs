@@ -357,7 +357,8 @@ namespace MiniChess.Bot.Rules
 
         private double StrikeHitChance(Unit enemy)
         {
-            return BoardAnalysis.IsRooted(enemy) || BoardAnalysis.IsInstalled(enemy) ? _w.StrikeHitChanceImmobile : _w.StrikeHitChance;
+            bool immobile = BoardAnalysis.IsRooted(enemy) || BoardAnalysis.IsInstalled(enemy) || BoardAnalysis.IsStunned(enemy);
+            return immobile ? _w.StrikeHitChanceImmobile : _w.StrikeHitChance;
         }
 
         /// <summary>두 칸의 유닛 자리를 맞바꿨을 때 두 유닛의 위치 가치 변화 합.</summary>

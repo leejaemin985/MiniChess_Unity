@@ -84,6 +84,17 @@ namespace MiniChess.Client.UI
             _image.pixelsPerUnitMultiplier = 1f;
         }
 
+        /// <summary>
+        /// 같은 둥근 모양 그림(9-slice 테두리 포함)을 Canvas 밖에서 쓴다. SpriteRenderer 의 drawMode 를 Sliced 로 두고 size 로 크기를 정한다.
+        /// 그림 1 픽셀 = 0.01 월드 단위이므로, 월드 크기 0.3 인 판에 radius 6 이면 UI 의 30 픽셀 판에 radius 6 과 같은 비율이 된다.
+        /// </summary>
+        /// <param name="radius">모서리 반지름(픽셀).</param>
+        /// <param name="thickness">0 이면 채움, 0 보다 크면 그 두께(픽셀)의 테두리만.</param>
+        public static Sprite GetShape(float radius, float thickness)
+        {
+            return GetSprite(Mathf.Max(1, Mathf.RoundToInt(radius)), Mathf.RoundToInt(Mathf.Max(0f, thickness) * 4f));
+        }
+
         /// <param name="r">모서리 반지름(픽셀).</param>
         /// <param name="thicknessQuarter">테두리 두께 × 4(0 이면 채움). 0.25 픽셀 단위로 공유한다.</param>
         private static Sprite GetSprite(int r, int thicknessQuarter)

@@ -30,6 +30,7 @@ namespace MiniChess.Client.Editor
             { StatusLibrary.CurseMarkId, ("저주 표식", new Color(0.85f, 0.3f, 0.5f)) },
             { StatusLibrary.ChargedId, ("차징", new Color(1f, 0.85f, 0.25f)) },
             { StatusLibrary.SealedId, ("봉인", new Color(0.55f, 0.9f, 0.95f)) },
+            { StatusLibrary.StunnedId, ("기절", new Color(1f, 0.95f, 0.4f)) },
         };
 
         /// <summary>표시할 수 있는 상태 Id: 코어 StatusLibrary 의 "...Id" 문자열 상수.</summary>

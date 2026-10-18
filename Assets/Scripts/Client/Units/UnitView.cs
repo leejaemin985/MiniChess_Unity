@@ -2,7 +2,6 @@ using System.Collections;
 using MiniChess.Client.Common;
 using MiniChess.Client.Visuals;
 using MiniChess.Core.State;
-using MiniChess.Core.Statuses;
 using TMPro;
 using UnityEngine;
 
@@ -33,6 +32,9 @@ namespace MiniChess.Client.Units
         private MaterialPropertyBlock _block;
         private TextMeshPro _label;
         private FaceBadge _face;
+        private StatusBadgeRow _statuses;
+        /// <summary>상태가 없을 때 라벨(이름/HP) 아래끝 높이. 상태가 있으면 그 사이에 상태 아이콘 줄이 들어가고 라벨이 올라간다.</summary>
+        private float _labelBaseHeight;
         private Transform _iconRoot;
         private SpriteRenderer _icon;
         private Coroutine _iconRoutine;
@@ -46,8 +48,11 @@ namespace MiniChess.Client.Units
         /// <param name="face">얼굴 스프라이트. null 이면 얼굴 없이 캡슐과 라벨만 그린다.</param>
         /// <param name="faceMask">얼굴 마스크 모양. null 이면 원.</param>
         /// <param name="frameShape">얼굴 테두리 모양. null 이면 원.</param>
+        /// <param name="statusVisuals">상태 이름/색/아이콘. null 이면 상태를 기본 색과 이름 글자로 그린다.</param>
+        /// <param name="statusStyle">상태 배지 모양(UnitsView 인스펙터 값, 공유). null 이면 기본값.</param>
         public static UnitView Create(
-            Transform parent, Unit unit, Color teamColor, Color actedColor, Sprite face, Sprite faceMask = null, Sprite frameShape = null)
+            Transform parent, Unit unit, Color teamColor, Color actedColor, Sprite face, Sprite faceMask = null, Sprite frameShape = null,
+            StatusVisualCatalog statusVisuals = null, StatusBadgeStyle statusStyle = null)
         {
             var root = new GameObject($"Unit {unit.Id} {unit.Team} {unit.Stats.Base.Id}");
             root.transform.SetParent(parent, false);
@@ -75,6 +80,9 @@ namespace MiniChess.Client.Units
                 labelHeight += view._face.OuterSize + FaceGap;
             }
 
+            // 아래부터 캡슐 → 얼굴 → 상태 아이콘 줄(상태가 있을 때만) → 이름/HP.
+            view._labelBaseHeight = labelHeight;
+            view._statuses = StatusBadgeRow.Create(root.transform, statusVisuals, statusStyle);
             view._label = CreateLabel(root.transform, labelHeight);
 
             return view;
@@ -104,7 +112,12 @@ namespace MiniChess.Client.Units
             if (_face != null)
                 _face.SetDimmed(acted);
 
-            _label.text = $"<size=70%>{Unit.Stats.Base.Name}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatShield()}{FormatStatuses()}";
+            _statuses.Sync(Unit.Statuses);
+            float badgeSize = _statuses.BadgeSize;
+            _statuses.transform.localPosition = Vector3.up * (_labelBaseHeight + badgeSize * 0.5f);
+            float statusRow = Unit.Statuses.Count > 0 ? badgeSize + FaceGap : 0f;
+            _label.transform.localPosition = Vector3.up * (_labelBaseHeight + statusRow);
+            _label.text = $"<size=70%>{Unit.Stats.Base.Name}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatShield()}";
         }
 
         /// <summary>
@@ -169,24 +182,6 @@ namespace MiniChess.Client.Units
         {
             int shield = Unit.Stats.Shield;
             return shield > 0 ? $" <color=#7FD4FF>+{shield}</color>" : string.Empty;
-        }
-
-        /// <summary>걸린 상태를 "ROOT 1 · BURN 2"(남은 횟수) 형태의 작은 줄로 만든다. 영구 상태는 이름만. 없으면 빈 문자열.</summary>
-        private string FormatStatuses()
-        {
-            if (Unit.Statuses.Count == 0)
-                return string.Empty;
-
-            var parts = new string[Unit.Statuses.Count];
-            for (int i = 0; i < parts.Length; i++)
-            {
-                StatusEffect status = Unit.Statuses[i];
-                parts[i] = status.Definition.IsPermanent
-                    ? status.Definition.Id
-                    : $"{status.Definition.Id} {status.Remaining}";
-            }
-
-            return $"\n<size=60%><color=#FFD24D>{string.Join(" · ", parts)}</color></size>";
         }
 
         private void SetBodyColor(Color color)

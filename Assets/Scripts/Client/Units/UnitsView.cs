@@ -23,6 +23,12 @@ namespace MiniChess.Client.Units
         private GameState _state;
         private CharacterVisualCatalog _visuals;
 
+        [Tooltip("상태 이름/색/아이콘(유닛 머리 위 상태 아이콘). 비우면 Resources/StatusVisualCatalog 를 불러온다.")]
+        [SerializeField] private StatusVisualCatalog statusVisuals;
+
+        [Tooltip("유닛 머리 위 상태 배지 모양. 플레이 중에 바꾸면 바로 반영된다.")]
+        [SerializeField] private StatusBadgeStyle statusBadge = new StatusBadgeStyle();
+
         /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>
         public void Build(GameState state, BoardCoordinates coordinates, CharacterVisualCatalog visuals)
         {
@@ -77,6 +83,15 @@ namespace MiniChess.Client.Units
             Sync();
         }
 
+#if UNITY_EDITOR
+        /// <summary>플레이 중 인스펙터에서 상태 배지 모양을 바꾸면 바로 다시 그린다.</summary>
+        private void OnValidate()
+        {
+            if (Application.isPlaying)
+                Sync();
+        }
+#endif
+
         public Color GetTeamColor(Team team)
         {
             return team == Team.Player1 ? player1Color : player2Color;
@@ -114,7 +129,10 @@ namespace MiniChess.Client.Units
                 color = Color.Lerp(color, Color.white, summonLighten);
 
             Color actedColor = Color.Lerp(color, Color.gray, actedDarken);
-            return UnitView.Create(transform, unit, color, actedColor, FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame);
+            if (statusVisuals == null)
+                statusVisuals = Resources.Load<StatusVisualCatalog>(StatusVisualCatalog.ResourcePath);
+
+            return UnitView.Create(transform, unit, color, actedColor, FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame, statusVisuals, statusBadge);
         }
 
         /// <summary>유닛의 얼굴. 소환물은 자기 데이터가 없으면 소환자의 얼굴을 쓴다.</summary>
