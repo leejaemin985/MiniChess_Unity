@@ -193,7 +193,7 @@ namespace MiniChess.Client.Units
         private static Renderer CreateBody(Transform parent, float scale)
         {
             // 기본 캡슐은 높이 2, 지름 1.
-            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            GameObject body = RuntimePrimitive.Create(PrimitiveType.Capsule);
             body.name = "Body";
             body.transform.SetParent(parent, false);
             body.transform.localPosition = Vector3.up * (BodyHeight * 0.5f * scale);

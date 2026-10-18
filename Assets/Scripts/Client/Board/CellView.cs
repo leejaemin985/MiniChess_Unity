@@ -38,7 +38,7 @@ namespace MiniChess.Client.Board
 
         public static CellView Create(Transform parent, Position position, Vector3 center, Vector3 scale, Color color)
         {
-            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            GameObject go = RuntimePrimitive.Create(PrimitiveType.Cube);
             go.name = $"Cell {position}";
             go.transform.SetParent(parent, false);
             go.transform.localPosition = center;
@@ -143,7 +143,7 @@ namespace MiniChess.Client.Board
 
             foreach (float angle in new[] { 45f, -45f })
             {
-                GameObject bar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                GameObject bar = RuntimePrimitive.Create(PrimitiveType.Cube);
                 bar.name = "Bar";
                 Destroy(bar.GetComponent<Collider>()); // 클릭은 칸이 받는다
                 bar.transform.SetParent(_strikeMarker.transform, false);
@@ -186,7 +186,7 @@ namespace MiniChess.Client.Board
 
         private void CreateObstacle()
         {
-            _obstacle = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _obstacle = RuntimePrimitive.Create(PrimitiveType.Cube);
             _obstacle.name = "Obstacle";
             _obstacle.transform.SetParent(transform, true);
             Destroy(_obstacle.GetComponent<Collider>()); // 클릭은 칸이 받는다
@@ -209,7 +209,7 @@ namespace MiniChess.Client.Board
 
         private void CreateTrapMarker()
         {
-            _trapMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            _trapMarker = RuntimePrimitive.Create(PrimitiveType.Cylinder);
             _trapMarker.name = "Trap";
             _trapMarker.transform.SetParent(transform, true);
             Destroy(_trapMarker.GetComponent<Collider>()); // 클릭은 칸이 받는다

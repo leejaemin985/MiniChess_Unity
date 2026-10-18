@@ -74,7 +74,7 @@ namespace MiniChess.Client.Units
             root.transform.localPosition = position;
 
             // UnitView 와 같은 크기(높이 1, 폭 0.6)의 캡슐.
-            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            GameObject body = RuntimePrimitive.Create(PrimitiveType.Capsule);
             body.name = "Body";
             Destroy(body.GetComponent<Collider>()); // 클릭은 칸이 받는다
             body.transform.SetParent(root.transform, false);
