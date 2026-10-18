@@ -47,16 +47,6 @@ namespace MiniChess.Client.Network
             }
         }
 
-        /// <summary>CommandAppliedMessage 의 명령 본문을 명령 메시지로 읽는다. 읽을 수 없으면 null.</summary>
-        public static CommandMessage ReadCommand(CommandAppliedMessage applied)
-        {
-            Type type = MessageTypes.Find(applied.CommandType);
-            if (type == null || !typeof(CommandMessage).IsAssignableFrom(type) || !(applied.Command is JObject body))
-                return null;
-
-            return (CommandMessage)body.ToObject(type, Serializer);
-        }
-
         /// <summary>이벤트 봉투의 본문을 코어 이벤트로 읽는다. 읽을 수 없으면 null.</summary>
         public static GameEvent ReadEvent(EventEnvelope envelope)
         {

@@ -354,8 +354,13 @@ namespace MiniChess.Client.Interaction
         /// <summary>행동 성공/턴 종료/새 경기 후 선택을 현재 상태에 맞춘다. 스킬 지정 모드는 끝낸다.</summary>
         private void OnStateChanged()
         {
-            Unit unit = _selected;
             GameState state = _session.State;
+
+            // 온라인은 상태가 바뀔 때마다 경기를 새로 만든다(서버 스냅샷 복원). 붙잡고 있던 유닛을 같은 Id 의 새 객체로 바꾼다.
+            _selected = _selected != null ? state?.FindUnit(_selected.Id) : null;
+            _inspected = _inspected != null ? state?.FindUnit(_inspected.Id) : null;
+
+            Unit unit = _selected;
             ClearSkillMode();
 
             if (unit == null || !unit.IsPlaced || state.IsGameOver || unit.Team != state.CurrentTeam)

@@ -50,6 +50,33 @@ namespace MiniChess.Client.Units
                 view.Sync(_coordinates);
         }
 
+        /// <summary>
+        /// 같은 경기를 새로 만든 상태(온라인: 서버 스냅샷으로 복원)로 바꾼다. 같은 Id 의 뷰는 그대로 두고 새 유닛을 가리키게 하며,
+        /// 새 상태에 없는 유닛(사망해 스냅샷에서 빠짐)의 뷰는 지운다.
+        /// </summary>
+        public void Rebind(GameState state)
+        {
+            _state = state;
+            var units = new Dictionary<int, Unit>();
+            foreach (Unit unit in state.AllUnits())
+                units[unit.Id] = unit;
+
+            foreach (int id in new List<int>(_views.Keys))
+            {
+                if (units.TryGetValue(id, out Unit unit))
+                {
+                    _views[id].Rebind(unit);
+                    continue;
+                }
+
+                if (_views[id] != null)
+                    Destroy(_views[id].gameObject);
+                _views.Remove(id);
+            }
+
+            Sync();
+        }
+
         public Color GetTeamColor(Team team)
         {
             return team == Team.Player1 ? player1Color : player2Color;

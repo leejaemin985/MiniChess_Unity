@@ -80,6 +80,12 @@ namespace MiniChess.Client.Units
             return view;
         }
 
+        /// <summary>같은 유닛(같은 Id)을 새로 만든 상태의 객체로 바꾼다(온라인 스냅샷 복원). 모양은 그대로 둔다.</summary>
+        public void Rebind(Unit unit)
+        {
+            Unit = unit;
+        }
+
         /// <summary>코어 상태를 그대로 반영한다. 보드에서 빠진 유닛(사망 등)은 숨긴다.</summary>
         public void Sync(BoardCoordinates coordinates)
         {

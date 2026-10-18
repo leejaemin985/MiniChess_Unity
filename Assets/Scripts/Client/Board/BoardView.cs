@@ -54,19 +54,56 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color player2StrikeColor = new Color(1f, 0.3f, 0.2f);
         [SerializeField] private float strikeMarkerSize = 0.8f;
 
+        [Header("Reveal (숨겨진 상대 덫/포격이 발동할 때 잠깐 보여 줌)")]
+        [SerializeField, Min(0f)] private float revealDuration = 1.5f;
+
         private readonly Dictionary<Position, CellView> _cells = new Dictionary<Position, CellView>();
         private readonly List<CellView> _highlighted = new List<CellView>();
         private readonly Dictionary<Position, Color> _spawnTints = new Dictionary<Position, Color>();
+        private readonly List<(Position Cell, Team Team, float Until)> _revealedTraps = new List<(Position, Team, float)>();
+        private readonly List<(IReadOnlyList<Position> Cells, Team Team, float Until)> _revealedStrikes = new List<(IReadOnlyList<Position>, Team, float)>();
         private BoardCoordinates _coordinates;
+        private CoreBoard _syncedBoard;
+        private GameState _syncedState;
 
         public IReadOnlyDictionary<Position, CellView> Cells => _cells;
 
+        private void Update()
+        {
+            float now = Time.time;
+            bool trapsExpired = _revealedTraps.RemoveAll(reveal => reveal.Until <= now) > 0;
+            bool strikesExpired = _revealedStrikes.RemoveAll(reveal => reveal.Until <= now) > 0;
+
+            if (trapsExpired && _syncedBoard != null)
+                SyncEffects(_syncedBoard);
+            if (strikesExpired && _syncedState != null)
+                SyncStrikes(_syncedState);
+        }
+
+        /// <summary>발동한 덫 칸에 설치한 팀 색의 덫 표식을 잠깐 띄운다(덫이 소모되었거나 숨겨져 있어도).</summary>
+        public void RevealTrap(Position cell, Team team)
+        {
+            _revealedTraps.Add((cell, team, Time.time + revealDuration));
+            if (_syncedBoard != null)
+                SyncEffects(_syncedBoard);
+        }
+
+        /// <summary>착탄한 포격의 범위에 쏜 팀 색의 X 자를 잠깐 띄운다.</summary>
+        public void RevealStrike(IReadOnlyList<Position> cells, Team team)
+        {
+            _revealedStrikes.Add((cells, team, Time.time + revealDuration));
+            if (_syncedState != null)
+                SyncStrikes(_syncedState);
+        }
+
         /// <summary>
         /// 칸 효과(장판/덫/장애물)를 현재 코어 상태대로 표시한다. 장판은 칸 색조, 덫은 설치한 팀 색의 표식, 장애물은 설치한 팀 색의 상자.
-        /// [가정] 덫 공개 여부는 명세 TBD 이며, 지금은 양 팀 모두에게 보인다.
+        /// 온라인에서는 상대 덫이 상태에 없으므로(서버가 숨김) 그리지 않고, 발동할 때 RevealTrap 으로 잠깐 보여 준다.
         /// </summary>
         public void SyncEffects(CoreBoard board)
         {
+            _syncedBoard = board;
+
             foreach (KeyValuePair<Position, CellView> pair in _cells)
             {
                 BoardCell cell = board.GetCell(pair.Key);
@@ -79,8 +116,13 @@ namespace MiniChess.Client.Board
                 view.SetEffectTint(area == null ? (Color?)null : GetFieldColor(area), fieldTintStrength);
 
                 ICellEffect trap = cell.GetEffect(CellEffectLayer.Trap);
+                Color trapColor = GetTrapColor(trap);
+                bool revealed = TryGetRevealedTrap(pair.Key, out Team revealedTeam);
+                if (trap == null && revealed)
+                    trapColor = revealedTeam == Team.Player1 ? player1TrapColor : player2TrapColor;
+
                 Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
-                view.SetTrapMarker(trap != null, GetTrapColor(trap), top, trapMarkerSize * _coordinates.CellSize);
+                view.SetTrapMarker(trap != null || revealed, trapColor, top, trapMarkerSize * _coordinates.CellSize);
 
                 var obstacle = cell.GetEffect(CellEffectLayer.Obstacle) as Obstacle;
                 view.SetObstacle(
@@ -89,28 +131,52 @@ namespace MiniChess.Client.Board
             }
         }
 
+        private bool TryGetRevealedTrap(Position cell, out Team team)
+        {
+            foreach ((Position revealedCell, Team revealedTeam, float _) in _revealedTraps)
+            {
+                if (revealedCell == cell)
+                {
+                    team = revealedTeam;
+                    return true;
+                }
+            }
+
+            team = default;
+            return false;
+        }
+
+        /// <summary>장판 색. 구체 타입 대신 종류(Kind)로 고른다(스냅샷으로 복원한 경기의 효과도 같은 종류를 가진다).</summary>
         private Color GetFieldColor(ICellEffect effect)
         {
-            switch (effect)
+            switch (effect.Kind)
             {
-                case HealField _: return healFieldColor;
-                case DamageField _: return damageFieldColor;
-                case PoisonField _: return poisonFieldColor;
+                case CellEffectKinds.HealField: return healFieldColor;
+                case CellEffectKinds.DamageField: return damageFieldColor;
+                case CellEffectKinds.PoisonField: return poisonFieldColor;
                 default: return otherFieldColor;
             }
         }
 
         /// <summary>
         /// 예약 포격의 조준 칸을 쏜 팀 색의 X 자로 표시한다.
-        /// [가정] 공개 여부는 명세 TBD 이며, 지금은 양 팀 모두에게 보인다(한 화면 교대 플레이).
+        /// 온라인에서는 상대 포격이 상태에 없으므로(서버가 숨김) 그리지 않고, 착탄할 때 RevealStrike 로 잠깐 보여 준다.
         /// </summary>
         public void SyncStrikes(GameState state)
         {
+            _syncedState = state;
+
             var strikeTeams = new Dictionary<Position, Team>();
             foreach (ScheduledStrike strike in state.ScheduledStrikes)
             {
                 foreach (Position cell in strike.Cells)
                     strikeTeams[cell] = strike.Source.Team;
+            }
+
+            foreach ((IReadOnlyList<Position> cells, Team team, float _) in _revealedStrikes)
+            {
+                foreach (Position cell in cells)
+                    strikeTeams[cell] = team;
             }
 
             foreach (KeyValuePair<Position, CellView> pair in _cells)
@@ -200,6 +266,10 @@ namespace MiniChess.Client.Board
         public void Clear()
         {
             _highlighted.Clear();
+            _revealedTraps.Clear();
+            _revealedStrikes.Clear();
+            _syncedBoard = null;
+            _syncedState = null;
 
             foreach (CellView cell in _cells.Values)
             {
