@@ -249,6 +249,9 @@ MonoBehaviour:
   player2Control: 1
   botActionDelay: 0.5
   botSeed: 0
+  online: 1
+  serverUrl: ws://localhost:5055/ws
+  logNetwork: 1
   quickStart: 0
   player1Lineup: 
   player2Lineup: 
