@@ -118,7 +118,7 @@ namespace MiniChess.Client.Interaction
             _skillTargets.Clear();
             _skillTargets.AddRange(targets);
             _targetCount = skill.Definition.Targeting.TargetCount;
-            _confirmSelf = _targetCount == 1 && targets.Count == 1 && targets[0] == _selected.Position.Value;
+            _confirmSelf = skill.Definition.Targeting.IsSelfOnly;
             _canRotate = skill.CanRotate;
             _rotation = AreaRotation.R0;
             Redraw();

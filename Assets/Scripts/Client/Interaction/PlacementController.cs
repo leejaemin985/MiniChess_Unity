@@ -119,9 +119,12 @@ namespace MiniChess.Client.Interaction
                 _selectedCharacterId = null;
             }
 
+            // 배치 중이었거나 배치 중일 때만 다시 그린다. 전투 중에는 하이라이트가 SelectionController 몫이다.
+            bool wasPlacing = PlacingTeam.HasValue;
             PlacingTeam = team;
             _game = _session.Game;
-            Redraw();
+            if (wasPlacing || team.HasValue)
+                Redraw();
             Changed?.Invoke();
         }
 

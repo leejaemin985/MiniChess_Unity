@@ -216,6 +216,9 @@ namespace MiniChess.Client.Bootstrap
 
         public bool TryEndTurn()
         {
+            if (Game == null)
+                return false;
+
             return Handle(Game.EndTurn(new EndTurnRequest(State.CurrentTeam)), FailReasonText.Describe);
         }
 

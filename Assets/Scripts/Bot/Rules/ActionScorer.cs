@@ -375,9 +375,12 @@ namespace MiniChess.Bot.Rules
             return Relocation(a, second, g.ApAfter, aFights) + Relocation(b, first, g.ApAfter, bFights);
         }
 
-        /// <summary>상태 부여 가치. 적에게는 제약/피해, 아군에게는 보호(호위).</summary>
+        /// <summary>상태 부여 가치. 적에게는 제약/피해, 아군에게는 보호(호위), 자신에게는 SelfStatusValue.</summary>
         private double StatusValue(StatusDefinition status, Unit caster, Unit target)
         {
+            if (status.Behavior is SealedBehavior)
+                return SealValue(target);
+
             if (target.Team != _a.Team)
             {
                 bool already = target.FindStatus(status.Id) != null;
@@ -404,7 +407,29 @@ namespace MiniChess.Bot.Rules
                 return Math.Min(danger, BoardAnalysis.EffectiveHp(target)) * _a.Caution * _w.Protection;
             }
 
+            // 자기 지정(TargetFilter.Self) 상태도 ApplyStatusEffect 로 들어온다(암살자 차징 등).
+            if (target == caster)
+                return SelfStatusValue(status, caster);
+
             return _w.OtherStatus;
+        }
+
+        /// <summary>
+        /// 봉인 가치. 봉인된 유닛은 다음 자기 턴 끝까지 행동할 수 없고 피해도 받지 않는다.
+        ///   적: 다음 상대 턴의 위협을 막는 만큼. 대신 이번 턴에 더는 칠 수 없으므로 처치보다는 낮게 둔다.
+        ///   아군(자신 포함): 다음 상대 턴에 죽을 상황이면 살리는 가치, 아니면 자기 턴을 잃는 손해.
+        /// </summary>
+        private double SealValue(Unit target)
+        {
+            if (target.FindStatus(StatusLibrary.SealedId) != null)
+                return 0;
+
+            if (target.Team != _a.Team)
+                return _a.Threat(target) * _a.Caution * _w.Protection;
+
+            double lostTurn = _a.Threat(target);
+            bool wouldDie = _a.DangerAt(target.Position.Value) >= BoardAnalysis.EffectiveHp(target);
+            return wouldDie ? _a.KillValue(target) * _a.Caution - lostTurn : -lostTurn;
         }
 
         /// <summary>자신에게 거는 상태(차징, 설치)의 가치.</summary>
@@ -432,9 +457,10 @@ namespace MiniChess.Bot.Rules
             if (_a.State.ScheduledStrikes.Any(strike => strike.Source == caster))
                 return -_w.Uninstall;
 
-            foreach (SkillDefinition skill in _a.SkillsOf(caster).Where(skill => skill.Effects.Any(effect => effect is ScheduleStrikeEffect)))
+            // 지금 AP 가 모자라 포격을 못 쓰는 것과 맞힐 적이 없는 것은 다르다. 사용 가능 여부와 무관하게 지정 후보 칸으로 본다.
+            foreach (SkillDefinition skill in _a.SkillsOf(caster).Where(skill => skill.IsConfigured && skill.Effects.Any(effect => effect is ScheduleStrikeEffect)))
             {
-                foreach (Position target in _a.Game.GetSkillTargets(caster.Id, skill.Id))
+                foreach (Position target in skill.Targeting.GetCandidates(_a.State, caster).Distinct())
                 {
                     if (UnitsIn(_a.Game.GetSkillArea(caster.Id, skill.Id, target), TargetFilter.Enemy, caster).Count > 0)
                         return -_w.Uninstall;
