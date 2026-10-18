@@ -17,6 +17,7 @@ namespace MiniChess.Client.UI
                 case CommandOutcome.StaleTurn: return "이미 지난 턴의 요청입니다";
                 case CommandOutcome.InvalidRequest: return "잘못된 요청입니다";
                 case CommandOutcome.GameOver: return "경기가 끝났습니다";
+                case CommandOutcome.ServerError: return "서버 오류로 경기가 무효 처리되었습니다";
             }
 
             switch (command)

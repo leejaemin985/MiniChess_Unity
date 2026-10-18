@@ -108,7 +108,33 @@ namespace MiniChess.Client.UI
             }
 
             roundText.text = $"ROUND {Round(state)}";
-            turnText.text = $"{WhoseName(state.CurrentTeam)} 턴";
+            turnText.text = $"{WhoseName(state.CurrentTeam)} 턴{FormatTimeLeft()}";
+        }
+
+        private int _shownSeconds = -1;
+
+        /// <summary>온라인 턴 제한 시간이 1초 줄 때마다 턴 표시를 다시 쓴다.</summary>
+        private void Update()
+        {
+            float? left = _session?.TurnTimeLeft;
+            int seconds = left.HasValue ? Mathf.CeilToInt(left.Value) : -1;
+            if (seconds == _shownSeconds)
+                return;
+
+            _shownSeconds = seconds;
+            if (_session.State != null)
+                RefreshCenter(_session.State);
+        }
+
+        /// <summary>턴 남은 시간(온라인, 예: "  1:42"). 제한이 없으면 빈 문자열.</summary>
+        private string FormatTimeLeft()
+        {
+            float? left = _session.TurnTimeLeft;
+            if (!left.HasValue)
+                return string.Empty;
+
+            int seconds = Mathf.CeilToInt(left.Value);
+            return $"  {seconds / 60}:{seconds % 60:00}";
         }
 
         /// <summary>한 라운드 = 양 팀이 한 턴씩. 코어 TurnNumber 는 팀 턴마다 1씩 오른다(1부터).</summary>

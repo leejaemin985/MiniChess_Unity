@@ -105,6 +105,18 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>보낸 명령의 서버 결과를 기다리는 중인지. 기다리는 동안은 새 입력을 받지 않는다.</summary>
         public bool IsAwaitingServer => _pendingCommand != null;
 
+        /// <summary>
+        /// 지금 경기의 번호. 새 경기(로컬 새 경기, 온라인 경기 시작, 재접속 대기)마다 바뀐다.
+        /// 온라인은 상태가 바뀔 때마다 Game 객체를 새로 만드므로(스냅샷 복원), "같은 경기인지"는 객체가 아니라 이 번호로 판단한다.
+        /// </summary>
+        public int MatchId { get; private set; }
+
+        /// <summary>현재 턴의 남은 시간(초, 온라인 전용). 시간이 다 되면 서버가 턴을 끝낸다. 턴 제한이 없으면 null.</summary>
+        public float? TurnTimeLeft => _turnDeadline.HasValue ? Mathf.Max(0f, _turnDeadline.Value - Time.realtimeSinceStartup) : (float?)null;
+
+        /// <summary>서버가 알려 준 턴 마감 시각(Time.realtimeSinceStartup 기준). 없으면 null.</summary>
+        private float? _turnDeadline;
+
         /// <summary>팀을 봇이 조작하는지. 온라인에서는 봇을 쓰지 않는다.</summary>
         public bool IsBot(Team team)
         {
@@ -192,8 +204,9 @@ namespace MiniChess.Client.Bootstrap
             // 이전 경기의 유닛을 계속 붙잡고 있지 않도록 먼저 해제한다.
             selection.Deselect();
 
+            MatchId++;
             Game = game;
-            Coordinates = new BoardCoordinates(State.Board.Width, State.Board.Height, cellSize);
+            Coordinates =new BoardCoordinates(State.Board.Width, State.Board.Height, cellSize);
 
             boardView.Build(State.Board, Coordinates);
             boardView.SyncEffects(State.Board);
@@ -416,24 +429,55 @@ namespace MiniChess.Client.Bootstrap
         private async void Connect()
         {
             _connection?.Dispose();
+            _connection = null;
             _pendingCommand = null;
             _lastRequestId = 0;
+            _turnDeadline = null;
             LocalTeam = null;
             selection.Deselect();
+            MatchId++;
             Game = null;
             StateChanged?.Invoke();
+
+            if (!Uri.TryCreate(serverUrl, UriKind.Absolute, out Uri uri) || (uri.Scheme != "ws" && uri.Scheme != "wss"))
+            {
+                ReportFailure($"서버 주소가 잘못되었습니다: {serverUrl}");
+                return;
+            }
 
             var connection = new ServerConnection();
             _connection = connection;
             ReportFailure("서버에 접속하는 중...");
-            LogNetwork($"connecting to {serverUrl}");
+            LogNetwork($"connecting to {uri}");
 
-            await connection.ConnectAsync(new Uri(serverUrl));
-            if (connection != _connection || connection.IsClosed)
-                return;
+            try
+            {
+                await connection.ConnectAsync(uri);
+                if (connection != _connection || connection.IsClosed)
+                    return;
 
-            await connection.SendAsync(new JoinMatchMessage { ProtocolVersion = ProtocolInfo.Version });
-            ReportFailure("상대를 기다리는 중...");
+                await connection.SendAsync(new JoinMatchMessage { ProtocolVersion = ProtocolInfo.Version, ConfigHash = OnlineMatch.ConfigHash() });
+                ReportFailure("상대를 기다리는 중...");
+            }
+            catch (Exception e)
+            {
+                // async void 라 여기서 잡지 않으면 예외가 Unity 로 그대로 빠져나간다.
+                Debug.LogException(e);
+                if (connection == _connection)
+                    DropConnection("서버에 접속하지 못했습니다");
+            }
+        }
+
+        /// <summary>연결을 끊고 안내를 띄운다(복원 실패 등 계속할 수 없는 상태).</summary>
+        private void DropConnection(string message)
+        {
+            LogNetwork($"dropping connection: {message}");
+            _connection?.Dispose();
+            _connection = null;
+            _pendingCommand = null;
+            _turnDeadline = null;
+            ReportFailure(message);
+            StateChanged?.Invoke();
         }
 
         /// <summary>받은 서버 메시지를 메인 스레드에서 처리한다.</summary>
@@ -442,6 +486,9 @@ namespace MiniChess.Client.Bootstrap
             ServerConnection connection = _connection;
             while (connection == _connection && connection.TryReceive(out ServerMessage message))
             {
+                if (message is PongMessage)
+                    continue;
+
                 LogNetwork($"<= {Describe(message)}");
                 switch (message)
                 {
@@ -463,11 +510,15 @@ namespace MiniChess.Client.Bootstrap
                 }
             }
 
-            if (connection == _connection && connection.IsClosed)
+            if (connection == null || connection != _connection)
+                return;
+
+            if (connection.IsClosed)
             {
                 LogNetwork($"connection closed: {connection.CloseReason ?? "normal"}");
                 _connection = null;
                 _pendingCommand = null;
+                _turnDeadline = null;
                 if (State == null || !State.IsGameOver)
                     ReportFailure(connection.CloseReason != null ? $"서버 연결 실패: {connection.CloseReason}" : "서버 연결이 끊겼습니다");
                 StateChanged?.Invoke();
@@ -502,6 +553,7 @@ namespace MiniChess.Client.Bootstrap
             if (game == null)
                 return;
 
+            _turnDeadline = null;
             LocalTeam = started.YourTeam;
             BeginGame(game);
             ReportFailure($"경기 시작: {(started.YourTeam == Team.Player1 ? "PLAYER 1" : "PLAYER 2")}");
@@ -530,20 +582,29 @@ namespace MiniChess.Client.Bootstrap
                 return;
 
             List<GameEvent> events = (update.Events ?? new List<EventEnvelope>())
-                .Select(ClientProtocolJson.ReadEvent)
+                .Select(ProtocolJson.ReadEvent)
                 .Where(gameEvent => gameEvent != null)
                 .ToList();
 
             Game = game;
+            _turnDeadline = update.TurnTimeLeftMs.HasValue ? Time.realtimeSinceStartup + update.TurnTimeLeftMs.Value / 1000f : (float?)null;
             unitsView.Rebind(State);
             PlayEvents(events);
             Succeed();
 
-            if (events.OfType<GameEndedEvent>().Any(ended => ended.Reason == GameEndReason.Disconnect && ended.Winner == LocalTeam))
-                ReportFailure("상대의 연결이 끊겼습니다");
+            foreach (GameEndedEvent ended in events.OfType<GameEndedEvent>())
+            {
+                if (ended.Reason == GameEndReason.Disconnect && ended.Winner == LocalTeam)
+                    ReportFailure("상대의 연결이 끊겼습니다");
+                else if (ended.Reason == GameEndReason.Aborted)
+                    ReportFailure("서버 오류로 경기가 무효 처리되었습니다");
+            }
         }
 
-        /// <summary>서버 스냅샷으로 경기를 만든다(표시/조회 전용). 만들 수 없으면 오류를 남기고 null.</summary>
+        /// <summary>
+        /// 서버 스냅샷으로 경기를 만든다(표시/조회 전용). 만들 수 없으면 화면이 서버와 어긋난 채 멈추므로,
+        /// 연결을 끊고 안내를 띄운 뒤 null 을 돌려준다.
+        /// </summary>
         private GameController RestoreOnline(GameSnapshot snapshot)
         {
             try
@@ -551,9 +612,10 @@ namespace MiniChess.Client.Bootstrap
                 _onlineConfig = _onlineConfig ?? OnlineMatch.CreateConfig();
                 return OnlineMatch.Restore(_onlineConfig, snapshot);
             }
-            catch (Exception e) when (e is ArgumentException || e is InvalidOperationException)
+            catch (Exception e)
             {
-                Debug.LogError($"[GameSession] 서버 상태를 복원할 수 없음: {e.Message}");
+                Debug.LogError($"[GameSession] 서버 상태를 복원할 수 없음: {e}");
+                DropConnection("서버 상태를 화면에 옮기지 못했습니다. 다시 접속하세요");
                 return null;
             }
         }

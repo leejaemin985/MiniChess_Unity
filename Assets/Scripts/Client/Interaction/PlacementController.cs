@@ -27,7 +27,9 @@ namespace MiniChess.Client.Interaction
 
         private readonly Dictionary<Position, string> _pending = new Dictionary<Position, string>();
         private string _selectedCharacterId;
-        private GameController _game;
+
+        /// <summary>임시 배치가 속한 경기(GameSession.MatchId). 온라인은 상태가 바뀔 때마다 Game 객체가 새로 만들어지므로 번호로 비교한다.</summary>
+        private int _matchId = -1;
 
         /// <summary>지금 배치 중인 팀. 배치 단계가 아니면 null.</summary>
         public Team? PlacingTeam { get; private set; }
@@ -113,7 +115,8 @@ namespace MiniChess.Client.Interaction
                 team = null;
 
             // 다음 팀으로 넘어가거나 새 경기가 시작되면 임시 배치를 비운다.
-            if (team != PlacingTeam || _session.Game != _game)
+            // (상대가 먼저 배치를 확정해 상태가 바뀐 것만으로는 비우지 않는다.)
+            if (team != PlacingTeam || _session.MatchId != _matchId)
             {
                 _pending.Clear();
                 _selectedCharacterId = null;
@@ -122,7 +125,7 @@ namespace MiniChess.Client.Interaction
             // 배치 중이었거나 배치 중일 때만 다시 그린다. 전투 중에는 하이라이트가 SelectionController 몫이다.
             bool wasPlacing = PlacingTeam.HasValue;
             PlacingTeam = team;
-            _game = _session.Game;
+            _matchId = _session.MatchId;
             if (wasPlacing || team.HasValue)
                 Redraw();
             Changed?.Invoke();

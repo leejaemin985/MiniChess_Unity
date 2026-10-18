@@ -4,6 +4,7 @@ using MiniChess.Client.Bootstrap;
 using MiniChess.Client.Interaction;
 using MiniChess.Core.Capture;
 using MiniChess.Core.Common;
+using MiniChess.Core.Events;
 using MiniChess.Core.State;
 using TMPro;
 using UnityEngine;
@@ -28,7 +29,8 @@ namespace MiniChess.Client.UI
         private GameObject _gameOverPanel;
         private TextMeshProUGUI _gameOverText;
         private Coroutine _toastRoutine;
-        private GameState _captureAnnouncedFor;
+        /// <summary>점령을 알린 경기(GameSession.MatchId). 온라인은 상태마다 GameState 객체가 새로 만들어지므로 번호로 비교한다.</summary>
+        private int _captureAnnouncedFor = -1;
 
         public void Initialize(GameSession session, Func<Team, Color> teamColor)
         {
@@ -81,17 +83,18 @@ namespace MiniChess.Client.UI
 
             _gameOverPanel.SetActive(state.IsGameOver);
             if (state.IsGameOver)
-                _gameOverText.text = state.Winner.HasValue ? $"{TeamLabel(state.Winner.Value)} WINS" : "DRAW";
+                _gameOverText.text = state.Winner.HasValue ? $"{TeamLabel(state.Winner.Value)} WINS"
+                    : state.EndReason == GameEndReason.Aborted ? "NO CONTEST" : "DRAW";
         }
 
         /// <summary>점령이 완료되면 한 번 토스트로 알린다(진행도는 TopBar 가 보여준다).</summary>
         private void AnnounceCapture(GameState state)
         {
             CaptureState capture = state.Capture;
-            if (!capture.CapturedBy.HasValue || _captureAnnouncedFor == state)
+            if (!capture.CapturedBy.HasValue || _captureAnnouncedFor == _session.MatchId)
                 return;
 
-            _captureAnnouncedFor = state;
+            _captureAnnouncedFor = _session.MatchId;
             ShowToast($"{TeamLabel(capture.CapturedBy.Value)} CAPTURED  -  {DescribeReward(capture.Reward)}");
         }
 

@@ -21,6 +21,7 @@ namespace MiniChess.Client.Players
     {
         private GameSession _session;
         private GameController _game;
+        private int _matchId = -1;
         private readonly Dictionary<Team, BotPlayer> _bots = new Dictionary<Team, BotPlayer>();
         private bool _running;
 
@@ -41,14 +42,17 @@ namespace MiniChess.Client.Players
 
         private void OnStateChanged()
         {
-            // 새 경기면 진행 중이던 봇 처리를 멈추고 봇을 새로 만든다.
-            if (_session.Game != _game)
+            // 새 경기면(객체가 아니라 경기 번호로 판단) 진행 중이던 봇 처리를 멈추고 봇을 새로 만든다.
+            // 봇은 로컬 경기에서만 돌며, 로컬 경기의 Game 객체는 경기 동안 바뀌지 않는다(진행 중 확인은 game == _game 으로 한다).
+            if (_session.MatchId != _matchId)
             {
                 StopAllCoroutines();
                 _running = false;
-                _game = _session.Game;
+                _matchId = _session.MatchId;
                 _bots.Clear();
             }
+
+            _game = _session.Game;
 
             // 봇이 요청한 행동도 StateChanged 를 일으키므로, 진행 중에는 여기서 새로 시작하지 않는다.
             if (!_running)
