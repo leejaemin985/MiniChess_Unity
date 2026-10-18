@@ -66,11 +66,18 @@ namespace MiniChess.Client.UI
         private void Refresh()
         {
             GameState state = _session.State;
+            if (state == null)
+            {
+                // 온라인 상대를 기다리는 중.
+                _endTurnButton.interactable = false;
+                _gameOverPanel.SetActive(false);
+                return;
+            }
 
             AnnounceCapture(state);
 
-            // 봇 팀의 턴에는 사람이 턴을 끝낼 수 없다.
-            _endTurnButton.interactable = state.Phase == GamePhase.Battle && !_session.IsBot(state.CurrentTeam);
+            // 이 화면에서 조작하지 않는 팀(봇, 온라인 상대)의 턴이거나 서버 결과를 기다리는 중에는 턴을 끝낼 수 없다.
+            _endTurnButton.interactable = state.Phase == GamePhase.Battle && _session.IsLocallyControlled(state.CurrentTeam) && !_session.IsAwaitingServer;
 
             _gameOverPanel.SetActive(state.IsGameOver);
             if (state.IsGameOver)

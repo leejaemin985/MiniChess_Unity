@@ -1,7 +1,6 @@
 using System;
 using MiniChess.Client.Bootstrap;
 using MiniChess.Client.Common;
-using MiniChess.Client.Interaction;
 using MiniChess.Core.Common;
 using MiniChess.Core.State;
 using TMPro;
@@ -63,6 +62,8 @@ namespace MiniChess.Client.UI
         private void Refresh()
         {
             GameState state = _session.State;
+            if (state == null)
+                return;
 
             RefreshTeam(player1, state, Team.Player1);
             RefreshTeam(player2, state, Team.Player2);
@@ -97,11 +98,12 @@ namespace MiniChess.Client.UI
                 return;
             }
 
-            Team? placing = PlacementController.GetNextPlacingTeam(state);
             if (state.Phase == GamePhase.Setup)
             {
+                // 온라인은 각자 동시에 배치하므로, 내 배치를 마치면 상대를 기다린다.
+                Team? placing = _session.GetPlacingTeam(state);
                 roundText.text = "SETUP";
-                turnText.text = placing.HasValue ? $"{WhoseName(placing.Value)} 배치" : "배치";
+                turnText.text = placing.HasValue ? $"{WhoseName(placing.Value)} 배치" : _session.IsOnline ? "상대 배치 대기" : "배치";
                 return;
             }
 
@@ -112,15 +114,15 @@ namespace MiniChess.Client.UI
         /// <summary>한 라운드 = 양 팀이 한 턴씩. 코어 TurnNumber 는 팀 턴마다 1씩 오른다(1부터).</summary>
         private static int Round(GameState state) => Math.Max(1, (state.TurnNumber + 1) / 2);
 
-        /// <summary>사람이 한 팀만 조작하면 "내"/"상대", 아니면(둘 다 사람 또는 둘 다 봇) 팀 이름.</summary>
+        /// <summary>이 화면에서 한 팀만 조작하면(봇 상대, 온라인) "내"/"상대", 아니면(한 화면 교대, 봇끼리) 팀 이름.</summary>
         private string WhoseName(Team team)
         {
             Team other = team == Team.Player1 ? Team.Player2 : Team.Player1;
-            bool humanVsBot = _session.IsBot(team) != _session.IsBot(other);
-            if (!humanVsBot)
+            bool oneSide = _session.IsLocallyControlled(team) != _session.IsLocallyControlled(other);
+            if (!oneSide)
                 return TeamName(team);
 
-            return _session.IsBot(team) ? "상대" : "내";
+            return _session.IsLocallyControlled(team) ? "내" : "상대";
         }
 
         private static string TeamName(Team team) => team == Team.Player1 ? "PLAYER 1" : "PLAYER 2";

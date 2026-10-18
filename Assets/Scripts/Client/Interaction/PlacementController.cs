@@ -106,10 +106,10 @@ namespace MiniChess.Client.Interaction
         private void OnStateChanged()
         {
             GameState state = _session.State;
-            Team? team = state != null && state.Phase == GamePhase.Setup ? GetNextPlacingTeam(state) : null;
+            Team? team = _session.GetPlacingTeam(state);
 
-            // 봇 팀의 배치는 BotDriver 가 한다. 사람 배치 UI 는 비활성.
-            if (team.HasValue && _session.IsBot(team.Value))
+            // 봇 팀의 배치는 BotDriver 가 한다. 이 화면에서 조작하지 않는 팀이면 사람 배치 UI 는 비활성.
+            if (team.HasValue && !_session.IsLocallyControlled(team.Value))
                 team = null;
 
             // 다음 팀으로 넘어가거나 새 경기가 시작되면 임시 배치를 비운다.

@@ -4,6 +4,7 @@
     "references": [
         "MiniChess.Core",
         "MiniChess.Bot",
+        "MiniChess.Protocol",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],

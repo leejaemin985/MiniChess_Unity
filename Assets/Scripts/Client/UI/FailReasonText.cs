@@ -1,10 +1,36 @@
+using System;
 using MiniChess.Core.Actions;
+using MiniChess.Protocol;
 
 namespace MiniChess.Client.UI
 {
     /// <summary>코어 실패 이유를 화면에 띄울 문구로 바꾼다.</summary>
     public static class FailReasonText
     {
+        /// <summary>
+        /// 명령 결과의 실패 사유(코어 실패 enum 이름 또는 서버 사유)를 문구로 바꾼다. 어떤 enum 인지는 명령 종류로 정한다.
+        /// </summary>
+        public static string Describe(CommandMessage command, string reason)
+        {
+            switch (reason)
+            {
+                case CommandOutcome.StaleTurn: return "이미 지난 턴의 요청입니다";
+                case CommandOutcome.InvalidRequest: return "잘못된 요청입니다";
+                case CommandOutcome.GameOver: return "경기가 끝났습니다";
+            }
+
+            switch (command)
+            {
+                case PlaceUnitsMessage _ when Enum.TryParse(reason, out PlaceFailReason place): return Describe(place);
+                case MoveMessage _ when Enum.TryParse(reason, out MoveFailReason move): return Describe(move);
+                case AttackMessage _ when Enum.TryParse(reason, out AttackFailReason attack): return Describe(attack);
+                case AttackObstacleMessage _ when Enum.TryParse(reason, out AttackFailReason attack): return Describe(attack);
+                case UseSkillMessage _ when Enum.TryParse(reason, out SkillFailReason skill): return Describe(skill);
+                case EndTurnMessage _ when Enum.TryParse(reason, out EndTurnFailReason endTurn): return Describe(endTurn);
+                default: return reason;
+            }
+        }
+
         public static string Describe(MoveFailReason reason)
         {
             switch (reason)

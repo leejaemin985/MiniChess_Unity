@@ -173,11 +173,11 @@ namespace MiniChess.Client.Interaction
         {
             GameState state = _session.State;
 
-            // 배치 단계 입력은 PlacementController 가 처리한다.
-            if (state != null && state.Phase == GamePhase.Setup)
+            // 배치 단계 입력은 PlacementController 가 처리한다. 경기 전(온라인 상대 대기)과 서버 결과 대기 중에는 무시한다.
+            if (state == null || state.Phase == GamePhase.Setup || _session.IsAwaitingServer)
                 return;
 
-            // 봇 팀의 턴(BotDriver 진행 중)에는 유닛 정보 보기만 된다.
+            // 이 화면에서 조작하지 않는 팀(봇, 온라인 상대)의 턴에는 유닛 정보 보기만 된다.
             if (!AcceptsInput(state))
             {
                 Unit unit = clicked.HasValue ? state.Board.GetCell(clicked.Value).Occupant : null;
@@ -316,14 +316,15 @@ namespace MiniChess.Client.Interaction
                 Deselect();
         }
 
-        /// <summary>사람이 조작할 차례인지. 배치 단계와 봇 팀의 턴에는 입력을 받지 않는다.</summary>
+        /// <summary>
+        /// 사람이 조작할 차례인지. 배치 단계, 이 화면에서 조작하지 않는 팀(봇, 온라인 상대)의 턴,
+        /// 서버 결과를 기다리는 중에는 입력을 받지 않는다.
+        /// </summary>
         private bool AcceptsInput(GameState state)
         {
-            if (state == null)
-                return true;
-            if (state.Phase == GamePhase.Setup)
+            if (state == null || state.Phase == GamePhase.Setup || _session.IsAwaitingServer)
                 return false;
-            return !(state.Phase == GamePhase.Battle && _session.IsBot(state.CurrentTeam));
+            return !(state.Phase == GamePhase.Battle && !_session.IsLocallyControlled(state.CurrentTeam));
         }
 
         /// <summary>
