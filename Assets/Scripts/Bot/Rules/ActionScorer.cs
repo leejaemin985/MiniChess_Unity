@@ -335,8 +335,15 @@ namespace MiniChess.Bot.Rules
                     return -UnitsIn(g.Area, removeShield.Filter, caster)
                         .Sum(unit => (unit.Stats.FindShield(removeShield.ShieldId)?.Amount ?? 0) * (_w.ShieldIdle + _w.Protection));
 
+                // 밀린 뒤 이어지는 효과(기절 등)는 지금 칸 기준으로 어림한다.
                 case KnockbackEffect knockback:
-                    return UnitsIn(g.Area, knockback.Filter, caster).Count(unit => unit.Team != caster.Team) * _w.Knockback;
+                    return UnitsIn(g.Area, knockback.Filter, caster).Count(unit => unit.Team != caster.Team) * _w.Knockback
+                        + knockback.AfterPush.Sum(nested => EffectValue(nested, g));
+
+                case CleanseEffect cleanse:
+                    return UnitsIn(g.Area, cleanse.Filter, caster).Sum(unit => unit.Statuses
+                        .Where(status => CleanseEffect.IsCleansable(unit, status))
+                        .Sum(status => DebuffValue(status.Definition, unit, already: false)));
 
                 case SummonEffect _:
                     return _w.Summon;
@@ -383,22 +390,7 @@ namespace MiniChess.Bot.Rules
                 return SealValue(target);
 
             if (target.Team != _a.Team)
-            {
-                bool already = target.FindStatus(status.Id) != null;
-                switch (status.Behavior)
-                {
-                    case RootBehavior _:
-                        return already ? _w.OtherStatus : _w.Root;
-                    case DistanceLimitBehavior _:
-                        return already ? 0 : _w.DistanceLimit;
-                    case DamageOverTimeBehavior _:
-                        return SkillEstimates.StatusDamage(status) * _w.DamageOverTime;
-                    case CurseMarkBehavior mark:
-                        return mark.BonusDamage * _w.DamageOverTime;
-                    default:
-                        return _w.OtherStatus;
-                }
-            }
+                return DebuffValue(status, target, already: target.FindStatus(status.Id) != null);
 
             if (status.Behavior is GuardBehavior)
             {
@@ -413,6 +405,30 @@ namespace MiniChess.Bot.Rules
                 return SelfStatusValue(status, caster);
 
             return _w.OtherStatus;
+        }
+
+        /// <summary>
+        /// 나쁜 상태 하나가 target 에게 걸려 있는 가치(적에게 걸 때의 이득, 아군에게서 정화로 지울 때의 이득).
+        /// already 면 이미 같은 상태가 있어 새로 거는 이득이 적다.
+        /// 기절은 다음 자기 턴의 행동을 통째로 막으므로 봉인과 같은 기준(위협)으로 본다.
+        /// </summary>
+        private double DebuffValue(StatusDefinition status, Unit target, bool already)
+        {
+            switch (status.Behavior)
+            {
+                case RootBehavior _:
+                    return already ? _w.OtherStatus : _w.Root;
+                case DistanceLimitBehavior _:
+                    return already ? 0 : _w.DistanceLimit;
+                case DamageOverTimeBehavior _:
+                    return SkillEstimates.StatusDamage(status) * _w.DamageOverTime;
+                case CurseMarkBehavior mark:
+                    return mark.BonusDamage * _w.DamageOverTime;
+                case StunnedBehavior _:
+                    return already ? 0 : _a.Threat(target) * _a.Caution * _w.Protection;
+                default:
+                    return _w.OtherStatus;
+            }
         }
 
         /// <summary>
