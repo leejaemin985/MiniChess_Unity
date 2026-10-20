@@ -9680,6 +9680,7 @@ GameObject:
   - component: {fileID: 6279113456632295907}
   - component: {fileID: 8456367852711911100}
   - component: {fileID: 6243574263421254888}
+  - component: {fileID: 6554318629268143744}
   m_Layer: 0
   m_Name: FX_FireField
   m_TagString: Untagged
@@ -14501,3 +14502,16 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!114 &6554318629268143744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7671355193939552277}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a746fea2e44b42545894c912ffaef294, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  releaseTimeout: 3

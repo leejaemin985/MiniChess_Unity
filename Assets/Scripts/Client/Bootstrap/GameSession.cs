@@ -10,6 +10,7 @@ using MiniChess.Client.Players;
 using MiniChess.Client.UI;
 using MiniChess.Client.Units;
 using MiniChess.Client.Visuals;
+using MiniChess.Client.Visuals.Effects;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
@@ -60,6 +61,8 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private CharacterVisualCatalog characterVisuals;
         [Tooltip("기본 공격/스킬 시전 아이콘을 띄우는 시간(초).")]
         [SerializeField, Min(0f)] private float actionIconDuration = 0.7f;
+        [Tooltip("장판 종류별 이펙트 프리팹. 비우면 Resources/FieldEffectCatalog 를 불러온다.")]
+        [SerializeField] private FieldEffectCatalog fieldEffects;
 
         [Header("Options (비우면 Resources/GameOptions 를 불러오고, 그것도 없으면 코드 기본값)")]
         [SerializeField] private GameOptions gameOptions;
@@ -67,6 +70,7 @@ namespace MiniChess.Client.Bootstrap
         [Header("View")]
         [SerializeField] private float cellSize = 1f;
         [SerializeField] private BoardView boardView;
+        [SerializeField] private FieldEffectsView fieldEffectsView;
         [SerializeField] private UnitsView unitsView;
         [SerializeField] private BoardCameraRig cameraRig;
         [SerializeField] private BoardInput boardInput;
@@ -78,6 +82,9 @@ namespace MiniChess.Client.Bootstrap
 
         private ServerConnection _connection;
         private int _lastRequestId;
+
+        /// <summary>이펙트 풀 오브젝트의 최상단 부모(씬 루트).</summary>
+        private EffectPoolSystem _effectPools;
 
         /// <summary>온라인 경기의 설정(서버와 같은 프리셋). 서버 스냅샷으로 경기를 다시 만들 때 쓴다.</summary>
         private GameConfig _onlineConfig;
@@ -143,7 +150,9 @@ namespace MiniChess.Client.Bootstrap
             if (characterVisuals == null) characterVisuals = Resources.Load<CharacterVisualCatalog>(CharacterVisualCatalog.ResourcePath);
             if (gameOptions == null) gameOptions = Resources.Load<GameOptions>(GameOptions.ResourcePath);
             if (gameOptions == null) gameOptions = ScriptableObject.CreateInstance<GameOptions>();
+            if (fieldEffects == null) fieldEffects = Resources.Load<FieldEffectCatalog>(FieldEffectCatalog.ResourcePath);
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
+            if (fieldEffectsView == null) fieldEffectsView = CreateChild<FieldEffectsView>("FieldEffectsView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
             if (boardInput == null) boardInput = CreateChild<BoardInput>("BoardInput");
@@ -162,6 +171,9 @@ namespace MiniChess.Client.Bootstrap
             placementPreview.Initialize(placement, () => Coordinates, unitsView.GetTeamColor, id => Game?.State.Characters.Find(id)?.Name ?? id);
             hud.Initialize(this, unitsView.GetTeamColor);
             botDriver.Initialize(this);
+            _effectPools = EffectPoolSystem.Create();
+            fieldEffectsView.Initialize(_effectPools, fieldEffects);
+            boardView.HasFieldVisual = fieldEffectsView.HasVisual;
 
             StartNewGame();
         }
@@ -175,6 +187,8 @@ namespace MiniChess.Client.Bootstrap
         private void OnDestroy()
         {
             _connection?.Dispose();
+            if (_effectPools != null)
+                Destroy(_effectPools.gameObject);
         }
 
         /// <summary>
@@ -216,6 +230,8 @@ namespace MiniChess.Client.Bootstrap
             boardView.Build(State.Board, Coordinates);
             boardView.SyncEffects(State.Board);
             boardView.SyncStrikes(State);
+            fieldEffectsView.Build(Coordinates);
+            fieldEffectsView.Sync(State);
             unitsView.Build(State, Coordinates, characterVisuals);
             CameraSettings cameraSettings = gameOptions.Camera;
             cameraRig.Frame(Coordinates, cameraSettings, cameraSettings.FaceLocalTeam ? GetViewYaw(ViewTeam) : 0f);
@@ -462,6 +478,7 @@ namespace MiniChess.Client.Bootstrap
             unitsView.Sync();
             boardView.SyncEffects(State.Board);
             boardView.SyncStrikes(State);
+            fieldEffectsView.Sync(State);
             StateChanged?.Invoke();
             return true;
         }

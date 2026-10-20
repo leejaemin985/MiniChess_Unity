@@ -68,6 +68,9 @@ namespace MiniChess.Client.Board
 
         public IReadOnlyDictionary<Position, CellView> Cells => _cells;
 
+        /// <summary>장판 종류를 이펙트로 그리는지. 그리는 종류는 칸 색조를 쓰지 않는다. null 이면 모두 색조.</summary>
+        public System.Predicate<string> HasFieldVisual { get; set; }
+
         private void Update()
         {
             float now = Time.time;
@@ -97,7 +100,7 @@ namespace MiniChess.Client.Board
         }
 
         /// <summary>
-        /// 칸 효과(장판/덫/장애물)를 현재 코어 상태대로 표시한다. 장판은 칸 색조, 덫은 설치한 팀 색의 표식, 장애물은 설치한 팀 색의 상자.
+        /// 칸 효과(장판/덫/장애물)를 현재 코어 상태대로 표시한다. 장판은 칸 색조(이펙트가 있는 종류는 FieldEffectsView 가 그림), 덫은 설치한 팀 색의 표식, 장애물은 설치한 팀 색의 상자.
         /// 온라인에서는 상대 덫이 상태에 없으므로(서버가 숨김) 그리지 않고, 발동할 때 RevealTrap 으로 잠깐 보여 준다.
         /// </summary>
         public void SyncEffects(CoreBoard board)
@@ -113,7 +116,8 @@ namespace MiniChess.Client.Board
                     view.SetTerrainColor(GetTerrainColor(pair.Key, cell));
 
                 ICellEffect area = cell.GetEffect(CellEffectLayer.AreaEffect);
-                view.SetEffectTint(area == null ? (Color?)null : GetFieldColor(area), fieldTintStrength);
+                bool tinted = area != null && (HasFieldVisual == null || !HasFieldVisual(area.Kind));
+                view.SetEffectTint(tinted ? GetFieldColor(area) : (Color?)null, fieldTintStrength);
 
                 ICellEffect trap = cell.GetEffect(CellEffectLayer.Trap);
                 Color trapColor = GetTrapColor(trap);
