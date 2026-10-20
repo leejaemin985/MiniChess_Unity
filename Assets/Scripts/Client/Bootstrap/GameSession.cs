@@ -63,6 +63,8 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField, Min(0f)] private float actionIconDuration = 0.7f;
         [Tooltip("장판 종류별 이펙트 프리팹. 비우면 Resources/FieldEffectCatalog 를 불러온다.")]
         [SerializeField] private FieldEffectCatalog fieldEffects;
+        [Tooltip("스킬별 범위 이펙트(일자 베기 등) 프리팹. 비우면 Resources/SkillEffectCatalog 를 불러온다.")]
+        [SerializeField] private SkillEffectCatalog skillEffects;
 
         [Header("Options (비우면 Resources/GameOptions 를 불러오고, 그것도 없으면 코드 기본값)")]
         [SerializeField] private GameOptions gameOptions;
@@ -71,6 +73,7 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private float cellSize = 1f;
         [SerializeField] private BoardView boardView;
         [SerializeField] private FieldEffectsView fieldEffectsView;
+        [SerializeField] private SkillEffectsView skillEffectsView;
         [SerializeField] private UnitsView unitsView;
         [SerializeField] private AttackEffectsView attackEffectsView;
         [SerializeField] private BoardCameraRig cameraRig;
@@ -155,8 +158,10 @@ namespace MiniChess.Client.Bootstrap
             if (gameOptions == null) gameOptions = Resources.Load<GameOptions>(GameOptions.ResourcePath);
             if (gameOptions == null) gameOptions = ScriptableObject.CreateInstance<GameOptions>();
             if (fieldEffects == null) fieldEffects = Resources.Load<FieldEffectCatalog>(FieldEffectCatalog.ResourcePath);
+            if (skillEffects == null) skillEffects = Resources.Load<SkillEffectCatalog>(SkillEffectCatalog.ResourcePath);
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
             if (fieldEffectsView == null) fieldEffectsView = CreateChild<FieldEffectsView>("FieldEffectsView");
+            if (skillEffectsView == null) skillEffectsView = CreateChild<SkillEffectsView>("SkillEffectsView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
             if (attackEffectsView == null) attackEffectsView = CreateChild<AttackEffectsView>("AttackEffectsView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
@@ -180,6 +185,7 @@ namespace MiniChess.Client.Bootstrap
             _effectCasters = new EffectCasterRegistry(_effectPools);
             fieldEffectsView.Initialize(_effectCasters, fieldEffects);
             attackEffectsView.Initialize(_effectCasters, unitsView);
+            skillEffectsView.Initialize(_effectCasters, skillEffects, unitsView);
             boardView.HasFieldVisual = fieldEffectsView.HasVisual;
 
             StartNewGame();
@@ -246,6 +252,7 @@ namespace MiniChess.Client.Bootstrap
             fieldEffectsView.Sync(State);
             unitsView.Build(State, Coordinates, characterVisuals);
             attackEffectsView.Build(Coordinates);
+            skillEffectsView.Build(Coordinates);
             CameraSettings cameraSettings = gameOptions.Camera;
             cameraRig.Frame(Coordinates, cameraSettings, cameraSettings.FaceLocalTeam ? GetViewYaw(ViewTeam) : 0f);
             boardInput.Initialize(cameraRig.Camera, Coordinates);
@@ -452,7 +459,7 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>
         /// 일어난 일을 연출한다(로컬/온라인 공용).
-        ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘.
+        ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘, 범위 이펙트(일자 베기 등).
         ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
@@ -472,6 +479,7 @@ namespace MiniChess.Client.Bootstrap
                         break;
                     case SkillUsedEvent used:
                         ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);
+                        skillEffectsView.Play(used.CasterId, used.SkillId, used.AffectedCells);
                         break;
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);

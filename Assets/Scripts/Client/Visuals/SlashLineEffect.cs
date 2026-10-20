@@ -1,4 +1,5 @@
 using System;
+using MiniChess.Client.Visuals.Effects;
 using UnityEngine;
 
 namespace MiniChess.Client.Visuals
@@ -7,8 +8,9 @@ namespace MiniChess.Client.Visuals
     /// 두 지점을 잇는 슬래시. 빛줄기 머리가 시작점에서 끝점으로 쓸고 지나가고 꼬리가 뒤따르며,
     /// 지나간 자리에 잔광이 남고 끝점에서 타격 파티클이 터진다.
     /// 모양은 경과 시간만으로 정해지므로(Evaluate) 풀링해서 Play 를 반복 호출해도 된다.
+    /// 풀에서는 Place 로 재생하고, 빛줄기와 파티클이 모두 끝나면 스스로 돌아간다. 파티클은 직접 재생한다(타격은 끝점 도착 때).
     /// </summary>
-    public class SlashLineEffect : MonoBehaviour
+    public class SlashLineEffect : LineEffect
     {
         [Header("Preset (Play() 로 재생)")]
         [SerializeField] private Transform fromPoint;
@@ -56,8 +58,23 @@ namespace MiniChess.Client.Visuals
 
         private void Start()
         {
-            if (playOnStart && fromPoint != null && toPoint != null)
+            // 풀에서 꺼낸 것은 Place 로 이미 재생 중이므로 프리셋 재생을 하지 않는다.
+            if (playOnStart && !IsInUse && fromPoint != null && toPoint != null)
                 Play();
+        }
+
+        protected override bool PlayParticlesOnSpawn => false;
+
+        protected override bool IsFinished => !IsPlaying && !IsAnyParticleAlive();
+
+        public override void Place(Vector3 from, Vector3 to)
+        {
+            Play(from, to);
+        }
+
+        protected override void OnReleased()
+        {
+            Stop();
         }
 
         /// <summary>Inspector 에 지정한 두 Transform 사이로 재생한다.</summary>
@@ -92,8 +109,9 @@ namespace MiniChess.Client.Visuals
             SetLinesVisible(false);
         }
 
-        private void Update()
+        protected override void Update()
         {
+            base.Update();
             if (!IsPlaying)
                 return;
 

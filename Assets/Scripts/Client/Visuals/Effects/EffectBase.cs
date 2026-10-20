@@ -37,7 +37,8 @@ namespace MiniChess.Client.Visuals.Effects
             foreach (ParticleSystem particle in Particles)
             {
                 particle.Clear(false);
-                particle.Play(false);
+                if (PlayParticlesOnSpawn)
+                    particle.Play(false);
             }
 
             OnSpawned();
@@ -72,12 +73,19 @@ namespace MiniChess.Client.Visuals.Effects
 
         protected virtual void OnReleased() { }
 
-        /// <summary>재생이 끝나면(살아 있는 입자가 없으면) 스스로 풀로 돌아가는 일회성 이펙트인지.</summary>
+        /// <summary>재생이 끝나면(IsFinished) 스스로 풀로 돌아가는 일회성 이펙트인지.</summary>
         protected virtual bool ReleaseWhenFinished => false;
+
+        /// <summary>꺼낼 때 모든 파티클을 바로 재생하는지. 파티클을 직접 재생하는 이펙트(타이밍 연출 등)는 false.</summary>
+        protected virtual bool PlayParticlesOnSpawn => true;
+
+        /// <summary>재생이 끝났는지(기본: 살아 있는 입자가 없음). 파티클 외 연출이 있으면 그것까지 포함해 판단한다.</summary>
+        protected virtual bool IsFinished => !IsAnyParticleAlive();
 
         protected ParticleSystem[] Particles => _particles ?? (_particles = GetComponentsInChildren<ParticleSystem>(true));
 
-        private void Update()
+        /// <summary>파생 클래스가 Update 를 쓰면 base.Update() 를 호출해야 반납 처리가 된다.</summary>
+        protected virtual void Update()
         {
             if (IsReleasing)
             {
@@ -86,11 +94,11 @@ namespace MiniChess.Client.Visuals.Effects
                 return;
             }
 
-            if (IsInUse && ReleaseWhenFinished && !IsAnyParticleAlive())
+            if (IsInUse && ReleaseWhenFinished && IsFinished)
                 Despawn();
         }
 
-        private bool IsAnyParticleAlive()
+        protected bool IsAnyParticleAlive()
         {
             foreach (ParticleSystem particle in Particles)
             {
