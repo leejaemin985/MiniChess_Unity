@@ -26,22 +26,19 @@ namespace MiniChess.Client.Board
         [Tooltip("스킬 정의에서 크기를 알 수 없을 때(설치자 사망 후 복원 등)의 풀 크기.")]
         [SerializeField, Min(1)] private int fallbackPoolSize = 8;
 
-        private readonly Dictionary<int, EffectCaster> _casters = new Dictionary<int, EffectCaster>();
-
         /// <summary>칸마다 지금 깔린 장판 이펙트와 그 구역 Id.</summary>
         private readonly Dictionary<Position, (int ZoneId, FieldEffect Effect)> _cellEffects = new Dictionary<Position, (int, FieldEffect)>();
         private readonly HashSet<Position> _seen = new HashSet<Position>();
         private readonly List<Position> _emptied = new List<Position>();
-        private readonly List<int> _disposable = new List<int>();
 
-        private EffectPoolSystem _pools;
+        private EffectCasterRegistry _casters;
         private FieldEffectCatalog _catalog;
         private BoardCoordinates _coordinates;
         private GameState _state;
 
-        public void Initialize(EffectPoolSystem pools, FieldEffectCatalog catalog)
+        public void Initialize(EffectCasterRegistry casters, FieldEffectCatalog catalog)
         {
-            _pools = pools;
+            _casters = casters;
             _catalog = catalog;
         }
 
@@ -51,7 +48,7 @@ namespace MiniChess.Client.Board
             return _catalog != null && _catalog.Find(kind) != null;
         }
 
-        /// <summary>새 경기: 이전 경기의 이펙트와 풀을 모두 지운다.</summary>
+        /// <summary>새 경기: 이전 경기의 이펙트 기록을 지운다(풀은 EffectCasterRegistry.Clear 로 함께 지운다).</summary>
         public void Build(BoardCoordinates coordinates)
         {
             Clear();
@@ -66,7 +63,7 @@ namespace MiniChess.Client.Board
         public void Sync(GameState state)
         {
             _state = state;
-            if (_pools == null || _catalog == null)
+            if (_casters == null || _catalog == null)
                 return;
 
             _seen.Clear();
@@ -107,29 +104,19 @@ namespace MiniChess.Client.Board
 
         public void Clear()
         {
-            foreach (EffectCaster caster in _casters.Values)
-                caster.Dispose();
-
-            _casters.Clear();
             _cellEffects.Clear();
             _state = null;
         }
 
         private FieldEffect Spawn(Position cell, FieldZone zone, FieldEffect prefab)
         {
-            int casterKey = GetCasterKey(zone);
-            if (!_casters.TryGetValue(casterKey, out EffectCaster caster))
-            {
-                caster = new EffectCaster(_pools, GetCasterName(zone));
-                _casters[casterKey] = caster;
-            }
-
+            EffectCaster caster = _casters.Get(GetCasterKey(zone), GetCasterName(zone));
             FieldEffect effect = caster.GetPool(prefab, GetPoolSize(zone.SkillId)).Get();
             effect.Place(_coordinates.ToWorld(cell));
             return effect;
         }
 
-        /// <summary>시전자 유닛 Id. 설치자를 모르는 구역(사망한 설치자의 구역을 복원)은 팀별 공용 키(음수).</summary>
+        /// <summary>시전자 유닛 Id. 설치자를 모르는 구역(사망한 설치자의 구역을 복원)은 팀별 공용 키(음수, EffectCasterRegistry 참고).</summary>
         private static int GetCasterKey(FieldZone zone)
         {
             return zone.Source != null ? zone.Source.Id : -1 - (int)zone.OwnerTeam;
@@ -152,35 +139,6 @@ namespace MiniChess.Client.Board
                 return fallbackPoolSize;
 
             return maxActive.Value * shape.GetOffsets(AreaRotation.R0).Count() * poolMultiplier;
-        }
-
-        /// <summary>죽은 시전자의 풀은 남은 이펙트가 모두 사라진 뒤 지운다.</summary>
-        private void Update()
-        {
-            if (_state == null || _casters.Count == 0)
-                return;
-
-            _disposable.Clear();
-            foreach (KeyValuePair<int, EffectCaster> pair in _casters)
-            {
-                if (pair.Key < 0 || !pair.Value.IsIdle)
-                    continue;
-
-                Unit unit = _state.FindUnit(pair.Key);
-                if (unit == null || !unit.IsAlive)
-                    _disposable.Add(pair.Key);
-            }
-
-            foreach (int key in _disposable)
-            {
-                _casters[key].Dispose();
-                _casters.Remove(key);
-            }
-        }
-
-        private void OnDestroy()
-        {
-            Clear();
         }
     }
 }

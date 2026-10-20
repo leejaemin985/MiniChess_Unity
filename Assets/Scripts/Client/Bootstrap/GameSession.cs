@@ -72,6 +72,7 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private BoardView boardView;
         [SerializeField] private FieldEffectsView fieldEffectsView;
         [SerializeField] private UnitsView unitsView;
+        [SerializeField] private AttackEffectsView attackEffectsView;
         [SerializeField] private BoardCameraRig cameraRig;
         [SerializeField] private BoardInput boardInput;
         [SerializeField] private SelectionController selection;
@@ -85,6 +86,9 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>이펙트 풀 오브젝트의 최상단 부모(씬 루트).</summary>
         private EffectPoolSystem _effectPools;
+
+        /// <summary>유닛별 이펙트 풀 묶음(장판/평타가 함께 쓴다). 새 경기마다 비운다.</summary>
+        private EffectCasterRegistry _effectCasters;
 
         /// <summary>온라인 경기의 설정(서버와 같은 프리셋). 서버 스냅샷으로 경기를 다시 만들 때 쓴다.</summary>
         private GameConfig _onlineConfig;
@@ -154,6 +158,7 @@ namespace MiniChess.Client.Bootstrap
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
             if (fieldEffectsView == null) fieldEffectsView = CreateChild<FieldEffectsView>("FieldEffectsView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
+            if (attackEffectsView == null) attackEffectsView = CreateChild<AttackEffectsView>("AttackEffectsView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
             if (boardInput == null) boardInput = CreateChild<BoardInput>("BoardInput");
             if (selection == null) selection = CreateChild<SelectionController>("Selection");
@@ -172,7 +177,9 @@ namespace MiniChess.Client.Bootstrap
             hud.Initialize(this, unitsView.GetTeamColor);
             botDriver.Initialize(this);
             _effectPools = EffectPoolSystem.Create();
-            fieldEffectsView.Initialize(_effectPools, fieldEffects);
+            _effectCasters = new EffectCasterRegistry(_effectPools);
+            fieldEffectsView.Initialize(_effectCasters, fieldEffects);
+            attackEffectsView.Initialize(_effectCasters, unitsView);
             boardView.HasFieldVisual = fieldEffectsView.HasVisual;
 
             StartNewGame();
@@ -182,6 +189,10 @@ namespace MiniChess.Client.Bootstrap
         {
             if (_connection != null)
                 PollServer();
+
+            // 죽은 유닛의 이펙트 풀은 남은 이펙트(장판 등)가 모두 사라진 뒤 지운다.
+            if (State != null)
+                _effectCasters?.DisposeIdle(unitId => !(State.FindUnit(unitId)?.IsAlive ?? false));
         }
 
         private void OnDestroy()
@@ -230,9 +241,11 @@ namespace MiniChess.Client.Bootstrap
             boardView.Build(State.Board, Coordinates);
             boardView.SyncEffects(State.Board);
             boardView.SyncStrikes(State);
+            _effectCasters.Clear();
             fieldEffectsView.Build(Coordinates);
             fieldEffectsView.Sync(State);
             unitsView.Build(State, Coordinates, characterVisuals);
+            attackEffectsView.Build(Coordinates);
             CameraSettings cameraSettings = gameOptions.Camera;
             cameraRig.Frame(Coordinates, cameraSettings, cameraSettings.FaceLocalTeam ? GetViewYaw(ViewTeam) : 0f);
             boardInput.Initialize(cameraRig.Camera, Coordinates);
@@ -439,7 +452,8 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>
         /// 일어난 일을 연출한다(로컬/온라인 공용).
-        ///   - 기본 공격: 공격자 위에 기본 공격 아이콘. 스킬: 시전자 위에 스킬 시전 아이콘.
+        ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘.
+        ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
         private void PlayEvents(IEnumerable<GameEvent> events)
@@ -450,9 +464,11 @@ namespace MiniChess.Client.Bootstrap
                 {
                     case UnitAttackedEvent attacked:
                         ShowActionIcon(attacked.AttackerId, characterVisuals?.BasicAttackIcon);
+                        attackEffectsView.PlayOnUnit(characterVisuals?.BasicAttackEffect, attacked.AttackerId, attacked.TargetId);
                         break;
                     case ObstacleHitEvent hit:
                         ShowActionIcon(hit.AttackerId, characterVisuals?.BasicAttackIcon);
+                        attackEffectsView.PlayOnCell(characterVisuals?.BasicAttackEffect, hit.AttackerId, hit.Position);
                         break;
                     case SkillUsedEvent used:
                         ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);
@@ -655,8 +671,9 @@ namespace MiniChess.Client.Bootstrap
 
             Game = game;
             _turnDeadline = update.TurnTimeLeftMs.HasValue ? Time.realtimeSinceStartup + update.TurnTimeLeftMs.Value / 1000f : (float?)null;
-            unitsView.Rebind(State);
+            // 연출이 먼저: 타격 이펙트 위치를 유닛 뷰에서 읽으므로, Rebind 가 죽은 유닛의 뷰를 지우기 전에 재생한다.
             PlayEvents(events);
+            unitsView.Rebind(State);
             Succeed();
 
             foreach (GameEndedEvent ended in events.OfType<GameEndedEvent>())

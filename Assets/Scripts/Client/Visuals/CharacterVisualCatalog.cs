@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MiniChess.Client.Visuals.Effects;
 using UnityEngine;
 
 namespace MiniChess.Client.Visuals
@@ -26,7 +27,14 @@ namespace MiniChess.Client.Visuals
         [Tooltip("스킬 시전 때 시전자 얼굴 위에 잠깐 띄우는 아이콘(모든 스킬 공통).")]
         [SerializeField] private Sprite skillCastIcon;
 
+        [Header("Action Effects")]
+        [Tooltip("기본 공격(유닛/장애물) 때 맞은 자리에서 공격 방향으로 재생하는 이펙트(모든 캐릭터 공통).")]
+        [SerializeField] private HitEffect basicAttackEffect;
+
         public IReadOnlyList<CharacterVisual> Visuals => visuals;
+
+        /// <summary>기본 공격 타격 이펙트. 지정하지 않았으면 null(재생 안 함).</summary>
+        public HitEffect BasicAttackEffect => basicAttackEffect;
 
         /// <summary>얼굴 마스크 모양. 지정하지 않았으면 null(FaceBadge 가 원을 쓴다).</summary>
         public Sprite FaceMask => faceMask;

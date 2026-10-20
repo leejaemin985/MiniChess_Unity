@@ -109,6 +109,12 @@ namespace MiniChess.Client.Units
             return _views.TryGetValue(unit.Id, out view);
         }
 
+        /// <summary>유닛 Id 로 뷰를 찾는다. 코어에서 이미 빠진(사망한) 유닛도 뷰가 남아 있으면 찾는다.</summary>
+        public bool TryGetView(int unitId, out UnitView view)
+        {
+            return _views.TryGetValue(unitId, out view) && view != null;
+        }
+
         public void Clear()
         {
             foreach (UnitView view in _views.Values)

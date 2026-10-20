@@ -29,3 +29,4 @@ MonoBehaviour:
   faceFrame: {fileID: 0}
   basicAttackIcon: {fileID: 21300000, guid: 873059b75b89393408b16795f797fecd, type: 3}
   skillCastIcon: {fileID: 21300000, guid: 0ced61aa1ddb16347b1de76ea2dc3da5, type: 3}
+  basicAttackEffect: {fileID: 2180478952364729171, guid: 74196e2ddc0552d4da604df8f17c894d, type: 3}

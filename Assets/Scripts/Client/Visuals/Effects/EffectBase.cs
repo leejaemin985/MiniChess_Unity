@@ -72,14 +72,21 @@ namespace MiniChess.Client.Visuals.Effects
 
         protected virtual void OnReleased() { }
 
-        private ParticleSystem[] Particles => _particles ?? (_particles = GetComponentsInChildren<ParticleSystem>(true));
+        /// <summary>재생이 끝나면(살아 있는 입자가 없으면) 스스로 풀로 돌아가는 일회성 이펙트인지.</summary>
+        protected virtual bool ReleaseWhenFinished => false;
+
+        protected ParticleSystem[] Particles => _particles ?? (_particles = GetComponentsInChildren<ParticleSystem>(true));
 
         private void Update()
         {
-            if (!IsReleasing)
+            if (IsReleasing)
+            {
+                if (Time.time >= _releaseDeadline.Value || !IsAnyParticleAlive())
+                    Despawn();
                 return;
+            }
 
-            if (Time.time >= _releaseDeadline.Value || !IsAnyParticleAlive())
+            if (IsInUse && ReleaseWhenFinished && !IsAnyParticleAlive())
                 Despawn();
         }
 
