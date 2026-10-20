@@ -12,7 +12,7 @@ namespace MiniChess.Client.Units
     /// </summary>
     public class UnitView : MonoBehaviour
     {
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
 
         private const float BodyHeight = 1f;
         private const float BodyWidth = 0.6f;

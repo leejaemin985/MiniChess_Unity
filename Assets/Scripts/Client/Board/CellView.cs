@@ -11,7 +11,7 @@ namespace MiniChess.Client.Board
     /// </summary>
     public class CellView : MonoBehaviour
     {
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
 
         private Renderer _renderer;
         private MaterialPropertyBlock _block;

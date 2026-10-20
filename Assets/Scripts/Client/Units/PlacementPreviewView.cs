@@ -14,7 +14,7 @@ namespace MiniChess.Client.Units
     /// </summary>
     public class PlacementPreviewView : MonoBehaviour
     {
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
 
         [SerializeField, Range(0f, 1f)] private float ghostLighten = 0.5f;
 
