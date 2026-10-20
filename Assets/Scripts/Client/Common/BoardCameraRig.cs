@@ -3,17 +3,16 @@ using UnityEngine;
 namespace MiniChess.Client.Common
 {
     /// <summary>
-    /// 카메라를 Player1 쪽(-z)에서 보드를 비스듬히 내려다보도록 배치하고, 보드 전체가 화면에 들어오게 거리를 맞춘다.
+    /// 카메라가 보드를 비스듬히 내려다보도록 배치하고, 보드 전체가 화면에 들어오게 거리를 맞춘다.
+    /// yaw 0 은 Player1 쪽(-z)에서 +z 를 바라보는 방향이고, 180 이면 반대편에서 본다.
     /// </summary>
     public class BoardCameraRig : MonoBehaviour
     {
         [SerializeField] private Camera targetCamera;
-        [SerializeField, Range(20f, 90f)] private float pitch = 60f;
-        [SerializeField] private float padding = 1.1f;
 
         public Camera Camera => targetCamera;
 
-        public void Frame(BoardCoordinates coordinates)
+        public void Frame(BoardCoordinates coordinates, CameraSettings settings, float yaw)
         {
             if (targetCamera == null)
                 targetCamera = Camera.main;
@@ -24,14 +23,17 @@ namespace MiniChess.Client.Common
                 return;
             }
 
+            if (settings.FieldOfView > 0f)
+                targetCamera.fieldOfView = settings.FieldOfView;
+
             Vector2 size = coordinates.Size;
-            float radius = Mathf.Sqrt(size.x * size.x + size.y * size.y) * 0.5f * padding;
+            float radius = Mathf.Sqrt(size.x * size.x + size.y * size.y) * 0.5f * settings.Padding;
 
             float verticalHalfFov = targetCamera.fieldOfView * 0.5f * Mathf.Deg2Rad;
             float horizontalHalfFov = Mathf.Atan(Mathf.Tan(verticalHalfFov) * targetCamera.aspect);
             float distance = radius / Mathf.Sin(Mathf.Min(verticalHalfFov, horizontalHalfFov));
 
-            Quaternion rotation = Quaternion.Euler(pitch, 0f, 0f);
+            Quaternion rotation = Quaternion.Euler(settings.Pitch, yaw, 0f);
             Transform cameraTransform = targetCamera.transform;
             cameraTransform.rotation = rotation;
             cameraTransform.position = coordinates.Center - rotation * Vector3.forward * distance;

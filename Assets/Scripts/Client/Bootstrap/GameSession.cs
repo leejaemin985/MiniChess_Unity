@@ -61,6 +61,9 @@ namespace MiniChess.Client.Bootstrap
         [Tooltip("기본 공격/스킬 시전 아이콘을 띄우는 시간(초).")]
         [SerializeField, Min(0f)] private float actionIconDuration = 0.7f;
 
+        [Header("Options (비우면 Resources/GameOptions 를 불러오고, 그것도 없으면 코드 기본값)")]
+        [SerializeField] private GameOptions gameOptions;
+
         [Header("View")]
         [SerializeField] private float cellSize = 1f;
         [SerializeField] private BoardView boardView;
@@ -138,6 +141,8 @@ namespace MiniChess.Client.Bootstrap
         private void Awake()
         {
             if (characterVisuals == null) characterVisuals = Resources.Load<CharacterVisualCatalog>(CharacterVisualCatalog.ResourcePath);
+            if (gameOptions == null) gameOptions = Resources.Load<GameOptions>(GameOptions.ResourcePath);
+            if (gameOptions == null) gameOptions = ScriptableObject.CreateInstance<GameOptions>();
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
@@ -212,10 +217,55 @@ namespace MiniChess.Client.Bootstrap
             boardView.SyncEffects(State.Board);
             boardView.SyncStrikes(State);
             unitsView.Build(State, Coordinates, characterVisuals);
-            cameraRig.Frame(Coordinates);
+            CameraSettings cameraSettings = gameOptions.Camera;
+            cameraRig.Frame(Coordinates, cameraSettings, cameraSettings.FaceLocalTeam ? GetViewYaw(ViewTeam) : 0f);
             boardInput.Initialize(cameraRig.Camera, Coordinates);
 
             StateChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// 화면을 어느 팀 진영 쪽에서 볼지. 온라인은 내 팀, 로컬은 사람이 조작하는 팀이 하나뿐일 때 그 팀.
+        /// 한 화면 교대(둘 다 사람)나 봇끼리는 Player1 쪽에서 본다.
+        /// </summary>
+        private Team ViewTeam
+        {
+            get
+            {
+                if (online)
+                    return LocalTeam ?? Team.Player1;
+
+                bool player1Human = !IsBot(Team.Player1);
+                bool player2Human = !IsBot(Team.Player2);
+                return player2Human && !player1Human ? Team.Player2 : Team.Player1;
+            }
+        }
+
+        /// <summary>
+        /// team 의 시작 구역 쪽에서 보드 중심을 바라보는 카메라 yaw(도, 90 단위). 내 진영이 화면 아래쪽에 오게 한다.
+        /// 시작 구역이 없거나 보드 중심에 있으면 Player1 0, Player2 180.
+        /// </summary>
+        private float GetViewYaw(Team team)
+        {
+            float fallback = team == Team.Player1 ? 0f : 180f;
+
+            IReadOnlyList<Position> spawns = Game.GetPlacementCells(team);
+            if (spawns == null || spawns.Count == 0)
+                return fallback;
+
+            Vector3 spawnCenter = Vector3.zero;
+            foreach (Position position in spawns)
+                spawnCenter += Coordinates.ToWorld(position);
+            spawnCenter /= spawns.Count;
+
+            // 카메라는 시작 구역 쪽에 서서 보드 중심을 본다 → 바라보는 방향은 (중심 - 시작 구역).
+            Vector3 forward = Coordinates.Center - spawnCenter;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.0001f)
+                return fallback;
+
+            float yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+            return Mathf.Round(yaw / 90f) * 90f;
         }
 
         private GameController CreateGame()
