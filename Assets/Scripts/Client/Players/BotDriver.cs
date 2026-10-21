@@ -15,6 +15,7 @@ namespace MiniChess.Client.Players
     /// <summary>
     /// 봇 팀을 대신 조작한다. 배치 단계에서는 봇 팀의 배치를 요청하고, 봇 팀의 턴에는 행동을 하나씩
     /// (BotActionDelay 간격으로) 받아 GameSession 을 통해 요청한다. 사람 입력과 같은 경로라 뷰도 그대로 갱신된다.
+    /// 판단은 로컬 실제 경기(GameSession.Authority)로 한다.
     /// 봇의 결정(무엇을 할지)은 MiniChess.Bot(RuleBot)이 하고, 여기서는 진행 타이밍만 맡는다.
     /// </summary>
     public class BotDriver : MonoBehaviour
@@ -43,7 +44,9 @@ namespace MiniChess.Client.Players
         private void OnStateChanged()
         {
             // 새 경기면(객체가 아니라 경기 번호로 판단) 진행 중이던 봇 처리를 멈추고 봇을 새로 만든다.
-            // 봇은 로컬 경기에서만 돌며, 로컬 경기의 Game 객체는 경기 동안 바뀌지 않는다(진행 중 확인은 game == _game 으로 한다).
+            // 봇은 로컬 경기에서만 돌며, 실제 경기(Authority)를 본다. 화면용 Game 은 사람 팀 시점으로 매번 새로 만들어지지만
+            // Authority 는 경기 동안 바뀌지 않는다(진행 중 확인은 game == _game 으로 한다).
+            // 봇이 상대에게 숨겨진 정보(사람 팀의 덫, 포격 조준 칸)를 쓰지 않는 것은 봇 규칙이 GameVisibility 로 거른다.
             if (_session.MatchId != _matchId)
             {
                 StopAllCoroutines();
@@ -52,7 +55,7 @@ namespace MiniChess.Client.Players
                 _bots.Clear();
             }
 
-            _game = _session.Game;
+            _game = _session.Authority;
 
             // 봇이 요청한 행동도 StateChanged 를 일으키므로, 진행 중에는 여기서 새로 시작하지 않는다.
             if (!_running)

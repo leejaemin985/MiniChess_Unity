@@ -30,7 +30,8 @@ namespace MiniChess.Client.Bootstrap
     /// 한 경기의 코어 GameController 를 소유하는 진입점.
     /// 클라이언트는 Game.State 를 읽어 그리기만 하고, 변경은 이 클래스의 Try* 를 거쳐 명령 메시지(Protocol)로만 한다.
     /// 표시용 조회는 Game 의 Get* 를 직접 쓴다. 뷰 참조가 비어 있으면 자식 오브젝트로 직접 만든다.
-    ///   로컬: 명령을 바로 실행한다. 요청 팀은 현재 턴의 팀(한 화면 교대 플레이) 또는 봇 팀이다.
+    ///   로컬: 명령을 실제 경기(Authority, 서버 역할)에 바로 실행한다. 요청 팀은 현재 턴의 팀(한 화면 교대 플레이) 또는 봇 팀이다.
+    ///         사람 한 팀 vs 봇이면 온라인과 같은 경로로 사람 팀 시점 스냅샷과 걸러진 이벤트만 화면에 쓴다(숨김 규칙은 GameProjection 한 곳).
     ///   온라인: 명령을 서버에 보내기만 한다. 서버가 상태가 바뀔 때마다 보내는 내 팀 시점의 스냅샷으로 경기를 새로 만들어(GameController.Restore)
     ///          화면과 조회에 쓴다. 상대에게 숨겨진 정보(상대 덫, 포격 조준 칸)는 스냅샷에 없으므로 이 클라이언트도 알 수 없다.
     /// </summary>
@@ -95,14 +96,39 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>유닛별 이펙트 풀 묶음(장판/평타가 함께 쓴다). 새 경기마다 비운다.</summary>
         private EffectCasterRegistry _effectCasters;
 
-        /// <summary>온라인 경기의 설정(서버와 같은 프리셋). 서버 스냅샷으로 경기를 다시 만들 때 쓴다.</summary>
-        private GameConfig _onlineConfig;
+        /// <summary>경기 설정(서버/로컬과 같은 프리셋). 시점 스냅샷으로 경기를 다시 만들 때 쓴다(온라인: 서버 스냅샷, 로컬: 내 팀 시점).</summary>
+        private GameConfig _viewConfig;
+
+        /// <summary>
+        /// 로컬 경기의 실제 경기(판정 전용, 서버 역할). 명령은 여기에 실행한다. 온라인이면 null(판정은 서버).
+        /// 화면과 사람의 조회는 Game(시점 경기)을 쓴다.
+        /// </summary>
+        public GameController Authority { get; private set; }
 
         /// <summary>서버 결과를 기다리는 내 명령. 없으면 null.</summary>
         private CommandMessage _pendingCommand;
 
-        /// <summary>코어 단일 진입점(명령 + 조회). 경기를 만들지 못했거나 온라인 상대를 기다리는 중이면 null.</summary>
+        /// <summary>
+        /// 이 화면의 시점 경기(표시와 조회 전용). 경기를 만들지 못했거나 온라인 상대를 기다리는 중이면 null.
+        ///   온라인: 서버가 보낸 내 팀 시점 스냅샷으로 만든 경기.
+        ///   로컬(사람 한 팀 vs 봇): 실제 경기(Authority)의 사람 팀 시점 스냅샷으로 만든 경기(온라인과 같은 숨김 규칙, GameProjection).
+        ///   로컬(한 화면 교대, 봇끼리): 숨길 상대가 없으므로 실제 경기 그대로.
+        /// </summary>
         public GameController Game { get; private set; }
+
+        /// <summary>
+        /// 로컬에서 정보를 숨겨 보여 줄 팀(사람이 한 팀, 상대가 봇일 때 사람 팀). 한 화면 교대와 봇끼리는 전부 공개라 null(사용자 확정).
+        /// </summary>
+        private Team? HiddenViewer
+        {
+            get
+            {
+                if (online || IsBot(Team.Player1) == IsBot(Team.Player2))
+                    return null;
+
+                return IsBot(Team.Player1) ? Team.Player2 : Team.Player1;
+            }
+        }
 
         /// <summary>읽기 전용 경기 상태(Game.State).</summary>
         public GameState State => Game?.State;
@@ -283,7 +309,19 @@ namespace MiniChess.Client.Bootstrap
                 return;
             }
 
-            BeginGame(game);
+            Authority = game;
+            BeginGame(LocalView());
+        }
+
+        /// <summary>로컬 실제 경기의 시점 경기. 숨길 팀이 있으면 그 팀 시점 스냅샷으로 다시 만들고, 없으면 실제 경기 그대로.</summary>
+        private GameController LocalView()
+        {
+            Team? viewer = HiddenViewer;
+            if (!viewer.HasValue)
+                return Authority;
+
+            _viewConfig = _viewConfig ?? OnlineMatch.CreateConfig();
+            return GameController.Restore(_viewConfig, Authority.GetSnapshot(viewer.Value));
         }
 
         private void BeginGame(GameController game)
@@ -497,15 +535,37 @@ namespace MiniChess.Client.Bootstrap
             return true;
         }
 
-        /// <summary>명령을 이 클라이언트의 경기에 실행하고 화면에 반영한다(로컬 전용).</summary>
+        /// <summary>
+        /// 명령을 로컬 실제 경기에 실행하고 화면에 반영한다(로컬 전용, 서버 역할).
+        /// 숨길 팀이 있으면 온라인과 똑같이 그 팀 시점의 스냅샷과 걸러진 이벤트로 화면을 맞춘다.
+        /// </summary>
         private bool Apply(Team team, CommandMessage command)
         {
-            CommandOutcome outcome = CommandExecutor.Execute(Game, team, command);
+            CommandOutcome outcome = CommandExecutor.Execute(Authority, team, command);
             if (!outcome.Success)
                 return Fail(FailReasonText.Describe(command, outcome.Reason));
 
-            PlayEvents(outcome.Events);
-            return Succeed();
+            Team? viewer = HiddenViewer;
+            if (!viewer.HasValue)
+            {
+                PlayEvents(outcome.Events);
+                return Succeed();
+            }
+
+            ShowView(LocalView(), Authority.GetVisibleEvents(viewer.Value, outcome.Events));
+            return true;
+        }
+
+        /// <summary>
+        /// 새 시점 경기로 화면을 바꾼다(온라인 상태 갱신, 로컬 숨김 경기 공용).
+        /// 연출이 먼저: 타격 이펙트 위치를 유닛 뷰에서 읽으므로, Rebind 가 죽은 유닛의 뷰를 지우기 전에 재생한다.
+        /// </summary>
+        private void ShowView(GameController view, IReadOnlyList<GameEvent> events)
+        {
+            PlayEvents(events);
+            Game = view;
+            unitsView.Rebind(State);
+            Succeed();
         }
 
         /// <summary>
@@ -578,6 +638,7 @@ namespace MiniChess.Client.Bootstrap
             LocalTeam = null;
             selection.Deselect();
             MatchId++;
+            Authority = null;
             Game = null;
             StateChanged?.Invoke();
 
@@ -729,12 +790,8 @@ namespace MiniChess.Client.Bootstrap
                 .Where(gameEvent => gameEvent != null)
                 .ToList();
 
-            Game = game;
             _turnDeadline = update.TurnTimeLeftMs.HasValue ? Time.realtimeSinceStartup + update.TurnTimeLeftMs.Value / 1000f : (float?)null;
-            // 연출이 먼저: 타격 이펙트 위치를 유닛 뷰에서 읽으므로, Rebind 가 죽은 유닛의 뷰를 지우기 전에 재생한다.
-            PlayEvents(events);
-            unitsView.Rebind(State);
-            Succeed();
+            ShowView(game, events);
 
             foreach (GameEndedEvent ended in events.OfType<GameEndedEvent>())
             {
@@ -753,8 +810,8 @@ namespace MiniChess.Client.Bootstrap
         {
             try
             {
-                _onlineConfig = _onlineConfig ?? OnlineMatch.CreateConfig();
-                return OnlineMatch.Restore(_onlineConfig, snapshot);
+                _viewConfig = _viewConfig ?? OnlineMatch.CreateConfig();
+                return OnlineMatch.Restore(_viewConfig, snapshot);
             }
             catch (Exception e)
             {

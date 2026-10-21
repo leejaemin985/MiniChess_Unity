@@ -10,6 +10,7 @@ using MiniChess.Core.Effects;
 using MiniChess.Core.Effects.Zones;
 using MiniChess.Core.Skills;
 using MiniChess.Core.Skills.Effects;
+using MiniChess.Core.Snapshots;
 using MiniChess.Core.State;
 using MiniChess.Core.Statuses;
 using MiniChess.Core.Statuses.Library;
@@ -169,13 +170,14 @@ namespace MiniChess.Bot.Rules
             return skills;
         }
 
-        /// <summary>칸으로 들어갈 때 밟는 적 덫의 손해(경로 포함).</summary>
+        /// <summary>칸으로 들어갈 때 밟는 적 덫의 손해(경로 포함). 봇에게 숨겨진 덫(상대가 설치한 덫, GameVisibility)은 모르는 것으로 본다.</summary>
         private double PathHazard(IEnumerable<Position> path)
         {
             double value = 0;
             foreach (Position position in path)
             {
-                if (_a.State.Board.GetCell(position).GetEffect(CellEffectLayer.Trap) is RootTrap trap && trap.Zone.OwnerTeam != _a.Team)
+                if (_a.State.Board.GetCell(position).GetEffect(CellEffectLayer.Trap) is RootTrap trap && trap.Zone.OwnerTeam != _a.Team
+                    && !GameVisibility.IsHidden(trap, _a.Team))
                     value -= trap.Damage + _w.Root;
             }
 

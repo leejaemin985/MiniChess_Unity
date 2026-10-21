@@ -10,6 +10,7 @@ using MiniChess.Core.Effects.Scheduled;
 using MiniChess.Core.Effects.Zones;
 using MiniChess.Core.Skills;
 using MiniChess.Core.Skills.Conditions;
+using MiniChess.Core.Snapshots;
 using MiniChess.Core.State;
 using MiniChess.Core.Statuses.Library;
 using MiniChess.Core.Turns;
@@ -286,9 +287,10 @@ namespace MiniChess.Bot.Rules
                     .ToList();
                 double total = hits.Sum();
 
+                // 상대 포격의 조준 칸은 봇에게 숨겨진 정보라(GameVisibility) 위험에 넣지 않는다.
                 foreach (ScheduledStrike strike in State.ScheduledStrikes)
                 {
-                    if (strike.Source.Team != Team && strike.Cells.Contains(position))
+                    if (strike.Source.Team != Team && !GameVisibility.IsHidden(strike, Team) && strike.Cells.Contains(position))
                         total += strike.Damage;
                 }
 
