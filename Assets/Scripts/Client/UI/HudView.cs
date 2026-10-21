@@ -13,7 +13,7 @@ using UnityEngine.UI;
 namespace MiniChess.Client.UI
 {
     /// <summary>
-    /// 턴 종료 버튼, 실패 이유/점령 알림 토스트, 경기 종료 패널. 위 정보 바(TopBar)와 아래 유닛 패널(UnitInfoPanel)은 프리팹으로 띄운다.
+    /// 턴 종료 버튼, 실패 이유/점령 알림 토스트, 경기 종료 패널. 위 정보 바(TopBar)와 아래 유닛 패널(UnitInfoPanel), 시작 화면 접속 패널(ConnectPanel)은 프리팹으로 띄운다.
     /// GameSession 이벤트를 받아 상태를 다시 그리고, 버튼 입력은 GameSession 에 요청한다.
     /// </summary>
     public class HudView : MonoBehaviour
@@ -165,6 +165,7 @@ namespace MiniChess.Client.UI
             PlacementPanelView.Create(root, _session, _session.Placement);
             BuildToast(root);
             BuildGameOverPanel(root);
+            CreatePrefabPanel<ConnectPanelView>(ConnectPanelView.ResourcePath)?.Bind(_session);
         }
 
         /// <summary>Resources 의 패널 프리팹을 띄운다. 프리팹은 자체 캔버스라 HUD 캔버스 밖(Hud 오브젝트 아래)에 둔다. 없으면 null.</summary>

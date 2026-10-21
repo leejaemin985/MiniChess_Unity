@@ -45,7 +45,9 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private int botSeed;
 
         [Header("Online (켜면 서버에 접속해 상대와 대전. 봇/Quick Start 는 쓰지 않는다)")]
+        [Tooltip("시작 화면의 접속 패널에서 고른 방식으로 바뀐다(연결 = 켬, 로컬 플레이 = 끔).")]
         [SerializeField] private bool online;
+        [Tooltip("접속 패널에 입력한 \"IP:포트\" 로 이 주소의 호스트/포트를 바꿔 쓴다(경로 /ws 유지). 포트를 생략하면 이 주소의 포트.")]
         [SerializeField] private string serverUrl = "ws://localhost:5055/ws";
         [Tooltip("서버와 주고받는 메시지를 콘솔에 남긴다.")]
         [SerializeField] private bool logNetwork = true;
@@ -115,6 +117,12 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>서버에 접속해 대전하는 중인지.</summary>
         public bool IsOnline => online;
+
+        /// <summary>시작 화면에서 경기 방식(온라인/로컬)을 골랐는지. 고르기 전에는 경기를 만들지 않는다.</summary>
+        public bool IsModeChosen { get; private set; }
+
+        /// <summary>서버 연결이 있는지(접속 시도 중 포함).</summary>
+        public bool HasConnection => _connection != null;
 
         /// <summary>온라인에서 이 클라이언트의 팀. 로컬이거나 아직 경기가 정해지지 않았으면 null.</summary>
         public Team? LocalTeam { get; private set; }
@@ -188,6 +196,49 @@ namespace MiniChess.Client.Bootstrap
             skillEffectsView.Initialize(_effectCasters, skillEffects, unitsView);
             boardView.HasFieldVisual = fieldEffectsView.HasVisual;
 
+            // 경기는 시작 화면의 접속 패널에서 방식을 고르면 시작한다(StartOnline / StartLocal).
+            StateChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// 입력한 서버 주소로 접속해 온라인 경기를 시작한다. "IP:포트"(예: 192.168.100.23:5055) 또는 "IP"(포트는 serverUrl 의 것).
+        /// 경로(/ws)와 스킴은 serverUrl 을 따른다.
+        /// </summary>
+        public void StartOnline(string address)
+        {
+            try
+            {
+                var builder = new UriBuilder(serverUrl);
+                string[] parts = address.Split(':');
+                if (parts.Length > 2 || parts[0].Length == 0)
+                    throw new UriFormatException();
+
+                builder.Host = parts[0];
+                if (parts.Length == 2)
+                {
+                    if (!int.TryParse(parts[1], out int port) || port <= 0 || port > 65535)
+                        throw new UriFormatException();
+                    builder.Port = port;
+                }
+
+                serverUrl = builder.Uri.ToString();
+            }
+            catch (UriFormatException)
+            {
+                ReportFailure($"주소 형식이 잘못되었습니다: {address} (예: 192.168.100.23:5055)");
+                return;
+            }
+
+            online = true;
+            IsModeChosen = true;
+            StartNewGame();
+        }
+
+        /// <summary>서버 없이 이 화면에서 경기를 시작한다(봇/한 화면 교대).</summary>
+        public void StartLocal()
+        {
+            online = false;
+            IsModeChosen = true;
             StartNewGame();
         }
 
@@ -538,6 +589,7 @@ namespace MiniChess.Client.Bootstrap
 
             var connection = new ServerConnection();
             _connection = connection;
+            StateChanged?.Invoke();
             ReportFailure("서버에 접속하는 중...");
             LogNetwork($"connecting to {uri}");
 
