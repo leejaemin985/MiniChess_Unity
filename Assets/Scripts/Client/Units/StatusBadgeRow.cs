@@ -79,9 +79,19 @@ namespace MiniChess.Client.Units
         /// <summary>배지 한 변(월드 단위). 위아래 배치 계산용.</summary>
         public float BadgeSize => _style.size;
 
-        /// <summary>걸린 상태(부여 순)대로 배지를 맞춘다. 상태가 없으면 줄 전체를 숨긴다.</summary>
-        public void Sync(IReadOnlyList<StatusEffect> statuses)
+        /// <summary>
+        /// 걸린 상태대로 배지를 맞춘다. 같은 종류(Id)가 여러 건이면(출처별 상태) 처음 걸린 순서 자리에 배지 하나로 묶고,
+        /// 남은 턴은 표시하지 않는다(건별 남은 턴은 유닛 정보 패널에서 본다). 상태가 없으면 줄 전체를 숨긴다.
+        /// </summary>
+        public void Sync(IReadOnlyList<StatusEffect> allStatuses)
         {
+            var statuses = new List<StatusEffect>();
+            foreach (StatusEffect status in allStatuses)
+            {
+                if (!statuses.Exists(shown => shown.Definition.Id == status.Definition.Id))
+                    statuses.Add(status);
+            }
+
             gameObject.SetActive(statuses.Count > 0);
 
             while (_badges.Count < statuses.Count)
@@ -141,7 +151,7 @@ namespace MiniChess.Client.Units
                 badge.Name.color = color;
             }
 
-            badge.Count.text = status.Definition.IsPermanent ? string.Empty : status.Remaining.ToString();
+            badge.Count.text = string.Empty;
         }
 
         private Badge CreateBadge(int index)
