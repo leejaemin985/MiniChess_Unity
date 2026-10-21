@@ -271,9 +271,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player1Control: 0
   player2Control: 1
-  botActionDelay: 0.5
+  botActionDelay: 1
   botSeed: 0
-  online: 1
+  online: 0
   serverUrl: ws://localhost:5055/ws
   logNetwork: 1
   quickStart: 0
@@ -281,10 +281,15 @@ MonoBehaviour:
   player2Lineup: 
   characterVisuals: {fileID: 0}
   actionIconDuration: 0.7
+  fieldEffects: {fileID: 0}
+  skillEffects: {fileID: 0}
   gameOptions: {fileID: 0}
   cellSize: 1
   boardView: {fileID: 0}
+  fieldEffectsView: {fileID: 0}
+  skillEffectsView: {fileID: 0}
   unitsView: {fileID: 0}
+  attackEffectsView: {fileID: 0}
   cameraRig: {fileID: 0}
   boardInput: {fileID: 0}
   selection: {fileID: 0}
