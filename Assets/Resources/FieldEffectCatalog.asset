@@ -17,3 +17,5 @@ MonoBehaviour:
     prefab: {fileID: 6554318629268143744, guid: 4f9783507d47adc48adfc0cc7798ee1e, type: 3}
   - kind: POISON_FIELD
     prefab: {fileID: 4917006388263527540, guid: 7d706cd7b9b21a5449b0f428df92a12e, type: 3}
+  - kind: HEAL_FIELD
+    prefab: {fileID: 1553169901088377454, guid: 8656eecb14a51b44b93cd2eb83c6d105, type: 3}
