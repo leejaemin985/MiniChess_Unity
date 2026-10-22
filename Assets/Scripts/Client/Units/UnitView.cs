@@ -2,18 +2,19 @@ using System.Collections;
 using MiniChess.Client.Common;
 using MiniChess.Client.Visuals;
 using MiniChess.Core.State;
+using MiniChess.Core.Statuses;
 using TMPro;
 using UnityEngine;
 
 namespace MiniChess.Client.Units
 {
     /// <summary>
-    /// 유닛 하나의 표시(캡슐 + 얼굴 + 이름/HP 라벨). 얼굴은 시각 데이터가 있을 때만 캡슐 위에 띄운다. 코어 Unit 을 읽기만 하며, Sync 로 상태를 그대로 반영한다.
+    /// 유닛 하나의 표시(몸체 + 얼굴 + 이름/HP 라벨). 몸체는 캐릭터 모델 프리팹이 있으면 그것을, 없으면 캡슐을 쓴다(UnitBody).
+    /// 얼굴은 시각 데이터가 있을 때만 몸체 위에 띄운다. 코어 Unit 을 읽기만 하며, Sync 로 상태를 그대로 반영한다.
+    /// 상태 표시 데이터에 몸체 머티리얼이 있는 상태(봉인 등)에 걸려 있으면 몸체 머티리얼을 그것으로 바꾼다.
     /// </summary>
     public class UnitView : MonoBehaviour
     {
-        private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
-
         private const float BodyHeight = 1f;
         private const float BodyWidth = 0.6f;
         /// <summary>소환물(분신)은 본체보다 작게 그린다.</summary>
@@ -28,8 +29,8 @@ namespace MiniChess.Client.Units
         private const float IconPopTime = 0.12f;
         private const float IconFadeTime = 0.15f;
 
-        private Renderer _body;
-        private MaterialPropertyBlock _block;
+        private UnitBody _body;
+        private StatusVisualCatalog _statusVisuals;
         private TextMeshPro _label;
         private FaceBadge _face;
         private StatusBadgeRow _statuses;
@@ -50,9 +51,10 @@ namespace MiniChess.Client.Units
         /// <param name="frameShape">얼굴 테두리 모양. null 이면 원.</param>
         /// <param name="statusVisuals">상태 이름/색/아이콘. null 이면 상태를 기본 색과 이름 글자로 그린다.</param>
         /// <param name="statusStyle">상태 배지 모양(UnitsView 인스펙터 값, 공유). null 이면 기본값.</param>
+        /// <param name="bodyPrefab">캐릭터 모델 프리팹. null 이면 캡슐.</param>
         public static UnitView Create(
             Transform parent, Unit unit, Color teamColor, Color actedColor, Sprite face, Sprite faceMask = null, Sprite frameShape = null,
-            StatusVisualCatalog statusVisuals = null, StatusBadgeStyle statusStyle = null)
+            StatusVisualCatalog statusVisuals = null, StatusBadgeStyle statusStyle = null, GameObject bodyPrefab = null)
         {
             var root = new GameObject($"Unit {unit.Id} {unit.Team} {unit.Stats.Base.Id}");
             root.transform.SetParent(parent, false);
@@ -61,9 +63,9 @@ namespace MiniChess.Client.Units
             view.Unit = unit;
             view._teamColor = teamColor;
             view._actedColor = actedColor;
-            view._block = new MaterialPropertyBlock();
+            view._statusVisuals = statusVisuals;
             float scale = unit.IsSummon ? SummonScale : 1f;
-            view._body = CreateBody(root.transform, scale);
+            view._body = UnitBody.Create(root.transform, bodyPrefab, BodyHeight, BodyWidth, scale);
             float labelHeight = BodyHeight * scale + FaceGap;
             view._iconHeight = labelHeight + IconSize * 0.5f;
 
@@ -108,7 +110,8 @@ namespace MiniChess.Client.Units
 
             UnitTurnState turn = Unit.TurnState;
             bool acted = turn.CombatActionUsed || turn.ActionsEnded;
-            SetBodyColor(acted ? _actedColor : _teamColor);
+            _body.SetTint(acted ? _actedColor : _teamColor);
+            _body.SetOverride(FindStatusBodyMaterial());
             if (_face != null)
                 _face.SetDimmed(acted);
 
@@ -184,23 +187,20 @@ namespace MiniChess.Client.Units
             return shield > 0 ? $" <color=#7FD4FF>+{shield}</color>" : string.Empty;
         }
 
-        private void SetBodyColor(Color color)
+        /// <summary>걸린 상태 중 몸체 머티리얼이 지정된 첫 상태의 머티리얼(먼저 걸린 상태 우선). 없으면 null(원래 머티리얼).</summary>
+        private Material FindStatusBodyMaterial()
         {
-            _body.GetPropertyBlock(_block);
-            _block.SetColor(ColorId, color);
-            _body.SetPropertyBlock(_block);
-        }
+            if (_statusVisuals == null)
+                return null;
 
-        private static Renderer CreateBody(Transform parent, float scale)
-        {
-            // 기본 캡슐은 높이 2, 지름 1.
-            GameObject body = RuntimePrimitive.Create(PrimitiveType.Capsule);
-            body.name = "Body";
-            body.transform.SetParent(parent, false);
-            body.transform.localPosition = Vector3.up * (BodyHeight * 0.5f * scale);
-            body.transform.localScale = new Vector3(BodyWidth, BodyHeight * 0.5f, BodyWidth) * scale;
+            foreach (StatusEffect status in Unit.Statuses)
+            {
+                Material material = _statusVisuals.Find(status.Definition.Id)?.BodyMaterial;
+                if (material != null)
+                    return material;
+            }
 
-            return body.GetComponent<Renderer>();
+            return null;
         }
 
         private static TextMeshPro CreateLabel(Transform parent, float height)

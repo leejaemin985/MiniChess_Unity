@@ -138,7 +138,21 @@ namespace MiniChess.Client.Units
             if (statusVisuals == null)
                 statusVisuals = Resources.Load<StatusVisualCatalog>(StatusVisualCatalog.ResourcePath);
 
-            return UnitView.Create(transform, unit, color, actedColor, FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame, statusVisuals, statusBadge);
+            return UnitView.Create(
+                transform, unit, color, actedColor, FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame, statusVisuals, statusBadge, FindBodyPrefab(unit));
+        }
+
+        /// <summary>유닛의 몸체 모델 프리팹. 소환물은 자기 데이터가 없으면 소환자의 것을 쓴다. 없으면 null(캡슐).</summary>
+        private GameObject FindBodyPrefab(Unit unit)
+        {
+            if (_visuals == null)
+                return null;
+
+            GameObject prefab = _visuals.Find(unit.Stats.Base.Id)?.BodyPrefab;
+            if (prefab == null && unit.IsSummon && unit.SummonOwner != null)
+                prefab = _visuals.Find(unit.SummonOwner.Stats.Base.Id)?.BodyPrefab;
+
+            return prefab;
         }
 
         /// <summary>유닛의 얼굴. 소환물은 자기 데이터가 없으면 소환자의 얼굴을 쓴다.</summary>

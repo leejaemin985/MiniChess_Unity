@@ -19,10 +19,16 @@ namespace MiniChess.Client.Visuals
         [Tooltip("얼굴 정사각형 한 변 길이. 일러스트 가로 길이 대비 0~1.")]
         [SerializeField, Range(0.05f, 1f)] private float faceSize = 0.4f;
 
+        [Tooltip("보드 위 몸체로 쓸 캐릭터 모델 프리팹(피벗은 발밑, 높이 약 1). 비우면 팀 색 캡슐을 쓴다.")]
+        [SerializeField] private GameObject bodyPrefab;
+
         [NonSerialized] private Sprite _faceSprite;
 
         public string CharacterId => characterId;
         public Sprite Illustration => illustration;
+
+        /// <summary>몸체 모델 프리팹. 지정하지 않았으면 null(캡슐).</summary>
+        public GameObject BodyPrefab => bodyPrefab;
 
         /// <summary>
         /// 얼굴 정사각형(텍스처 픽셀 좌표). 일러스트 밖으로 나가지 않게 안쪽으로 밀어 넣는다.

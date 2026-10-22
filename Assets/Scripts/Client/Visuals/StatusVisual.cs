@@ -19,9 +19,15 @@ namespace MiniChess.Client.Visuals
         [Tooltip("상태 아이콘. 비우면 이름(글자)으로 표시한다.")]
         [SerializeField] private Sprite icon;
 
+        [Tooltip("이 상태에 걸린 동안 유닛 몸체 전체에 씌울 머티리얼(예: 봉인 → 마법석). 비우면 몸체를 바꾸지 않는다.")]
+        [SerializeField] private Material bodyMaterial;
+
         public string StatusId => statusId;
         public string DisplayName => string.IsNullOrEmpty(displayName) ? statusId : displayName;
         public Color Color => color;
         public Sprite Icon => icon;
+
+        /// <summary>몸체 교체 머티리얼. 지정하지 않았으면 null.</summary>
+        public Material BodyMaterial => bodyMaterial;
     }
 }
