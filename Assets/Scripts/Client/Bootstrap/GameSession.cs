@@ -57,8 +57,9 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private bool quickStart;
 
         [Header("Quick Start Lineup (비우면 프리셋 기본 구성)")]
-        [SerializeField] private List<CharacterChoice> player1Lineup = new List<CharacterChoice>();
-        [SerializeField] private List<CharacterChoice> player2Lineup = new List<CharacterChoice>();
+        [Tooltip("코어 캐릭터 Id. 목록은 코어 PieceModules 에서 읽고, 검증(없는 Id, 빈 수치)도 코어 QuickBattleFactory 가 한다.")]
+        [SerializeField, CoreCharacterId] private List<string> player1Lineup = new List<string>();
+        [SerializeField, CoreCharacterId] private List<string> player2Lineup = new List<string>();
 
         [Header("Visuals (비우면 Resources/CharacterVisualCatalog 를 불러옴)")]
         [SerializeField] private CharacterVisualCatalog characterVisuals;
@@ -417,11 +418,11 @@ namespace MiniChess.Client.Bootstrap
                 PrototypeTestPreset.CreateSkills());
         }
 
-        private static IReadOnlyList<string> ToLineup(List<CharacterChoice> choices, string[] fallback)
+        /// <summary>인스펙터 라인업에서 빈 칸("(없음)")을 뺀 구성. 남는 게 없으면 프리셋 기본 구성.</summary>
+        private static IReadOnlyList<string> ToLineup(List<string> ids, string[] fallback)
         {
-            return choices == null || choices.Count == 0
-                ? fallback
-                : choices.Select(choice => choice.ToString()).ToList();
+            List<string> lineup = ids?.Where(id => !string.IsNullOrEmpty(id)).ToList();
+            return lineup == null || lineup.Count == 0 ? fallback : lineup;
         }
 
         /// <summary>행동과 무관한 안내(예: 스킬 지정 불가)를 거부 메시지와 같은 경로로 띄운다.</summary>
