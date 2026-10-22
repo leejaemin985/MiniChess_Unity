@@ -14,22 +14,27 @@ using UnityEngine;
 namespace MiniChess.Client.Board
 {
     /// <summary>
-    /// 장판(AreaEffect 층) 칸에 이펙트를 깐다. 이펙트는 설치한 시전자(EffectCaster)의 풀에서 꺼내고, 장판이 사라지면 돌려준다.
-    /// 깔린 이펙트는 칸별로 추적하고, 어느 장판의 것인지는 구역 Id 로 구분한다
+    /// 칸 효과(장판 층, 덫 층)가 있는 칸에 이펙트를 깐다. 이펙트는 설치한 시전자(EffectCaster)의 풀에서 꺼내고, 칸 효과가 사라지면 돌려준다.
+    /// 깔린 이펙트는 칸·층별로 추적하고, 어느 칸 효과의 것인지는 구역 Id 로 구분한다
     /// (코어는 Unity 를 모르고, 온라인은 상태가 바뀔 때마다 구역 객체가 새로 만들어지므로 코어 객체에 이펙트를 붙이지 않는다).
+    /// 상태에 없는 칸 효과(숨겨진 상대 덫)는 깔지 않는다. 발동 순간의 연출은 PlayTrigger 로 따로 재생한다.
     /// 풀 크기는 시전자 스킬의 동시 구역 수 × 범위 칸 수 × poolMultiplier 이다.
     /// </summary>
     public class FieldEffectsView : MonoBehaviour
     {
+        /// <summary>이펙트를 까는 칸 효과 층.</summary>
+        private static readonly CellEffectLayer[] Layers = { CellEffectLayer.AreaEffect, CellEffectLayer.Trap };
+
         [Tooltip("풀 여유 배수. 사라지는 중인 이펙트와 새 이펙트가 겹쳐도 모자라지 않게 한다.")]
         [SerializeField, Min(1)] private int poolMultiplier = 2;
         [Tooltip("스킬 정의에서 크기를 알 수 없을 때(설치자 사망 후 복원 등)의 풀 크기.")]
         [SerializeField, Min(1)] private int fallbackPoolSize = 8;
 
-        /// <summary>칸마다 지금 깔린 장판 이펙트와 그 구역 Id.</summary>
-        private readonly Dictionary<Position, (int ZoneId, FieldEffect Effect)> _cellEffects = new Dictionary<Position, (int, FieldEffect)>();
-        private readonly HashSet<Position> _seen = new HashSet<Position>();
-        private readonly List<Position> _emptied = new List<Position>();
+        /// <summary>칸·층마다 지금 깔린 이펙트와 그 구역 Id.</summary>
+        private readonly Dictionary<(Position, CellEffectLayer), (int ZoneId, FieldEffect Effect)> _cellEffects =
+            new Dictionary<(Position, CellEffectLayer), (int, FieldEffect)>();
+        private readonly HashSet<(Position, CellEffectLayer)> _seen = new HashSet<(Position, CellEffectLayer)>();
+        private readonly List<(Position, CellEffectLayer)> _emptied = new List<(Position, CellEffectLayer)>();
 
         private EffectCasterRegistry _casters;
         private FieldEffectCatalog _catalog;
@@ -42,7 +47,7 @@ namespace MiniChess.Client.Board
             _catalog = catalog;
         }
 
-        /// <summary>이 종류의 장판을 이펙트로 그리는지(그리면 칸 색조는 쓰지 않는다).</summary>
+        /// <summary>이 종류의 칸 효과를 이펙트로 그리는지(그리면 칸 색조는 쓰지 않고, 덫 표식은 테두리로 줄인다).</summary>
         public bool HasVisual(string kind)
         {
             return _catalog != null && _catalog.Find(kind) != null;
@@ -56,9 +61,9 @@ namespace MiniChess.Client.Board
         }
 
         /// <summary>
-        /// 장판 이펙트를 현재 코어 상태대로 맞춘다.
-        ///   새 장판: 시전자 풀에서 꺼내 깐다. 다른 장판이 있던 칸이면 이전 이펙트를 바로 끈다(덮어쓰기).
-        ///   장판이 사라진 칸(만료 등): 이전 이펙트를 서서히 끄고 풀로 돌려준다.
+        /// 칸 효과 이펙트를 현재 코어 상태대로 맞춘다(층마다 따로).
+        ///   새 칸 효과: 시전자 풀에서 꺼내 깐다. 같은 층에 다른 칸 효과가 있던 칸이면 이전 이펙트를 바로 끈다(덮어쓰기).
+        ///   칸 효과가 사라진 칸(만료, 덫 소모 등): 이전 이펙트를 서서히 끄고 풀로 돌려준다.
         /// </summary>
         public void Sync(GameState state)
         {
@@ -69,37 +74,56 @@ namespace MiniChess.Client.Board
             _seen.Clear();
             foreach (BoardCell cell in state.Board.AllCells())
             {
-                if (!(cell.GetEffect(CellEffectLayer.AreaEffect) is ZoneCellEffect area))
-                    continue;
-
-                FieldEffect prefab = _catalog.Find(area.Kind);
-                if (prefab == null)
-                    continue;
-
-                _seen.Add(cell.Position);
-                if (_cellEffects.TryGetValue(cell.Position, out var current))
+                foreach (CellEffectLayer layer in Layers)
                 {
-                    if (current.ZoneId == area.Zone.Id)
+                    if (!(cell.GetEffect(layer) is ZoneCellEffect effect))
                         continue;
 
-                    current.Effect.ReleaseImmediate();
-                }
+                    FieldEffect prefab = _catalog.Find(effect.Kind);
+                    if (prefab == null)
+                        continue;
 
-                _cellEffects[cell.Position] = (area.Zone.Id, Spawn(cell.Position, area.Zone, prefab));
+                    var key = (cell.Position, layer);
+                    _seen.Add(key);
+                    if (_cellEffects.TryGetValue(key, out var current))
+                    {
+                        if (current.ZoneId == effect.Zone.Id)
+                            continue;
+
+                        current.Effect.ReleaseImmediate();
+                    }
+
+                    _cellEffects[key] = (effect.Zone.Id, Spawn(cell.Position, effect.Zone, prefab));
+                }
             }
 
             _emptied.Clear();
-            foreach (Position position in _cellEffects.Keys)
+            foreach (var key in _cellEffects.Keys)
             {
-                if (!_seen.Contains(position))
-                    _emptied.Add(position);
+                if (!_seen.Contains(key))
+                    _emptied.Add(key);
             }
 
-            foreach (Position position in _emptied)
+            foreach (var key in _emptied)
             {
-                _cellEffects[position].Effect.Release();
-                _cellEffects.Remove(position);
+                _cellEffects[key].Effect.Release();
+                _cellEffects.Remove(key);
             }
+        }
+
+        /// <summary>
+        /// 칸 효과가 발동한 순간의 연출(덫이 닫힘 등)을 그 칸에서 재생한다. 숨겨져 있던 상대 덫도 발동은 보인다.
+        /// 발동 이벤트는 설치자를 알려 주지 않으므로 설치한 팀의 공용 풀에서 꺼낸다.
+        /// </summary>
+        public void PlayTrigger(string kind, Position cell, Team? ownerTeam)
+        {
+            TriggerEffect prefab = _catalog != null ? _catalog.FindTrigger(kind) : null;
+            if (prefab == null || _casters == null || _coordinates == null)
+                return;
+
+            int key = ownerTeam.HasValue ? -1 - (int)ownerTeam.Value : -3;
+            string name = ownerTeam.HasValue ? $"Unknown ({ownerTeam.Value})" : "Unknown";
+            _casters.Get(key, name).GetPool(prefab, poolMultiplier).Get().Place(_coordinates.ToWorld(cell));
         }
 
         public void Clear()

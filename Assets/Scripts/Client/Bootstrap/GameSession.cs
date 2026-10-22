@@ -598,6 +598,7 @@ namespace MiniChess.Client.Bootstrap
                         break;
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
+                        fieldEffectsView.PlayTrigger(triggered.Kind, triggered.Position, triggered.OwnerTeam);
                         break;
                     case StrikeLandedEvent landed:
                         boardView.RevealStrike(landed.Strike.Cells, landed.Strike.SourceTeam);

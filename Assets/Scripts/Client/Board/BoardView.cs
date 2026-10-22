@@ -46,6 +46,8 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color player1TrapColor = new Color(0.15f, 0.3f, 0.8f);
         [SerializeField] private Color player2TrapColor = new Color(0.8f, 0.2f, 0.15f);
         [SerializeField] private float trapMarkerSize = 0.45f;
+        [Tooltip("덫을 이펙트(곰덫 모델 등)로 그릴 때 표식 지름. 모델 밖으로 얇게 드러나는 팀 색 테두리가 된다.")]
+        [SerializeField] private float trapRimSize = 0.8f;
         [SerializeField] private Color player1ObstacleColor = new Color(0.3f, 0.4f, 0.65f);
         [SerializeField] private Color player2ObstacleColor = new Color(0.65f, 0.35f, 0.3f);
         [SerializeField] private float obstacleSize = 0.7f;
@@ -68,7 +70,9 @@ namespace MiniChess.Client.Board
 
         public IReadOnlyDictionary<Position, CellView> Cells => _cells;
 
-        /// <summary>장판 종류를 이펙트로 그리는지. 그리는 종류는 칸 색조를 쓰지 않는다. null 이면 모두 색조.</summary>
+        /// <summary>
+        /// 칸 효과 종류를 이펙트로 그리는지. 그리는 장판은 칸 색조를 쓰지 않고, 그리는 덫은 표식을 모델 밖 테두리 크기로 줄인다. null 이면 모두 색조/표식.
+        /// </summary>
         public System.Predicate<string> HasFieldVisual { get; set; }
 
         private void Update()
@@ -126,7 +130,10 @@ namespace MiniChess.Client.Board
                     trapColor = revealedTeam == Team.Player1 ? player1TrapColor : player2TrapColor;
 
                 Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
-                view.SetTrapMarker(trap != null || revealed, trapColor, top, trapMarkerSize * _coordinates.CellSize);
+                // 드러난 상대 덫은 상태에 없으므로 덫 종류(속박 덫)로 본다.
+                bool trapModel = HasFieldVisual != null && HasFieldVisual(trap?.Kind ?? CellEffectKinds.RootTrap);
+                float trapSize = trapModel ? trapRimSize : trapMarkerSize;
+                view.SetTrapMarker(trap != null || revealed, trapColor, top, trapSize * _coordinates.CellSize);
 
                 var obstacle = cell.GetEffect(CellEffectLayer.Obstacle) as Obstacle;
                 view.SetObstacle(
