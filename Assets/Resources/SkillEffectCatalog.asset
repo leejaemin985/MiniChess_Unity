@@ -15,3 +15,9 @@ MonoBehaviour:
   entries:
   - skillId: SCYTHE_SLASH
     prefab: {fileID: 1323569398173397374, guid: 7418647c56f6c504eaad2b26700b9a32, type: 3}
+    castEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
+  - skillId: MORTAR_BOMBARD
+    prefab: {fileID: 0}
+    castEffect: {fileID: 3951989144858904478, guid: 4a64577007cda824c925fe74687473c3, type: 3}
+    strikeEffect: {fileID: 8547910967128957860, guid: 012ebb0095680bc4a8c9657c90a384d5, type: 3}
