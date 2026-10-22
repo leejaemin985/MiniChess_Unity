@@ -5,7 +5,11 @@ using UnityEngine;
 namespace MiniChess.Client.Visuals.Effects
 {
     /// <summary>
-    /// 코어 스킬 Id → 범위 양 끝을 잇는 이펙트 프리팹(일자 베기 등). 목록에 없는 스킬은 이펙트 없이 시전 아이콘만 띄운다.
+    /// 코어 스킬 Id → 스킬 이펙트 프리팹. 한 스킬에 종류별로 넣을 수 있고, 비운 종류는 재생하지 않는다.
+    ///   - 라인(prefab): 사용 때 범위 양 끝을 잇는다(일자 베기 등).
+    ///   - 시전(castEffect): 사용 때 시전자 자리에서 재생한다(박격포 발사 등).
+    ///   - 착탄(strikeEffect): 예약 공격이 떨어질 때 범위에서 재생한다(박격포 착탄 등).
+    /// 목록에 없는 스킬은 이펙트 없이 시전 아이콘만 띄운다.
     /// GameSession 에 직접 연결하거나, Resources/SkillEffectCatalog 에 두면 자동으로 불러온다.
     /// </summary>
     [CreateAssetMenu(menuName = "MiniChess/Skill Effect Catalog", fileName = "SkillEffectCatalog")]
@@ -18,18 +22,40 @@ namespace MiniChess.Client.Visuals.Effects
         {
             [Tooltip("코어 스킬 Id(예: SCYTHE_SLASH).")]
             public string skillId;
+            [Tooltip("범위 양 끝을 잇는 라인 이펙트. 비우면 재생 안 함.")]
             public LineEffect prefab;
+            [Tooltip("사용 때 시전자 자리에서 재생하는 이펙트. 비우면 재생 안 함.")]
+            public CastEffect castEffect;
+            [Tooltip("예약 공격이 떨어질 때 범위에서 재생하는 이펙트. 비우면 재생 안 함.")]
+            public StrikeEffect strikeEffect;
         }
 
         [SerializeField] private List<Entry> entries = new List<Entry>();
 
-        /// <summary>스킬의 이펙트 프리팹. 없으면 null.</summary>
+        /// <summary>스킬의 라인 이펙트 프리팹. 없으면 null.</summary>
         public LineEffect Find(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.prefab != null)?.prefab;
+        }
+
+        /// <summary>스킬의 시전 이펙트 프리팹. 없으면 null.</summary>
+        public CastEffect FindCast(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.castEffect != null)?.castEffect;
+        }
+
+        /// <summary>스킬의 착탄 이펙트 프리팹. 없으면 null.</summary>
+        public StrikeEffect FindStrike(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.strikeEffect != null)?.strikeEffect;
+        }
+
+        private Entry FindEntry(string skillId, Predicate<Entry> hasEffect)
         {
             foreach (Entry entry in entries)
             {
-                if (entry.prefab != null && entry.skillId == skillId)
-                    return entry.prefab;
+                if (entry.skillId == skillId && hasEffect(entry))
+                    return entry;
             }
 
             return null;

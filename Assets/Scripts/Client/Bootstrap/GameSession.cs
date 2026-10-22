@@ -592,12 +592,14 @@ namespace MiniChess.Client.Bootstrap
                     case SkillUsedEvent used:
                         ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);
                         skillEffectsView.Play(used.CasterId, used.SkillId, used.AffectedCells);
+                        skillEffectsView.PlayCast(used.CasterId, used.SkillId);
                         break;
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
                         break;
                     case StrikeLandedEvent landed:
                         boardView.RevealStrike(landed.Strike.Cells, landed.Strike.SourceTeam);
+                        skillEffectsView.PlayStrike(landed.Strike.SourceId, landed.Strike.SkillId, landed.Strike.Cells);
                         break;
                 }
             }
