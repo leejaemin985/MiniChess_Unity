@@ -15,7 +15,13 @@ MonoBehaviour:
   entries:
   - kind: DAMAGE_FIELD
     prefab: {fileID: 6554318629268143744, guid: 4f9783507d47adc48adfc0cc7798ee1e, type: 3}
+    triggerEffect: {fileID: 0}
   - kind: POISON_FIELD
     prefab: {fileID: 4917006388263527540, guid: 7d706cd7b9b21a5449b0f428df92a12e, type: 3}
+    triggerEffect: {fileID: 0}
   - kind: HEAL_FIELD
     prefab: {fileID: 1553169901088377454, guid: 8656eecb14a51b44b93cd2eb83c6d105, type: 3}
+    triggerEffect: {fileID: 0}
+  - kind: ROOT_TRAP
+    prefab: {fileID: 7538565114988451836, guid: 3b2dc78570399ea4286ccf679f7d9100, type: 3}
+    triggerEffect: {fileID: 1544291487323137355, guid: c2660348afcae264bbbde75f286ab992, type: 3}
