@@ -9,6 +9,7 @@ namespace MiniChess.Client.Visuals.Effects
     ///   - 라인(prefab): 사용 때 범위 양 끝을 잇는다(일자 베기 등).
     ///   - 시전(castEffect): 사용 때 시전자 자리에서 재생한다(박격포 발사 등).
     ///   - 타격(hitEffect): 사용 때 범위 각 칸에서 시전자 → 칸 방향으로 재생한다(강타 등).
+    ///   - 투사체(projectileEffect): 사용 때 시전자에서 범위 각 칸으로 날아가 명중한다(장거리 조준 등).
     ///   - 착탄(strikeEffect): 예약 공격이 떨어질 때 범위에서 재생한다(박격포 착탄 등).
     /// 목록에 없는 스킬은 이펙트 없이 시전 아이콘만 띄운다.
     /// GameSession 에 직접 연결하거나, Resources/SkillEffectCatalog 에 두면 자동으로 불러온다.
@@ -29,6 +30,8 @@ namespace MiniChess.Client.Visuals.Effects
             public CastEffect castEffect;
             [Tooltip("사용 때 범위 각 칸에서 시전자 → 칸 방향으로 재생하는 타격 이펙트. 비우면 재생 안 함.")]
             public HitEffect hitEffect;
+            [Tooltip("사용 때 시전자에서 범위 각 칸으로 날아가는 투사체 이펙트. 비우면 재생 안 함.")]
+            public ProjectileEffect projectileEffect;
             [Tooltip("예약 공격이 떨어질 때 범위에서 재생하는 이펙트. 비우면 재생 안 함.")]
             public StrikeEffect strikeEffect;
         }
@@ -51,6 +54,12 @@ namespace MiniChess.Client.Visuals.Effects
         public HitEffect FindHit(string skillId)
         {
             return FindEntry(skillId, entry => entry.hitEffect != null)?.hitEffect;
+        }
+
+        /// <summary>스킬의 투사체 이펙트 프리팹. 없으면 null.</summary>
+        public ProjectileEffect FindProjectile(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.projectileEffect != null)?.projectileEffect;
         }
 
         /// <summary>스킬의 착탄 이펙트 프리팹. 없으면 null.</summary>

@@ -12,6 +12,7 @@ namespace MiniChess.Client.Board
     ///   - 라인(Play): 범위 칸 순서(모양 정의 순)의 첫 칸에서 마지막 칸으로 쓸고 지나가며, 양 끝 칸의 바깥 가장자리까지 늘린다.
     ///   - 시전(PlayCast): 시전자 자리에서 재생한다.
     ///   - 타격(PlayHit): 범위 각 칸에서 시전자 → 칸 방향으로 재생한다.
+    ///   - 투사체(PlayProjectile): 시전자에서 범위 각 칸으로 날아가 명중한다.
     ///   - 착탄(PlayStrike): 범위 중심에 놓고 각 칸 위치를 함께 넘긴다.
     /// </summary>
     public class SkillEffectsView : MonoBehaviour
@@ -82,6 +83,24 @@ namespace MiniChess.Client.Board
                 Vector3 hitPoint = _coordinates.ToWorld(cell);
                 pool.Get().Place(hitPoint, hitPoint - caster.transform.position);
             }
+        }
+
+        /// <summary>
+        /// 스킬 사용 때 시전자에서 범위 각 칸으로 날아가는 투사체 연출(장거리 조준 등).
+        /// 이펙트가 없거나 시전자가 보드에 없으면 재생하지 않는다.
+        /// </summary>
+        public void PlayProjectile(int casterId, string skillId, IReadOnlyList<Position> cells)
+        {
+            ProjectileEffect prefab = _catalog != null ? _catalog.FindProjectile(skillId) : null;
+            if (prefab == null || _casters == null || _coordinates == null || _units == null || cells == null)
+                return;
+            if (!_units.TryGetView(casterId, out UnitView caster) || !caster.Unit.IsPlaced)
+                return;
+
+            Vector3 from = _coordinates.ToWorld(caster.Unit.Position.Value);
+            EffectPool<ProjectileEffect> pool = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize);
+            foreach (Position cell in cells)
+                pool.Get().Place(from, _coordinates.ToWorld(cell));
         }
 
         /// <summary>예약 공격이 떨어질 때 범위 중심과 각 칸에서 재생하는 연출(박격포 착탄 등). 이펙트가 없거나 범위가 비면 재생하지 않는다.</summary>
