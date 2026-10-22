@@ -8,6 +8,7 @@ namespace MiniChess.Client.Visuals.Effects
     /// 코어 스킬 Id → 스킬 이펙트 프리팹. 한 스킬에 종류별로 넣을 수 있고, 비운 종류는 재생하지 않는다.
     ///   - 라인(prefab): 사용 때 범위 양 끝을 잇는다(일자 베기 등).
     ///   - 시전(castEffect): 사용 때 시전자 자리에서 재생한다(박격포 발사 등).
+    ///   - 타격(hitEffect): 사용 때 범위 각 칸에서 시전자 → 칸 방향으로 재생한다(강타 등).
     ///   - 착탄(strikeEffect): 예약 공격이 떨어질 때 범위에서 재생한다(박격포 착탄 등).
     /// 목록에 없는 스킬은 이펙트 없이 시전 아이콘만 띄운다.
     /// GameSession 에 직접 연결하거나, Resources/SkillEffectCatalog 에 두면 자동으로 불러온다.
@@ -26,6 +27,8 @@ namespace MiniChess.Client.Visuals.Effects
             public LineEffect prefab;
             [Tooltip("사용 때 시전자 자리에서 재생하는 이펙트. 비우면 재생 안 함.")]
             public CastEffect castEffect;
+            [Tooltip("사용 때 범위 각 칸에서 시전자 → 칸 방향으로 재생하는 타격 이펙트. 비우면 재생 안 함.")]
+            public HitEffect hitEffect;
             [Tooltip("예약 공격이 떨어질 때 범위에서 재생하는 이펙트. 비우면 재생 안 함.")]
             public StrikeEffect strikeEffect;
         }
@@ -42,6 +45,12 @@ namespace MiniChess.Client.Visuals.Effects
         public CastEffect FindCast(string skillId)
         {
             return FindEntry(skillId, entry => entry.castEffect != null)?.castEffect;
+        }
+
+        /// <summary>스킬의 타격 이펙트 프리팹. 없으면 null.</summary>
+        public HitEffect FindHit(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.hitEffect != null)?.hitEffect;
         }
 
         /// <summary>스킬의 착탄 이펙트 프리팹. 없으면 null.</summary>
