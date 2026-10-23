@@ -29,16 +29,28 @@ namespace MiniChess.Client.Units
         [Tooltip("유닛 머리 위 상태 배지 모양. 플레이 중에 바꾸면 바로 반영된다.")]
         [SerializeField] private StatusBadgeStyle statusBadge = new StatusBadgeStyle();
 
-        [Tooltip("돌진처럼 미끄러지는 이동에 걸리는 시간(초). 돌진 경로 이펙트(FX_Dash)의 travelTime 과 맞춘다.")]
-        [SerializeField, Min(0f)] private float slideDuration = 0.15f;
+        [Tooltip("일반 이동/밀려남 등에서 칸 하나를 지나는 시간(초).")]
+        [SerializeField, Min(0f)] private float moveCellDuration = 0.12f;
+        [Tooltip("돌진 전체에 걸리는 시간(초, 칸 수와 무관). 돌진 경로 이펙트(FX_Dash)의 travelTime 과 맞춘다.")]
+        [SerializeField, Min(0f)] private float dashDuration = 0.15f;
+
+        private readonly List<Vector3> _movePoints = new List<Vector3>();
 
         /// <summary>
-        /// 유닛을 지금 자리에서 다음 Sync 자리까지 미끄러지듯 옮긴다(돌진 등). Sync 전에 호출한다.
+        /// 유닛을 지금 자리에서 cells(거치는 칸, 마지막이 도착 칸)를 차례로 지나 옮긴다. Sync 전에 호출한다.
+        /// 돌진은 칸 수와 상관없이 dashDuration 동안 감속하며, 그 밖에는 칸마다 moveCellDuration 의 일정한 속도로 지난다.
         /// </summary>
-        public void BeginSlide(int unitId)
+        public void PlayMove(int unitId, IReadOnlyList<Position> cells, bool dash)
         {
-            if (TryGetView(unitId, out UnitView view))
-                view.BeginSlide(slideDuration);
+            if (_coordinates == null || cells == null || cells.Count == 0 || !TryGetView(unitId, out UnitView view))
+                return;
+
+            _movePoints.Clear();
+            foreach (Position cell in cells)
+                _movePoints.Add(_coordinates.ToWorld(cell));
+
+            float duration = dash ? dashDuration : moveCellDuration * cells.Count;
+            view.BeginMove(_movePoints, duration, easeOut: dash);
         }
 
         /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>

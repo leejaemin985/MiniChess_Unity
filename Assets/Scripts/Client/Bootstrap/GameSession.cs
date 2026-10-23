@@ -574,12 +574,14 @@ namespace MiniChess.Client.Bootstrap
         /// 일어난 일을 연출한다(로컬/온라인 공용).
         ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘, 범위 이펙트(일자 베기 등).
         ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
-        ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트, 돌진이면 유닛이 미끄러지듯 옮겨진다.
+        ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트.
+        ///   - 칸을 거치는 이동(일반 이동, 돌진, 밀려남/당겨짐)은 순간이동 대신 거친 칸을 차례로 지나간다(워프/위치 교환은 바로).
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
         private void PlayEvents(IEnumerable<GameEvent> events)
         {
             IReadOnlyList<GameEvent> list = events as IReadOnlyList<GameEvent> ?? events.ToList();
+            PlayMoves(list);
             for (int i = 0; i < list.Count; i++)
             {
                 GameEvent gameEvent = list[i];
@@ -636,8 +638,33 @@ namespace MiniChess.Client.Bootstrap
                 return;
 
             skillEffectsView.PlayPath(used.CasterId, used.SkillId, first.From, last.To);
-            if (first.Kind == MoveKind.Dash)
-                unitsView.BeginSlide(used.CasterId);
+        }
+
+        /// <summary>
+        /// 이번에 일어난 이동을 유닛마다 모아, 순간이동 대신 거친 칸을 차례로 지나가게 한다(일반 이동, 돌진, 밀려남/당겨짐).
+        /// 워프/위치 교환이 섞인 유닛은 원래 뜻대로 바로 옮긴다(연출 없음). 돌진만으로 이동한 유닛은 돌진 속도로 지난다.
+        /// </summary>
+        private void PlayMoves(IReadOnlyList<GameEvent> events)
+        {
+            var paths = new Dictionary<int, (List<Position> Cells, bool Dash, bool Instant)>();
+            foreach (GameEvent gameEvent in events)
+            {
+                if (!(gameEvent is UnitMovedEvent moved))
+                    continue;
+
+                if (!paths.TryGetValue(moved.UnitId, out var path))
+                    path = (new List<Position>(), true, false);
+
+                bool instant = moved.Kind == MoveKind.Warp || moved.Kind == MoveKind.Swap;
+                path.Cells.Add(moved.To);
+                paths[moved.UnitId] = (path.Cells, path.Dash && moved.Kind == MoveKind.Dash, path.Instant || instant);
+            }
+
+            foreach (KeyValuePair<int, (List<Position> Cells, bool Dash, bool Instant)> pair in paths)
+            {
+                if (!pair.Value.Instant)
+                    unitsView.PlayMove(pair.Key, pair.Value.Cells, pair.Value.Dash);
+            }
         }
 
         private void ShowActionIcon(int unitId, Sprite icon)

@@ -4,7 +4,7 @@ namespace MiniChess.Client.Visuals.Effects
 {
     /// <summary>
     /// 돌진 경로(FX_Dash). 출발 칸 흙먼지, 경로 바닥 은빛 줄기와 속도선, 미끄러지는 유닛 뒤에 남는 잔상, 도착 직후 한 칸 앞 베기 섬광.
-    /// 유닛은 UnitsView.slideDuration 동안 미끄러지므로 travelTime 을 그 값과 맞춘다(잔상 위치, 앞 베기 시점).
+    /// 유닛은 UnitsView.dashDuration 동안 미끄러지므로 travelTime 을 그 값과 맞춘다(잔상 위치, 앞 베기 시점).
     /// 하위 오브젝트 방향: start 는 +Z 가 뒤(출발 반대쪽), path/front 는 +Z 가 돌진 방향이 되게 놓는다.
     /// </summary>
     public sealed class DashTrailEffect : LineEffect
@@ -22,7 +22,7 @@ namespace MiniChess.Client.Visuals.Effects
         [Tooltip("도착 직후 한 칸 앞 베기 루트. +Z 가 돌진 방향으로 놓이고 travelTime 이 지나면 재생한다.")]
         [SerializeField] private ParticleSystem front;
 
-        [Tooltip("유닛이 미끄러지는 시간(초). UnitsView.slideDuration 과 맞춘다.")]
+        [Tooltip("유닛이 미끄러지는 시간(초). UnitsView.dashDuration 과 맞춘다.")]
         [SerializeField, Min(0.01f)] private float travelTime = 0.15f;
         [Tooltip("잔상을 남기는 간격(초).")]
         [SerializeField, Min(0.01f)] private float ghostInterval = 0.035f;

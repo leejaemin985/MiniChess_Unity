@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using MiniChess.Client.Common;
 using MiniChess.Client.Visuals;
 using MiniChess.Core.State;
@@ -43,12 +44,14 @@ namespace MiniChess.Client.Units
         private float _iconHeight;
         private Color _teamColor;
         private Color _actedColor;
-        /// <summary>Sync 가 정한 자리. 미끄러지는 중이면 여기까지 옮긴다.</summary>
+        /// <summary>Sync 가 정한 자리. 이동 연출이 끝나면 여기에 맞춘다.</summary>
         private Vector3 _targetPosition;
-        /// <summary>미끄러지기 시작한 자리. null 이면 미끄러지는 중이 아니다(Sync 가 바로 옮긴다).</summary>
-        private Vector3? _slideFrom;
-        private float _slideStart;
-        private float _slideDuration;
+        /// <summary>이동 연출 경로(지금 자리 → 거치는 칸들). 비어 있으면 이동 중이 아니다(Sync 가 바로 옮긴다).</summary>
+        private readonly List<Vector3> _movePath = new List<Vector3>();
+        private float _moveStart;
+        private float _moveDuration;
+        /// <summary>경로 전체에 감속을 거는지(돌진). 아니면 일정한 속도로 칸을 지난다.</summary>
+        private bool _moveEaseOut;
 
         public Unit Unit { get; private set; }
 
@@ -107,14 +110,14 @@ namespace MiniChess.Client.Units
         {
             if (!Unit.IsPlaced)
             {
-                _slideFrom = null;
+                _movePath.Clear();
                 gameObject.SetActive(false);
                 return;
             }
 
             gameObject.SetActive(true);
             _targetPosition = coordinates.ToWorld(Unit.Position.Value);
-            if (!_slideFrom.HasValue)
+            if (_movePath.Count == 0)
                 transform.localPosition = _targetPosition;
 
             UnitTurnState turn = Unit.TurnState;
@@ -133,29 +136,43 @@ namespace MiniChess.Client.Units
         }
 
         /// <summary>
-        /// 지금 자리에서 다음 Sync 가 정하는 자리까지 duration 초 동안 미끄러지듯 옮긴다(돌진 등). Sync 전에 호출한다.
-        /// 일반 이동은 이것 없이 Sync 에서 바로 옮긴다.
+        /// 지금 자리에서 cells(거치는 칸들의 월드 위치, 마지막이 도착 칸)를 차례로 지나 duration 초 동안 옮긴다. Sync 전에 호출한다.
+        /// easeOut 이면 경로 전체에 감속을 건다(돌진), 아니면 일정한 속도로 지난다(일반 이동, 밀려남 등).
+        /// 끝나면 Sync 가 정한 자리에 맞춘다. 이 연출 없이 Sync 하면 바로 옮겨진다(워프 등).
         /// </summary>
-        public void BeginSlide(float duration)
+        public void BeginMove(IReadOnlyList<Vector3> cells, float duration, bool easeOut)
         {
-            if (!gameObject.activeInHierarchy || duration <= 0f)
+            if (!gameObject.activeInHierarchy || duration <= 0f || cells == null || cells.Count == 0)
                 return;
 
-            _slideFrom = transform.localPosition;
-            _slideStart = Time.time;
-            _slideDuration = duration;
+            _movePath.Clear();
+            _movePath.Add(transform.localPosition);
+            _movePath.AddRange(cells);
+            _moveStart = Time.time;
+            _moveDuration = duration;
+            _moveEaseOut = easeOut;
         }
 
         private void Update()
         {
-            if (!_slideFrom.HasValue)
+            if (_movePath.Count == 0)
                 return;
 
-            float t = Mathf.Clamp01((Time.time - _slideStart) / _slideDuration);
-            float eased = 1f - (1f - t) * (1f - t);
-            transform.localPosition = Vector3.Lerp(_slideFrom.Value, _targetPosition, eased);
-            if (t >= 1f)
-                _slideFrom = null;
+            float t = Mathf.Clamp01((Time.time - _moveStart) / _moveDuration);
+            if (_moveEaseOut)
+                t = 1f - (1f - t) * (1f - t);
+
+            if (t >= 1f || Mathf.Approximately(_moveDuration, 0f))
+            {
+                _movePath.Clear();
+                transform.localPosition = _targetPosition;
+                return;
+            }
+
+            // 경로 구간마다 같은 시간을 나눠 쓴다(칸 하나 = 구간 하나).
+            float scaled = t * (_movePath.Count - 1);
+            int segment = Mathf.Min((int)scaled, _movePath.Count - 2);
+            transform.localPosition = Vector3.Lerp(_movePath[segment], _movePath[segment + 1], scaled - segment);
         }
 
         /// <summary>
