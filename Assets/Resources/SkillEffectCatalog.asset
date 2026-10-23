@@ -55,3 +55,17 @@ MonoBehaviour:
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 3675737014630378770, guid: 743e60ec51c35db41bb5b64a8dafed83, type: 3}
     strikeEffect: {fileID: 0}
+  - skillId: ASSASSIN_CHARGE
+    prefab: {fileID: 0}
+    castEffect: {fileID: 9186359798505698876, guid: 3a0087755388b3f4687ba736842d63df, type: 3}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 0}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
+  - skillId: ASSASSIN_LEAP
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 8427752819548031810, guid: 1706c42db74216740a0fd2d22d506623, type: 3}
+    projectileEffect: {fileID: 0}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
