@@ -13,6 +13,8 @@ namespace MiniChess.Client.Visuals.Effects
         [SerializeField] private Transform projectile;
         [Tooltip("명중 연출의 루트(하위 파티클 포함). 도착할 때 재생한다.")]
         [SerializeField] private ParticleSystem impact;
+        [Tooltip("날아가는 모델의 렌더러(볼라 추/밧줄 등). 도착하면 숨기고, 다시 꺼낼 때 보인다. 파티클만 쓰면 비워 둔다.")]
+        [SerializeField] private Renderer[] hideOnArrive = new Renderer[0];
 
         [Tooltip("날아가는 속도(월드 단위/초).")]
         [SerializeField, Min(0.1f)] private float speed = 18f;
@@ -62,6 +64,7 @@ namespace MiniChess.Client.Visuals.Effects
             _duration = direction.magnitude / speed;
             _elapsed = 0f;
             _flying = true;
+            SetModelVisible(true);
             foreach (ParticleSystem particle in ProjectileParticles)
                 particle.Play(false);
         }
@@ -85,9 +88,19 @@ namespace MiniChess.Client.Visuals.Effects
             base.Update();
         }
 
+        private void SetModelVisible(bool visible)
+        {
+            foreach (Renderer model in hideOnArrive)
+            {
+                if (model != null)
+                    model.enabled = visible;
+            }
+        }
+
         private void Arrive()
         {
             _flying = false;
+            SetModelVisible(false);
             foreach (ParticleSystem particle in ProjectileParticles)
                 particle.Stop(false, ParticleSystemStopBehavior.StopEmitting);
             if (impact != null)
