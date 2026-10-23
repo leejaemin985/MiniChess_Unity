@@ -13,6 +13,7 @@ namespace MiniChess.Client.Board
     ///   - 시전(PlayCast): 시전자 자리에서 재생한다.
     ///   - 타격(PlayHit): 범위 각 칸에서 시전자 → 칸 방향으로 재생한다.
     ///   - 투사체(PlayProjectile): 시전자에서 범위 각 칸으로 날아가 명중한다.
+    ///   - 경로(PlayPath): 시전자가 직접 이동한 경로의 출발 칸에서 도착 칸까지 재생한다.
     ///   - 착탄(PlayStrike): 범위 중심에 놓고 각 칸 위치를 함께 넘긴다.
     /// </summary>
     public class SkillEffectsView : MonoBehaviour
@@ -101,6 +102,17 @@ namespace MiniChess.Client.Board
             EffectPool<ProjectileEffect> pool = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize);
             foreach (Position cell in cells)
                 pool.Get().Place(from, _coordinates.ToWorld(cell));
+        }
+
+        /// <summary>스킬 사용 직후 시전자가 이동한 경로(from 칸 → to 칸)를 따라 재생하는 연출(돌진 등). 이펙트가 없으면 재생하지 않는다.</summary>
+        public void PlayPath(int casterId, string skillId, Position from, Position to)
+        {
+            LineEffect prefab = _catalog != null ? _catalog.FindPath(skillId) : null;
+            if (prefab == null || _casters == null || _coordinates == null || from.Equals(to))
+                return;
+
+            _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get()
+                .Place(_coordinates.ToWorld(from), _coordinates.ToWorld(to));
         }
 
         /// <summary>예약 공격이 떨어질 때 범위 중심과 각 칸에서 재생하는 연출(박격포 착탄 등). 이펙트가 없거나 범위가 비면 재생하지 않는다.</summary>

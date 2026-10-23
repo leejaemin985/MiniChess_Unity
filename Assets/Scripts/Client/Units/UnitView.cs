@@ -43,6 +43,12 @@ namespace MiniChess.Client.Units
         private float _iconHeight;
         private Color _teamColor;
         private Color _actedColor;
+        /// <summary>Sync 가 정한 자리. 미끄러지는 중이면 여기까지 옮긴다.</summary>
+        private Vector3 _targetPosition;
+        /// <summary>미끄러지기 시작한 자리. null 이면 미끄러지는 중이 아니다(Sync 가 바로 옮긴다).</summary>
+        private Vector3? _slideFrom;
+        private float _slideStart;
+        private float _slideDuration;
 
         public Unit Unit { get; private set; }
 
@@ -101,12 +107,15 @@ namespace MiniChess.Client.Units
         {
             if (!Unit.IsPlaced)
             {
+                _slideFrom = null;
                 gameObject.SetActive(false);
                 return;
             }
 
             gameObject.SetActive(true);
-            transform.localPosition = coordinates.ToWorld(Unit.Position.Value);
+            _targetPosition = coordinates.ToWorld(Unit.Position.Value);
+            if (!_slideFrom.HasValue)
+                transform.localPosition = _targetPosition;
 
             UnitTurnState turn = Unit.TurnState;
             bool acted = turn.CombatActionUsed || turn.ActionsEnded;
@@ -121,6 +130,32 @@ namespace MiniChess.Client.Units
             float statusRow = Unit.Statuses.Count > 0 ? badgeSize + FaceGap : 0f;
             _label.transform.localPosition = Vector3.up * (_labelBaseHeight + statusRow);
             _label.text = $"<size=70%>{Unit.Stats.Base.Name}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatShield()}";
+        }
+
+        /// <summary>
+        /// 지금 자리에서 다음 Sync 가 정하는 자리까지 duration 초 동안 미끄러지듯 옮긴다(돌진 등). Sync 전에 호출한다.
+        /// 일반 이동은 이것 없이 Sync 에서 바로 옮긴다.
+        /// </summary>
+        public void BeginSlide(float duration)
+        {
+            if (!gameObject.activeInHierarchy || duration <= 0f)
+                return;
+
+            _slideFrom = transform.localPosition;
+            _slideStart = Time.time;
+            _slideDuration = duration;
+        }
+
+        private void Update()
+        {
+            if (!_slideFrom.HasValue)
+                return;
+
+            float t = Mathf.Clamp01((Time.time - _slideStart) / _slideDuration);
+            float eased = 1f - (1f - t) * (1f - t);
+            transform.localPosition = Vector3.Lerp(_slideFrom.Value, _targetPosition, eased);
+            if (t >= 1f)
+                _slideFrom = null;
         }
 
         /// <summary>

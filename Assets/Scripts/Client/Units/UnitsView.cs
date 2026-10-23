@@ -29,6 +29,18 @@ namespace MiniChess.Client.Units
         [Tooltip("유닛 머리 위 상태 배지 모양. 플레이 중에 바꾸면 바로 반영된다.")]
         [SerializeField] private StatusBadgeStyle statusBadge = new StatusBadgeStyle();
 
+        [Tooltip("돌진처럼 미끄러지는 이동에 걸리는 시간(초). 돌진 경로 이펙트(FX_Dash)의 travelTime 과 맞춘다.")]
+        [SerializeField, Min(0f)] private float slideDuration = 0.15f;
+
+        /// <summary>
+        /// 유닛을 지금 자리에서 다음 Sync 자리까지 미끄러지듯 옮긴다(돌진 등). Sync 전에 호출한다.
+        /// </summary>
+        public void BeginSlide(int unitId)
+        {
+            if (TryGetView(unitId, out UnitView view))
+                view.BeginSlide(slideDuration);
+        }
+
         /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>
         public void Build(GameState state, BoardCoordinates coordinates, CharacterVisualCatalog visuals)
         {

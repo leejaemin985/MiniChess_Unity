@@ -16,6 +16,7 @@ using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
 using MiniChess.Core.Data;
 using MiniChess.Core.Events;
+using MiniChess.Core.Movement;
 using MiniChess.Core.Presets;
 using MiniChess.Core.Setup;
 using MiniChess.Core.Skills.Areas;
@@ -573,12 +574,18 @@ namespace MiniChess.Client.Bootstrap
         /// 일어난 일을 연출한다(로컬/온라인 공용).
         ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘, 범위 이펙트(일자 베기 등).
         ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
+        ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트, 돌진이면 유닛이 미끄러지듯 옮겨진다.
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
         private void PlayEvents(IEnumerable<GameEvent> events)
         {
-            foreach (GameEvent gameEvent in events)
+            IReadOnlyList<GameEvent> list = events as IReadOnlyList<GameEvent> ?? events.ToList();
+            for (int i = 0; i < list.Count; i++)
             {
+                GameEvent gameEvent = list[i];
+                if (gameEvent is SkillUsedEvent cast)
+                    PlaySkillPath(list, i, cast);
+
                 switch (gameEvent)
                 {
                     case UnitAttackedEvent attacked:
@@ -606,6 +613,31 @@ namespace MiniChess.Client.Bootstrap
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// events[castIndex] 의 스킬 사용 뒤(다음 스킬 사용 전까지) 시전자가 스스로 이동한 경로가 있으면 경로 이펙트를 재생하고,
+        /// 돌진이면 유닛을 미끄러지듯 옮긴다(이동 이벤트는 칸마다 기록되므로 첫 출발 칸 → 마지막 도착 칸).
+        /// </summary>
+        private void PlaySkillPath(IReadOnlyList<GameEvent> events, int castIndex, SkillUsedEvent used)
+        {
+            UnitMovedEvent first = null;
+            UnitMovedEvent last = null;
+            for (int i = castIndex + 1; i < events.Count && !(events[i] is SkillUsedEvent); i++)
+            {
+                if (events[i] is UnitMovedEvent moved && moved.UnitId == used.CasterId && moved.IsVoluntary)
+                {
+                    first = first ?? moved;
+                    last = moved;
+                }
+            }
+
+            if (first == null)
+                return;
+
+            skillEffectsView.PlayPath(used.CasterId, used.SkillId, first.From, last.To);
+            if (first.Kind == MoveKind.Dash)
+                unitsView.BeginSlide(used.CasterId);
         }
 
         private void ShowActionIcon(int unitId, Sprite icon)
