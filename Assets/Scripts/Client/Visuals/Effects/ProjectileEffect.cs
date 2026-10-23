@@ -24,6 +24,8 @@ namespace MiniChess.Client.Visuals.Effects
         [SerializeField] private float hitHeight = 0.5f;
         [Tooltip("명중 지점을 대상에서 시전자 쪽으로 당기는 거리. 대상 몸통(캡슐) 안에서 터지지 않게 한다.")]
         [SerializeField, Min(0f)] private float hitPullback = 0.35f;
+        [Tooltip("포물선 꼭대기 높이(직선 대비). 0 이면 직선으로 날아간다. 포물선이면 projectile 의 +Z 가 궤적 접선을 따라간다.")]
+        [SerializeField, Min(0f)] private float arcHeight;
 
         private ParticleSystem[] _projectileParticles;
         private Vector3 _from;
@@ -80,13 +82,23 @@ namespace MiniChess.Client.Visuals.Effects
             {
                 _elapsed += Time.deltaTime;
                 float t = _duration > 0f ? Mathf.Clamp01(_elapsed / _duration) : 1f;
-                projectile.position = Vector3.Lerp(_from, _to, t);
+                projectile.position = PointAt(t);
+                if (arcHeight > 0f)
+                {
+                    // 궤적 접선(미분: 직선 성분 + 4h(1-2t) 위쪽)으로 머리를 돌린다.
+                    Vector3 tangent = (_to - _from) + Vector3.up * (4f * arcHeight * (1f - 2f * t));
+                    if (tangent.sqrMagnitude > 0.0001f)
+                        projectile.rotation = Quaternion.LookRotation(tangent);
+                }
                 if (t >= 1f)
                     Arrive();
             }
 
             base.Update();
         }
+
+        private Vector3 PointAt(float t) =>
+            Vector3.Lerp(_from, _to, t) + Vector3.up * (4f * arcHeight * t * (1f - t));
 
         private void SetModelVisible(bool visible)
         {
