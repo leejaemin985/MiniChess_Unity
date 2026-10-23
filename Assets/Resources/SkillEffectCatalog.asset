@@ -69,3 +69,10 @@ MonoBehaviour:
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
+  - skillId: FLAME_COMPRESSED_SHELL
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 8549243410972344937, guid: 91186513087e25a429512c6450569385, type: 3}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
