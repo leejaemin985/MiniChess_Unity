@@ -37,3 +37,9 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 5184768108425405257, guid: d2bdcdd4daf1ec24fa9ea403b8858a0f, type: 3}
     strikeEffect: {fileID: 0}
+  - skillId: ARCHER_BOLA
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 6034879568990057492, guid: 1c7983a5d4e872e41b34cb6f9ffeaf0b, type: 3}
+    strikeEffect: {fileID: 0}
