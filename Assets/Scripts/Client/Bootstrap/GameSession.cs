@@ -609,7 +609,7 @@ namespace MiniChess.Client.Bootstrap
                         skillEffectsView.Play(used.CasterId, used.SkillId, used.AffectedCells);
                         skillEffectsView.PlayCast(used.CasterId, used.SkillId);
                         skillEffectsView.PlayHit(used.CasterId, used.SkillId, used.AffectedCells);
-                        skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells);
+                        skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells, FindPushes(list, i));
                         break;
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
@@ -624,6 +624,30 @@ namespace MiniChess.Client.Bootstrap
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// events[castIndex] 의 스킬 사용 뒤(다음 스킬 사용 전까지) 밀려나거나 당겨진 유닛의 처음 칸 → 마지막 도착 칸.
+        /// 이동 이벤트는 칸마다 기록되므로 유닛마다 첫 출발 칸과 마지막 도착 칸을 잇는다.
+        /// </summary>
+        private static Dictionary<Position, Position> FindPushes(IReadOnlyList<GameEvent> events, int castIndex)
+        {
+            var starts = new Dictionary<int, Position>();
+            var ends = new Dictionary<int, Position>();
+            for (int i = castIndex + 1; i < events.Count && !(events[i] is SkillUsedEvent); i++)
+            {
+                if (events[i] is UnitMovedEvent moved && (moved.Kind == MoveKind.Knockback || moved.Kind == MoveKind.Pull))
+                {
+                    if (!starts.ContainsKey(moved.UnitId))
+                        starts[moved.UnitId] = moved.From;
+                    ends[moved.UnitId] = moved.To;
+                }
+            }
+
+            var pushes = new Dictionary<Position, Position>();
+            foreach (KeyValuePair<int, Position> start in starts)
+                pushes[start.Value] = ends[start.Key];
+            return pushes;
         }
 
         /// <summary>

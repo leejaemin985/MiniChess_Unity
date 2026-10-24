@@ -18,6 +18,8 @@ namespace MiniChess.Client.Visuals.Effects
 
         [Tooltip("날아가는 속도(월드 단위/초).")]
         [SerializeField, Min(0.1f)] private float speed = 18f;
+        [Tooltip("0 보다 크면 거리와 상관없이 이 시간(초)에 도착한다(speed 무시). 밀어내는 스킬은 UnitsView.knockbackDelay 와 맞춘다.")]
+        [SerializeField, Min(0f)] private float travelTime;
         [Tooltip("시전자 칸 윗면에서 발사 지점까지 높이.")]
         [SerializeField] private float launchHeight = 0.6f;
         [Tooltip("대상 칸 윗면에서 명중 지점까지 높이.")]
@@ -55,6 +57,15 @@ namespace MiniChess.Client.Visuals.Effects
         /// <summary>날아가는 중인지.</summary>
         protected bool IsFlying => _flying;
 
+        /// <summary>대상이 이 스킬로 밀려(당겨져) 도착한 칸 윗면 중심(월드). 밀리지 않았거나 모르면 null.</summary>
+        protected Vector3? PushedTo { get; private set; }
+
+        /// <summary>대상이 밀려 도착한 칸을 알려 준다(Place 다음에 호출). 밀린 자리에 연출을 이어 붙이는 이펙트가 쓴다.</summary>
+        public void SetPushedTo(Vector3? cellTop)
+        {
+            PushedTo = cellTop;
+        }
+
         private ParticleSystem[] ProjectileParticles =>
             _projectileParticles ?? (_projectileParticles = projectile.GetComponentsInChildren<ParticleSystem>(true));
 
@@ -79,7 +90,8 @@ namespace MiniChess.Client.Visuals.Effects
             if (impact != null)
                 impact.transform.SetPositionAndRotation(_to, facing * Quaternion.Euler(0f, 180f, 0f));
 
-            _duration = direction.magnitude / speed;
+            _duration = travelTime > 0f ? travelTime : direction.magnitude / speed;
+            PushedTo = null;
             _elapsed = 0f;
             _flying = true;
             SetModelVisible(true);

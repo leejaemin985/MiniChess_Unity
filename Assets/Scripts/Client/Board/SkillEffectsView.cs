@@ -88,9 +88,10 @@ namespace MiniChess.Client.Board
 
         /// <summary>
         /// 스킬 사용 때 시전자에서 범위 각 칸으로 날아가는 투사체 연출(장거리 조준 등).
+        /// pushedTo 는 범위 칸에 있던 유닛이 이 스킬로 밀려 도착한 칸(밀리지 않았으면 없음)이며, 밀린 자리에 이어 붙이는 연출(충격탄 등)에 넘긴다.
         /// 이펙트가 없거나 시전자가 보드에 없으면 재생하지 않는다.
         /// </summary>
-        public void PlayProjectile(int casterId, string skillId, IReadOnlyList<Position> cells)
+        public void PlayProjectile(int casterId, string skillId, IReadOnlyList<Position> cells, IReadOnlyDictionary<Position, Position> pushedTo = null)
         {
             ProjectileEffect prefab = _catalog != null ? _catalog.FindProjectile(skillId) : null;
             if (prefab == null || _casters == null || _coordinates == null || _units == null || cells == null)
@@ -101,7 +102,12 @@ namespace MiniChess.Client.Board
             Vector3 from = _coordinates.ToWorld(caster.Unit.Position.Value);
             EffectPool<ProjectileEffect> pool = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize);
             foreach (Position cell in cells)
-                pool.Get().Place(from, _coordinates.ToWorld(cell));
+            {
+                ProjectileEffect effect = pool.Get();
+                effect.Place(from, _coordinates.ToWorld(cell));
+                if (pushedTo != null && pushedTo.TryGetValue(cell, out Position destination))
+                    effect.SetPushedTo(_coordinates.ToWorld(destination));
+            }
         }
 
         /// <summary>스킬 사용 직후 시전자가 이동한 경로(from 칸 → to 칸)를 따라 재생하는 연출(돌진 등). 이펙트가 없으면 재생하지 않는다.</summary>
