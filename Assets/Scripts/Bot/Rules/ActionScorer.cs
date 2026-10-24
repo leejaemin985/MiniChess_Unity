@@ -350,8 +350,8 @@ namespace MiniChess.Bot.Rules
                 case SummonEffect _:
                     return _w.Summon;
 
-                case SwapEffect _:
-                    return SwapValue(g, g.Action.Targets[0], g.Action.Targets[1]);
+                case WarpUnitEffect _:
+                    return WarpUnitValue(g, g.Action.Targets[0], g.Action.Targets[1]);
 
                 case SwapWithCasterEffect _:
                     return SwapValue(g, caster.Position.Value, target);
@@ -368,6 +368,19 @@ namespace MiniChess.Bot.Rules
         {
             bool immobile = BoardAnalysis.IsRooted(enemy) || BoardAnalysis.IsInstalled(enemy) || BoardAnalysis.IsStunned(enemy);
             return immobile ? _w.StrikeHitChanceImmobile : _w.StrikeHitChance;
+        }
+
+        /// <summary>from 칸의 유닛을 destination 으로 옮겼을 때(실 관문)의 위치 가치 변화 + 도착 칸 위험.</summary>
+        private double WarpUnitValue(SkillGuess g, Position from, Position destination)
+        {
+            Unit unit = _a.State.Board.GetLivingUnit(from);
+            if (unit == null)
+                return 0;
+
+            bool fights = unit == g.Caster
+                ? g.Skill.ActionKind == SkillActionKind.Movement && BoardAnalysis.CanStillFight(g.Caster)
+                : BoardAnalysis.CanStillFight(unit);
+            return Relocation(unit, destination, g.ApAfter, fights) + PathHazard(new[] { destination });
         }
 
         /// <summary>두 칸의 유닛 자리를 맞바꿨을 때 두 유닛의 위치 가치 변화 합.</summary>
