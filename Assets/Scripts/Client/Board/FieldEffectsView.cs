@@ -14,7 +14,7 @@ using UnityEngine;
 namespace MiniChess.Client.Board
 {
     /// <summary>
-    /// 칸 효과(장판 층, 덫 층)가 있는 칸에 이펙트를 깐다. 이펙트는 설치한 시전자(EffectCaster)의 풀에서 꺼내고, 칸 효과가 사라지면 돌려준다.
+    /// 칸 효과(장판 층, 덫 층, 장애물 층)가 있는 칸에 이펙트를 깐다. 이펙트는 설치한 시전자(EffectCaster)의 풀에서 꺼내고, 칸 효과가 사라지면 돌려준다.
     /// 깔린 이펙트는 칸·층별로 추적하고, 어느 칸 효과의 것인지는 구역 Id 로 구분한다
     /// (코어는 Unity 를 모르고, 온라인은 상태가 바뀔 때마다 구역 객체가 새로 만들어지므로 코어 객체에 이펙트를 붙이지 않는다).
     /// 상태에 없는 칸 효과(숨겨진 상대 덫)는 깔지 않는다. 발동 순간의 연출은 PlayTrigger 로 따로 재생한다.
@@ -23,7 +23,7 @@ namespace MiniChess.Client.Board
     public class FieldEffectsView : MonoBehaviour
     {
         /// <summary>이펙트를 까는 칸 효과 층.</summary>
-        private static readonly CellEffectLayer[] Layers = { CellEffectLayer.AreaEffect, CellEffectLayer.Trap };
+        private static readonly CellEffectLayer[] Layers = { CellEffectLayer.AreaEffect, CellEffectLayer.Trap, CellEffectLayer.Obstacle };
 
         [Tooltip("풀 여유 배수. 사라지는 중인 이펙트와 새 이펙트가 겹쳐도 모자라지 않게 한다.")]
         [SerializeField, Min(1)] private int poolMultiplier = 2;
@@ -124,6 +124,13 @@ namespace MiniChess.Client.Board
             int key = ownerTeam.HasValue ? -1 - (int)ownerTeam.Value : -3;
             string name = ownerTeam.HasValue ? $"Unknown ({ownerTeam.Value})" : "Unknown";
             _casters.Get(key, name).GetPool(prefab, poolMultiplier).Get().Place(_coordinates.ToWorld(cell));
+        }
+
+        /// <summary>칸·층에 깔린 이펙트가 맞았을 때의 반응(장애물 피격 등)을 재생한다. 깔린 이펙트가 없으면 무시.</summary>
+        public void PlayReaction(Position cell, CellEffectLayer layer)
+        {
+            if (_cellEffects.TryGetValue((cell, layer), out var current))
+                current.Effect.React();
         }
 
         public void Clear()

@@ -150,8 +150,9 @@ namespace MiniChess.Client.Board
 
         /// <summary>
         /// 장애물 블록을 보이거나 숨긴다. 칸 윗면 위에 놓인 상자이며, 위에 파괴까지 남은 피격 횟수를 표시한다.
+        /// drawBlock 이 false 면(장애물을 이펙트로 그림) 상자 없이 피격 횟수만 표시한다.
         /// </summary>
-        public void SetObstacle(bool visible, Color color, int hitsRemaining, Vector3 worldTop, float size, float height)
+        public void SetObstacle(bool visible, bool drawBlock, Color color, int hitsRemaining, Vector3 worldTop, float size, float height)
         {
             if (!visible)
             {
@@ -166,7 +167,7 @@ namespace MiniChess.Client.Board
             if (_obstacle == null)
                 CreateObstacle();
 
-            _obstacle.SetActive(true);
+            _obstacle.SetActive(drawBlock);
             _obstacleLabel.gameObject.SetActive(true);
             _obstacle.transform.position = worldTop + Vector3.up * (height * 0.5f);
             _obstacle.transform.localScale = new Vector3(

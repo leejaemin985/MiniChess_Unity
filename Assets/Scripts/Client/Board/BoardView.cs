@@ -109,7 +109,7 @@ namespace MiniChess.Client.Board
         }
 
         /// <summary>
-        /// 칸 효과(장판/덫/장애물)를 현재 코어 상태대로 표시한다. 장판은 칸 색조(이펙트가 있는 종류는 FieldEffectsView 가 그림), 덫은 설치한 팀 색의 표식, 장애물은 설치한 팀 색의 상자.
+        /// 칸 효과(장판/덫/장애물)를 현재 코어 상태대로 표시한다. 장판은 칸 색조(이펙트가 있는 종류는 FieldEffectsView 가 그림), 덫은 설치한 팀 색의 표식, 장애물은 설치한 팀 색의 상자(이펙트가 있으면 상자 없이 남은 피격 횟수만).
         /// 온라인에서는 상대 덫이 상태에 없으므로(서버가 숨김) 그리지 않고, 발동할 때 RevealTrap 으로 잠깐 보여 준다.
         /// </summary>
         public void SyncEffects(CoreBoard board)
@@ -141,8 +141,9 @@ namespace MiniChess.Client.Board
                 view.SetTrapMarker(trap != null || revealed, trapColor, top, trapSize * _coordinates.CellSize);
 
                 var obstacle = cell.GetEffect(CellEffectLayer.Obstacle) as Obstacle;
+                bool obstacleModel = HasFieldVisual != null && HasFieldVisual(CellEffectKinds.Obstacle);
                 view.SetObstacle(
-                    obstacle != null, GetObstacleColor(obstacle), obstacle?.HitsRemaining ?? 0,
+                    obstacle != null, !obstacleModel, GetObstacleColor(obstacle), obstacle?.HitsRemaining ?? 0,
                     top, obstacleSize * _coordinates.CellSize, obstacleHeight);
             }
         }

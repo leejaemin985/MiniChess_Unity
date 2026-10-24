@@ -16,6 +16,7 @@ using MiniChess.Core.Combat;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
 using MiniChess.Core.Data;
+using MiniChess.Core.Effects;
 using MiniChess.Core.Events;
 using MiniChess.Core.Movement;
 using MiniChess.Core.Presets;
@@ -582,6 +583,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트.
         ///   - 스킬로 시전자가 유닛을 순간이동시켰으면(실 관문 등) 워프 이펙트, 그 유닛은 관문으로 가라앉았다 솟아오른다.
         ///   - 칸을 거치는 이동(일반 이동, 돌진, 밀려남/당겨짐)은 순간이동 대신 거친 칸을 차례로 지나간다(워프/위치 교환은 바로).
+        ///   - 장애물 공격: 깔린 장애물 이펙트(실 그물 등)가 출렁인다.
         ///   - 호위자가 피해를 대신 받음: 보호 대상 → 호위자로 호위 반응 이펙트.
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
@@ -607,6 +609,7 @@ namespace MiniChess.Client.Bootstrap
                     case ObstacleHitEvent hit:
                         ShowActionIcon(hit.AttackerId, characterVisuals?.BasicAttackIcon);
                         attackEffectsView.PlayOnCell(characterVisuals?.BasicAttackEffect, hit.AttackerId, hit.Position);
+                        fieldEffectsView.PlayReaction(hit.Position, CellEffectLayer.Obstacle);
                         break;
                     case SkillUsedEvent used:
                         ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);

@@ -10,5 +10,8 @@ namespace MiniChess.Client.Visuals.Effects
         {
             transform.SetPositionAndRotation(cellTop, Quaternion.identity);
         }
+
+        /// <summary>칸 효과가 맞았을 때의 반응(장애물 피격 등). 기본은 아무것도 안 한다.</summary>
+        public virtual void React() { }
     }
 }
