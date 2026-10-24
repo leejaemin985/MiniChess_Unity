@@ -35,6 +35,8 @@ namespace MiniChess.Client.Units
 
         private UnitBody _body;
         private StatusVisualCatalog _statusVisuals;
+        /// <summary>지금 몸체 머티리얼을 정한 상태 표시(없으면 null). 바뀔 때 굳기/깨지기 연출 시간을 여기서 읽는다.</summary>
+        private StatusVisual _bodyStatus;
         private TextMeshPro _label;
         private FaceBadge _face;
         private StatusBadgeRow _statuses;
@@ -134,7 +136,7 @@ namespace MiniChess.Client.Units
             UnitTurnState turn = Unit.TurnState;
             bool acted = turn.CombatActionUsed || turn.ActionsEnded;
             _body.SetTint(acted ? _actedColor : _teamColor);
-            _body.SetOverride(FindStatusBodyMaterial());
+            SyncBodyMaterial();
             if (_face != null)
                 _face.SetDimmed(acted);
 
@@ -300,17 +302,37 @@ namespace MiniChess.Client.Units
             return shield > 0 ? $" <color=#7FD4FF>+{shield}</color>" : string.Empty;
         }
 
-        /// <summary>걸린 상태 중 몸체 머티리얼이 지정된 첫 상태의 머티리얼(먼저 걸린 상태 우선). 없으면 null(원래 머티리얼).</summary>
-        private Material FindStatusBodyMaterial()
+        /// <summary>
+        /// 몸체 머티리얼을 걸린 상태대로 맞춘다. 원래 모습 → 상태 머티리얼은 굳기(BodyApplyTime), 상태 머티리얼 → 원래 모습은 깨지기(BodyRemoveTime)로 연출하고,
+        /// 상태 머티리얼끼리 바뀌면 바로 바꾼다.
+        /// </summary>
+        private void SyncBodyMaterial()
+        {
+            StatusVisual next = FindBodyStatus();
+            if (next == _bodyStatus)
+                return;
+
+            if (_bodyStatus == null)
+                _body.PetrifyTo(next.BodyMaterial, next.BodyApplyTime);
+            else if (next == null)
+                _body.ShatterFrom(_bodyStatus.BodyMaterial, _bodyStatus.BodyRemoveTime);
+            else
+                _body.PetrifyTo(next.BodyMaterial, 0f);
+
+            _bodyStatus = next;
+        }
+
+        /// <summary>걸린 상태 중 몸체 머티리얼이 지정된 첫 상태(먼저 걸린 상태 우선). 없으면 null(원래 머티리얼).</summary>
+        private StatusVisual FindBodyStatus()
         {
             if (_statusVisuals == null)
                 return null;
 
             foreach (StatusEffect status in Unit.Statuses)
             {
-                Material material = _statusVisuals.Find(status.Definition.Id)?.BodyMaterial;
-                if (material != null)
-                    return material;
+                StatusVisual visual = _statusVisuals.Find(status.Definition.Id);
+                if (visual != null && visual.BodyMaterial != null)
+                    return visual;
             }
 
             return null;

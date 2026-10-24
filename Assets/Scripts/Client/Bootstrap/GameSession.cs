@@ -584,6 +584,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 스킬로 시전자가 유닛을 순간이동시켰으면(실 관문 등) 워프 이펙트, 그 유닛은 관문으로 가라앉았다 솟아오른다.
         ///   - 칸을 거치는 이동(일반 이동, 돌진, 밀려남/당겨짐)은 순간이동 대신 거친 칸을 차례로 지나간다(워프/위치 교환은 바로).
         ///   - 장애물 공격: 깔린 장애물 이펙트(실 그물 등)가 출렁인다.
+        ///   - 상태가 새로 걸리거나 풀림: 그 유닛 자리에서 걸림/풀림 이펙트(봉인 → 마법석 문양/파편). 몸체가 굳고 깨지는 연출은 UnitView 가 상태대로 맞춘다.
         ///   - 호위자가 피해를 대신 받음: 보호 대상 → 호위자로 호위 반응 이펙트.
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
@@ -621,6 +622,12 @@ namespace MiniChess.Client.Bootstrap
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
                         fieldEffectsView.PlayTrigger(triggered.Kind, triggered.Position, triggered.OwnerTeam);
+                        break;
+                    case StatusAppliedEvent applied when !applied.Refreshed:
+                        statusEffectsView.PlayApplied(applied.Status.StatusId, applied.TargetId);
+                        break;
+                    case StatusRemovedEvent removed when removed.Reason != StatusRemoveReason.Replaced:
+                        statusEffectsView.PlayRemoved(removed.StatusId, removed.TargetId);
                         break;
                     case UnitDamagedEvent damaged when damaged.Type == DamageType.Redirected:
                         PlayGuardReaction(list, i, damaged);
