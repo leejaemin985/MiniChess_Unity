@@ -166,3 +166,12 @@ MonoBehaviour:
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 7308400959056003178, guid: 50403b8c7f396bb47aa5a294878fc213, type: 3}
+  - skillId: SCYTHE_CLONE_SWAP
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 0}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
+    warpEffect: {fileID: 3169119360114960061, guid: 5c445d31802452443a257e024c54dadd, type: 3}
+    pushEffect: {fileID: 0}
