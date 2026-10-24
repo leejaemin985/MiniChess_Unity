@@ -103,7 +103,9 @@ namespace MiniChess.Client.UI
             switch (reward)
             {
                 case null: return "NO REWARD";
-                case ShieldReward shield: return $"SHIELD +{shield.Amount} (ALL UNITS)";
+                case ShieldReward shield: return shield.Regenerates
+                    ? $"SHIELD {shield.Amount} (ALL UNITS, REFILL EVERY TURN)"
+                    : $"SHIELD +{shield.Amount} (ALL UNITS)";
                 case BasicAttackStatusReward status: return $"BASIC ATTACK + {status.Status.Id}";
                 default: return reward.Id;
             }
