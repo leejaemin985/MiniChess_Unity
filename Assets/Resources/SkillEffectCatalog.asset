@@ -97,3 +97,17 @@ MonoBehaviour:
     projectileEffect: {fileID: 3403056494446274826, guid: 4e84a79eef28a684bbb253524d400c60, type: 3}
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
+  - skillId: INQUISITOR_PURIFY
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 8441192223872104837, guid: e49bb265fca47b44597832cf586db78f, type: 3}
+    projectileEffect: {fileID: 0}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
+  - skillId: INQUISITOR_JUDGMENT
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 68359627295769223, guid: b9f529e1cea9d0443aee580a6579a63b, type: 3}
+    projectileEffect: {fileID: 0}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
