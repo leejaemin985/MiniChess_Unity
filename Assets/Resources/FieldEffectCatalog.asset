@@ -25,3 +25,6 @@ MonoBehaviour:
   - kind: ROOT_TRAP
     prefab: {fileID: 7538565114988451836, guid: 3b2dc78570399ea4286ccf679f7d9100, type: 3}
     triggerEffect: {fileID: 1544291487323137355, guid: c2660348afcae264bbbde75f286ab992, type: 3}
+  - kind: OBSTACLE
+    prefab: {fileID: 781019301941007211, guid: c1c70c2e726737d4cbbc2e988f730717, type: 3}
+    triggerEffect: {fileID: 0}
