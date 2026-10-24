@@ -13,6 +13,8 @@ namespace MiniChess.Client.Board
     /// <summary>코어 Board 의 칸 구성(바닥/벽/점령 칸/시작 위치)을 큐브로 그린다. 점령 칸이 소멸하면 SyncEffects 에서 바닥색으로 바뀐다.</summary>
     public class BoardView : MonoBehaviour
     {
+        public const string StrikeReticlePath = "Materials/StrikeReticle";
+
         [Header("Shape")]
         [SerializeField] private float tileThickness = 0.1f;
         [SerializeField] private float tileGap = 0.05f;
@@ -54,7 +56,10 @@ namespace MiniChess.Client.Board
         [SerializeField] private float obstacleHeight = 0.6f;
         [SerializeField] private Color player1StrikeColor = new Color(0.2f, 0.55f, 1f);
         [SerializeField] private Color player2StrikeColor = new Color(1f, 0.3f, 0.2f);
-        [SerializeField] private float strikeMarkerSize = 0.8f;
+        [Tooltip("조준점 크기(칸 대비). 네 모서리 꺾쇠가 칸 가장자리 안쪽에 오도록 맞춘다.")]
+        [SerializeField] private float strikeMarkerSize = 0.95f;
+        [Tooltip("예약 포격 조준점 머티리얼(MiniChess/GlowMarker, 밝기는 머티리얼 Intensity). 색은 쏜 팀(블루/레드) 색으로 입힌다. 비우면 Resources/Materials/StrikeReticle 을 불러온다.")]
+        [SerializeField] private Material strikeReticleMaterial;
 
         [Header("Reveal (숨겨진 상대 덫/포격이 발동할 때 잠깐 보여 줌)")]
         [SerializeField, Min(0f)] private float revealDuration = 1.5f;
@@ -95,7 +100,7 @@ namespace MiniChess.Client.Board
                 SyncEffects(_syncedBoard);
         }
 
-        /// <summary>착탄한 포격의 범위에 쏜 팀 색의 X 자를 잠깐 띄운다.</summary>
+        /// <summary>착탄한 포격의 범위에 쏜 팀 색의 조준점을 잠깐 띄운다.</summary>
         public void RevealStrike(IReadOnlyList<Position> cells, Team team)
         {
             _revealedStrikes.Add((cells, team, Time.time + revealDuration));
@@ -170,12 +175,14 @@ namespace MiniChess.Client.Board
         }
 
         /// <summary>
-        /// 예약 포격의 조준 칸을 쏜 팀 색의 X 자로 표시한다.
+        /// 예약 포격의 조준 칸마다 바닥에 쏜 팀 색의 조준점을 그린다.
         /// 온라인에서는 상대 포격이 상태에 없으므로(서버가 숨김) 그리지 않고, 착탄할 때 RevealStrike 로 잠깐 보여 준다.
         /// </summary>
         public void SyncStrikes(GameState state)
         {
             _syncedState = state;
+            if (strikeReticleMaterial == null)
+                strikeReticleMaterial = Resources.Load<Material>(StrikeReticlePath);
 
             var strikeTeams = new Dictionary<Position, Team>();
             foreach (ScheduledStrike strike in state.ScheduledStrikes)
@@ -196,7 +203,7 @@ namespace MiniChess.Client.Board
                 bool marked = strikeTeams.TryGetValue(pair.Key, out Team team);
                 Color color = team == Team.Player1 ? player1StrikeColor : player2StrikeColor;
                 Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
-                view.SetStrikeMarker(marked, color, top, strikeMarkerSize * _coordinates.CellSize);
+                view.SetStrikeMarker(marked, color, top, strikeMarkerSize * _coordinates.CellSize, strikeReticleMaterial);
             }
         }
 

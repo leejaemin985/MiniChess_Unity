@@ -7,7 +7,7 @@ namespace MiniChess.Client.Board
 {
     /// <summary>
     /// 보드 한 칸의 표시. 색은 지형 → 장판 색조 → 하이라이트 순으로 겹쳐 그린다.
-    /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자, 예약 포격은 칸 위의 X 자로 그린다. 게임 상태는 갖지 않는다.
+    /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자, 예약 포격은 칸 바닥의 조준점으로 그린다. 게임 상태는 갖지 않는다.
     /// </summary>
     public class CellView : MonoBehaviour
     {
@@ -27,6 +27,7 @@ namespace MiniChess.Client.Board
         private MaterialPropertyBlock _trapBlock;
 
         private GameObject _strikeMarker;
+        private Renderer _strikeRenderer;
         private MaterialPropertyBlock _strikeBlock;
 
         private GameObject _obstacle;
@@ -110,7 +111,8 @@ namespace MiniChess.Client.Board
         }
 
         /// <summary>예약 포격 조준 표식(칸 위의 X 자)을 보이거나 숨긴다.</summary>
-        public void SetStrikeMarker(bool visible, Color color, Vector3 worldTop, float size)
+        /// <param name="material">조준점 그림 머티리얼(색은 color 로 입힌다).</param>
+        public void SetStrikeMarker(bool visible, Color color, Vector3 worldTop, float size, Material material)
         {
             if (!visible)
             {
@@ -120,36 +122,30 @@ namespace MiniChess.Client.Board
             }
 
             if (_strikeMarker == null)
-                CreateStrikeMarker();
+                CreateStrikeMarker(material);
 
             _strikeMarker.SetActive(true);
-            _strikeMarker.transform.position = worldTop + Vector3.up * 0.03f;
+            _strikeMarker.transform.position = worldTop + Vector3.up * 0.02f;
             _strikeMarker.transform.localScale = Vector3.one * size;
 
-            foreach (Renderer bar in _strikeMarker.GetComponentsInChildren<Renderer>())
-            {
-                bar.GetPropertyBlock(_strikeBlock);
-                _strikeBlock.SetColor(ColorId, color);
-                bar.SetPropertyBlock(_strikeBlock);
-            }
+            _strikeRenderer.GetPropertyBlock(_strikeBlock);
+            _strikeBlock.SetColor(ColorId, color);
+            _strikeRenderer.SetPropertyBlock(_strikeBlock);
         }
 
-        private void CreateStrikeMarker()
+        private void CreateStrikeMarker(Material material)
         {
             // 칸은 납작하게 늘린 큐브라, 표식은 크기 왜곡이 없도록 칸의 부모(보드) 아래에 둔다.
-            _strikeMarker = new GameObject($"Strike {Position}");
+            _strikeMarker = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            _strikeMarker.name = $"Strike {Position}";
+            Destroy(_strikeMarker.GetComponent<Collider>()); // 클릭은 칸이 받는다
             _strikeMarker.transform.SetParent(transform.parent, false);
+            _strikeMarker.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // 바닥에 눕힌다(윗면이 보이게)
+            _strikeRenderer = _strikeMarker.GetComponent<Renderer>();
+            _strikeRenderer.sharedMaterial = material;
+            _strikeRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _strikeRenderer.receiveShadows = false;
             _strikeBlock = new MaterialPropertyBlock();
-
-            foreach (float angle in new[] { 45f, -45f })
-            {
-                GameObject bar = RuntimePrimitive.Create(PrimitiveType.Cube);
-                bar.name = "Bar";
-                Destroy(bar.GetComponent<Collider>()); // 클릭은 칸이 받는다
-                bar.transform.SetParent(_strikeMarker.transform, false);
-                bar.transform.localRotation = Quaternion.Euler(0f, angle, 0f);
-                bar.transform.localScale = new Vector3(1f, 0.02f, 0.12f);
-            }
         }
 
         /// <summary>
