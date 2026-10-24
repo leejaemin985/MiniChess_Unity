@@ -83,3 +83,17 @@ MonoBehaviour:
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
+  - skillId: CHAIN_GUARD_CHAIN_BIND
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 101221600942653750, guid: 124c7fca2ae31804a9175a7cb0385570, type: 3}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
+  - skillId: CHAIN_GUARD_GUARD
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 3403056494446274826, guid: 4e84a79eef28a684bbb253524d400c60, type: 3}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
