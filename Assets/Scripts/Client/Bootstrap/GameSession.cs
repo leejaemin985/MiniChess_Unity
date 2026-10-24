@@ -12,6 +12,7 @@ using MiniChess.Client.Units;
 using MiniChess.Client.Visuals;
 using MiniChess.Client.Visuals.Effects;
 using MiniChess.Core.Actions;
+using MiniChess.Core.Combat;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
 using MiniChess.Core.Data;
@@ -22,6 +23,7 @@ using MiniChess.Core.Setup;
 using MiniChess.Core.Skills.Areas;
 using MiniChess.Core.Snapshots;
 using MiniChess.Core.State;
+using MiniChess.Core.Statuses.Library;
 using MiniChess.Protocol;
 using UnityEngine;
 
@@ -79,6 +81,7 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private BoardView boardView;
         [SerializeField] private FieldEffectsView fieldEffectsView;
         [SerializeField] private SkillEffectsView skillEffectsView;
+        [SerializeField] private StatusEffectsView statusEffectsView;
         [SerializeField] private UnitsView unitsView;
         [SerializeField] private AttackEffectsView attackEffectsView;
         [SerializeField] private BoardCameraRig cameraRig;
@@ -198,6 +201,7 @@ namespace MiniChess.Client.Bootstrap
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
             if (fieldEffectsView == null) fieldEffectsView = CreateChild<FieldEffectsView>("FieldEffectsView");
             if (skillEffectsView == null) skillEffectsView = CreateChild<SkillEffectsView>("SkillEffectsView");
+            if (statusEffectsView == null) statusEffectsView = CreateChild<StatusEffectsView>("StatusEffectsView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
             if (attackEffectsView == null) attackEffectsView = CreateChild<AttackEffectsView>("AttackEffectsView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
@@ -222,6 +226,7 @@ namespace MiniChess.Client.Bootstrap
             fieldEffectsView.Initialize(_effectCasters, fieldEffects);
             attackEffectsView.Initialize(_effectCasters, unitsView);
             skillEffectsView.Initialize(_effectCasters, skillEffects, unitsView);
+            statusEffectsView.Initialize(_effectCasters, unitsView);
             boardView.HasFieldVisual = fieldEffectsView.HasVisual;
 
             // 경기는 시작 화면의 접속 패널에서 방식을 고르면 시작한다(StartOnline / StartLocal).
@@ -576,6 +581,7 @@ namespace MiniChess.Client.Bootstrap
         ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
         ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트.
         ///   - 칸을 거치는 이동(일반 이동, 돌진, 밀려남/당겨짐)은 순간이동 대신 거친 칸을 차례로 지나간다(워프/위치 교환은 바로).
+        ///   - 호위자가 피해를 대신 받음: 보호 대상 → 호위자로 호위 반응 이펙트.
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
         private void PlayEvents(IEnumerable<GameEvent> events)
@@ -609,10 +615,29 @@ namespace MiniChess.Client.Bootstrap
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
                         fieldEffectsView.PlayTrigger(triggered.Kind, triggered.Position, triggered.OwnerTeam);
                         break;
+                    case UnitDamagedEvent damaged when damaged.Type == DamageType.Redirected:
+                        PlayGuardReaction(list, i, damaged);
+                        break;
                     case StrikeLandedEvent landed:
                         boardView.RevealStrike(landed.Strike.Cells, landed.Strike.SourceTeam);
                         skillEffectsView.PlayStrike(landed.Strike.SourceId, landed.Strike.SkillId, landed.Strike.Cells);
                         break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 호위자가 피해를 대신 받았으면(Redirected) 보호 대상 → 호위자로 호위 반응 이펙트를 재생한다.
+        /// 보호 대상은 이 뒤에 기록되는 같은 출처의 직접 피해 대상이다(호위 가로채기가 원래 피해 처리 도중에 일어나므로).
+        /// </summary>
+        private void PlayGuardReaction(IReadOnlyList<GameEvent> events, int redirectIndex, UnitDamagedEvent redirected)
+        {
+            for (int i = redirectIndex + 1; i < events.Count; i++)
+            {
+                if (events[i] is UnitDamagedEvent original && original.Type == DamageType.Direct && original.SourceId == redirected.SourceId)
+                {
+                    statusEffectsView.PlayReaction(StatusLibrary.GuardId, original.TargetId, redirected.TargetId);
+                    return;
                 }
             }
         }
