@@ -581,7 +581,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘, 범위 이펙트(일자 베기 등).
         ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
         ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트.
-        ///   - 스킬로 시전자가 유닛을 순간이동시켰으면(실 관문 등) 워프 이펙트, 그 유닛은 관문으로 가라앉았다 솟아오른다.
+        ///   - 스킬로 시전자가 유닛을 순간이동시키거나 자리를 바꿨으면(실 관문, 분신 교환) 워프 이펙트, 그 유닛들은 가라앉았다 솟아오른다.
         ///   - 칸을 거치는 이동(일반 이동, 돌진, 밀려남/당겨짐)은 순간이동 대신 거친 칸을 차례로 지나간다(워프/위치 교환은 바로).
         ///   - 장애물 공격: 깔린 장애물 이펙트(실 그물 등)가 출렁인다.
         ///   - 소환: 소환자 → 소환 칸 소환 이펙트(분신: 그림자가 미끄러져 감), 새 소환물 뷰는 바닥에서 솟아오른다. 소환물 사망: 그 자리에서 소멸 이펙트.
@@ -653,15 +653,24 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>
         /// events[castIndex] 의 스킬 사용 뒤(다음 스킬 사용 전까지) 시전자가 일으킨 순간이동마다 워프 이펙트(실 관문 등)를 재생하고,
         /// 이펙트가 있으면 옮겨지는 유닛을 출발 칸으로 가라앉혔다가 도착 칸에서 솟아오르게 한다(없으면 원래대로 바로 옮겨짐).
+        /// 위치 교환(분신 교환 등)은 두 유닛의 이동이 한 쌍으로 기록되므로 이펙트는 첫 이동에서 한 번만 재생하고, 두 유닛 모두 가라앉았다 솟아오른다.
         /// </summary>
         private void PlaySkillWarps(IReadOnlyList<GameEvent> events, int castIndex, SkillUsedEvent used)
         {
+            WarpEffect swapEffect = null;
             for (int i = castIndex + 1; i < events.Count && !(events[i] is SkillUsedEvent); i++)
             {
-                if (!(events[i] is UnitMovedEvent moved) || moved.Kind != MoveKind.Warp || moved.InitiatorId != used.CasterId)
+                if (!(events[i] is UnitMovedEvent moved) || moved.InitiatorId != used.CasterId)
+                    continue;
+                if (moved.Kind != MoveKind.Warp && moved.Kind != MoveKind.Swap)
                     continue;
 
-                WarpEffect effect = skillEffectsView.PlayWarp(used.CasterId, used.SkillId, moved.From, moved.To);
+                WarpEffect effect;
+                if (moved.Kind == MoveKind.Swap)
+                    effect = swapEffect ?? (swapEffect = skillEffectsView.PlayWarp(used.CasterId, used.SkillId, moved.From, moved.To));
+                else
+                    effect = skillEffectsView.PlayWarp(used.CasterId, used.SkillId, moved.From, moved.To);
+
                 if (effect != null)
                     unitsView.PlayPortal(moved.UnitId, moved.From, moved.To, effect.SinkDelay, effect.SinkTime, effect.RiseTime);
             }
