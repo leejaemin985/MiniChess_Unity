@@ -111,3 +111,10 @@ MonoBehaviour:
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
+  - skillId: MORTAR_SHOCK_SHELL
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 442762682155169214, guid: 216a547b533dd35449729c205492b127, type: 3}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
