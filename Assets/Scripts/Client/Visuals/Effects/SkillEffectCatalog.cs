@@ -13,6 +13,7 @@ namespace MiniChess.Client.Visuals.Effects
     ///   - 경로(pathEffect): 사용 직후 시전자가 직접 이동한 경로(출발 칸 → 도착 칸)를 따라 재생한다(돌진 등).
     ///   - 착탄(strikeEffect): 예약 공격이 떨어질 때 범위에서 재생한다(박격포 착탄 등).
     ///   - 워프(warpEffect): 사용으로 시전자가 일으킨 순간이동마다 시전자/출발 칸/도착 칸에 재생하고, 옮겨지는 유닛은 가라앉았다 솟아오른다(실 관문 등).
+    ///   - 밀기(pushEffect): 대상과 방향을 고르는 밀기 스킬 사용 때 대상 칸에서 고른 방향으로, 실제로 밀려난 도착 칸까지 재생한다(자리 교정 등).
     /// 목록에 없는 스킬은 이펙트 없이 시전 아이콘만 띄운다.
     /// GameSession 에 직접 연결하거나, Resources/SkillEffectCatalog 에 두면 자동으로 불러온다.
     /// </summary>
@@ -40,6 +41,8 @@ namespace MiniChess.Client.Visuals.Effects
             public StrikeEffect strikeEffect;
             [Tooltip("사용으로 시전자가 일으킨 순간이동(출발 → 도착)마다 재생하는 이펙트. 지정하면 옮겨지는 유닛이 가라앉았다 솟아오른다. 비우면 재생 안 함(바로 옮겨짐).")]
             public WarpEffect warpEffect;
+            [Tooltip("대상과 방향을 고르는 밀기 스킬 사용 때 대상 칸에서 고른 방향으로 재생하는 이펙트(실제 도착 칸 포함). 비우면 재생 안 함.")]
+            public PushEffect pushEffect;
         }
 
         [SerializeField] private List<Entry> entries = new List<Entry>();
@@ -84,6 +87,12 @@ namespace MiniChess.Client.Visuals.Effects
         public WarpEffect FindWarp(string skillId)
         {
             return FindEntry(skillId, entry => entry.warpEffect != null)?.warpEffect;
+        }
+
+        /// <summary>스킬의 밀기 이펙트 프리팹. 없으면 null.</summary>
+        public PushEffect FindPush(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.pushEffect != null)?.pushEffect;
         }
 
         private Entry FindEntry(string skillId, Predicate<Entry> hasEffect)

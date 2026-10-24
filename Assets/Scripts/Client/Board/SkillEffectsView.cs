@@ -16,6 +16,7 @@ namespace MiniChess.Client.Board
     ///   - 경로(PlayPath): 시전자가 직접 이동한 경로의 출발 칸에서 도착 칸까지 재생한다.
     ///   - 착탄(PlayStrike): 범위 중심에 놓고 각 칸 위치를 함께 넘긴다.
     ///   - 워프(PlayWarp): 시전자가 일으킨 순간이동마다 시전자/출발 칸/도착 칸을 넘긴다.
+    ///   - 밀기(PlayPush): 대상과 방향을 고르는 밀기 스킬에서 대상 칸 → 고른 방향으로, 실제 도착 칸까지 재생한다.
     /// </summary>
     public class SkillEffectsView : MonoBehaviour
     {
@@ -126,6 +127,25 @@ namespace MiniChess.Client.Board
             WarpEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get();
             effect.Place(caster.transform.position, _coordinates.ToWorld(from), _coordinates.ToWorld(to));
             return effect;
+        }
+
+        /// <summary>
+        /// 대상과 방향을 고르는 밀기 스킬(자리 교정 등) 연출. targets[0] 이 대상 칸, targets[1] 쪽이 미는 방향이다.
+        /// pushedTo 는 이 스킬로 밀려난 유닛의 처음 칸 → 도착 칸이며, 대상 칸이 없으면 막혀서 안 밀린 것으로 본다. 이펙트가 없으면 재생하지 않는다.
+        /// </summary>
+        public void PlayPush(int casterId, string skillId, IReadOnlyList<Position> targets, IReadOnlyDictionary<Position, Position> pushedTo)
+        {
+            PushEffect prefab = _catalog != null ? _catalog.FindPush(skillId) : null;
+            if (prefab == null || _casters == null || _coordinates == null || targets == null || targets.Count < 2)
+                return;
+
+            Position target = targets[0];
+            Position landing = pushedTo != null && pushedTo.TryGetValue(target, out Position to) ? to : target;
+            int cells = System.Math.Max(System.Math.Abs(landing.X - target.X), System.Math.Abs(landing.Y - target.Y));
+            Vector3 from = _coordinates.ToWorld(target);
+
+            _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get()
+                .Place(from, _coordinates.ToWorld(targets[1]) - from, _coordinates.ToWorld(landing), cells);
         }
 
         /// <summary>스킬 사용 직후 시전자가 이동한 경로(from 칸 → to 칸)를 따라 재생하는 연출(돌진 등). 이펙트가 없으면 재생하지 않는다.</summary>

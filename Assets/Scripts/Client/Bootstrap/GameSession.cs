@@ -617,7 +617,9 @@ namespace MiniChess.Client.Bootstrap
                         skillEffectsView.Play(used.CasterId, used.SkillId, used.AffectedCells);
                         skillEffectsView.PlayCast(used.CasterId, used.SkillId);
                         skillEffectsView.PlayHit(used.CasterId, used.SkillId, used.AffectedCells);
-                        skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells, FindPushes(list, i));
+                        Dictionary<Position, Position> pushes = FindPushes(list, i);
+                        skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells, pushes);
+                        skillEffectsView.PlayPush(used.CasterId, used.SkillId, used.Targets, pushes);
                         break;
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
