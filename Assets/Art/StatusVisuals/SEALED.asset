@@ -17,3 +17,8 @@ MonoBehaviour:
   color: {r: 0.55, g: 0.9, b: 0.95, a: 1}
   icon: {fileID: 21300000, guid: 503dd1fe079b88f42b2b0936357a795b, type: 3}
   bodyMaterial: {fileID: 2100000, guid: 604ad2d0b02c7ef4d81e9a711740e8b7, type: 2}
+  bodyApplyTime: 0.45
+  bodyRemoveTime: 0.6
+  applyEffect: {fileID: 1028595833780061505, guid: 411f4b93c0414344982e6207309651dd, type: 3}
+  removeEffect: {fileID: 538572997766474710, guid: 3a9d60b3186d3b94b84ac3c6263483c1, type: 3}
+  reactionEffect: {fileID: 0}

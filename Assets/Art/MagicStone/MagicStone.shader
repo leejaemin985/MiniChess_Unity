@@ -1,4 +1,5 @@
 // 마법석: 유백색 대리석 + 금빛 광맥(광맥만 발광, 느린 맥동).
+// 굳기/깨지기 연출(UnitBody 덧씌움): _FillHeight 아래만 그리고(가장자리 발광), _Crack 으로 금빛 금이 번지며, _Dissolve 로 조각나 사라진다. 기본값이면 영향 없음.
 // 텍스처 없이 오브젝트 공간 3D 절차적 무늬라 UV 가 없는 메시에도 이음매 없이 붙고, 오브젝트를 움직여도 무늬는 고정된다.
 Shader "MiniChess/MagicStone"
 {
@@ -29,6 +30,16 @@ Shader "MiniChess/MagicStone"
         _GlowHalo("Glow Halo", Range(0, 1)) = 0.15
         _PulseSpeed("Pulse Speed", Range(0, 3)) = 0.35
         _PulseAmount("Pulse Amount", Range(0, 1)) = 0.2
+
+        [Header(Petrify Transition)]
+        _FillHeight("Fill Height (World Y)", Float) = 100000
+        _FillEdgeWidth("Fill Edge Width", Float) = 0.08
+        [HDR] _FillEdgeColor("Fill Edge Color", Color) = (1.6, 1.2, 0.55, 1)
+        _Crack("Crack", Range(0, 1)) = 0
+        _CrackScale("Crack Scale", Float) = 4.5
+        [HDR] _CrackColor("Crack Color", Color) = (2.2, 1.5, 0.6, 1)
+        _Dissolve("Dissolve", Range(0, 1)) = 0
+        _DepthOffset("Depth Offset", Float) = 0
     }
 
     SubShader
@@ -59,6 +70,14 @@ Shader "MiniChess/MagicStone"
             half _GlowHalo;
             half _PulseSpeed;
             half _PulseAmount;
+            float _FillHeight;
+            float _FillEdgeWidth;
+            half4 _FillEdgeColor;
+            half _Crack;
+            float _CrackScale;
+            half4 _CrackColor;
+            half _Dissolve;
+            float _DepthOffset;
         CBUFFER_END
         ENDHLSL
 
@@ -66,6 +85,7 @@ Shader "MiniChess/MagicStone"
         {
             Name "ForwardLit"
             Tags { "LightMode" = "UniversalForward" }
+            Offset [_DepthOffset], [_DepthOffset]
 
             HLSLPROGRAM
             #pragma target 3.0
@@ -211,6 +231,21 @@ Shader "MiniChess/MagicStone"
                 UNITY_SETUP_INSTANCE_ID(input);
                 float3 pos = input.positionOS;
 
+                // ---- 굳기/깨지기 ----
+                // 아래에서 위로 굳는 경계(가장자리를 노이즈로 울퉁불퉁하게). 경계 위는 그리지 않는다.
+                float fill = _FillHeight - input.positionWS.y + (ValueNoise(pos * 7.0) - 0.5) * 0.06;
+                clip(fill);
+                float fillEdge = 1.0 - smoothstep(0.0, _FillEdgeWidth, fill);
+                // 조각나 사라짐: 노이즈 값이 _Dissolve 보다 낮은 곳부터 뚫린다.
+                float dissolveNoise = ValueNoise(pos * 6.0 + 4.3) * 0.7 + ValueNoise(pos * 15.0) * 0.3;
+                clip(dissolveNoise - _Dissolve * 1.02);
+                float dissolveEdge = _Dissolve > 0.0 ? 1.0 - smoothstep(0.0, 0.08, dissolveNoise - _Dissolve) : 0.0;
+                // 금: 큰 보로노이 경계가 노이즈 순서대로(_Crack) 번진다.
+                float2 crackEdge = VoronoiEdge(pos * _CrackScale + 7.7);
+                float crackMask = step(ValueNoise(pos * 2.2 + 1.3), _Crack * 1.1);
+                float crackAa = max(fwidth(crackEdge.x), 1e-4);
+                float crack = (1.0 - smoothstep(0.02 * _Crack, 0.02 * _Crack + crackAa * 1.5, crackEdge.x)) * crackMask * step(0.001, _Crack);
+
                 // ---- 대리석 ----
                 float3 stonePos = pos * _PatternScale;
                 float cloud = smoothstep(0.42, 0.78, Fbm(stonePos + Fbm(stonePos * 0.7) * 1.5));
@@ -245,6 +280,7 @@ Shader "MiniChess/MagicStone"
                 half3 seepTint = lerp(stone, stone * _VeinColor.rgb * 1.25, 0.35);
                 half3 albedo = lerp(stone, seepTint, halo * _GlowHalo * 2.0);
                 albedo = lerp(albedo, _VeinColor.rgb, vein);
+                albedo = lerp(albedo, albedo * 0.35, crack);
 
                 // 맥동: 무늬는 고정, 밝기만 천천히 오르내린다(위치마다 위상을 살짝 어긋나게).
                 float phase = ValueNoise(pos * 0.8) * 1.5;
@@ -256,7 +292,7 @@ Shader "MiniChess/MagicStone"
                 surface.metallic = _VeinMetallic * vein;
                 surface.smoothness = lerp(_Smoothness, _VeinSmoothness, vein);
                 surface.normalTS = half3(0, 0, 1);
-                surface.emission = glow * _GlowIntensity * pulse;
+                surface.emission = glow * _GlowIntensity * pulse + _FillEdgeColor.rgb * fillEdge + _CrackColor.rgb * (crack + dissolveEdge);
                 surface.occlusion = 1.0;
                 surface.alpha = 1.0;
 
