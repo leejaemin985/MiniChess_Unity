@@ -7,6 +7,19 @@ using UnityEngine;
 
 namespace MiniChess.Client.Units
 {
+    /// <summary>유닛 이동 연출 방식.</summary>
+    public enum UnitMoveStyle
+    {
+        /// <summary>일반 이동: 칸마다 일정한 속도.</summary>
+        Walk,
+
+        /// <summary>돌진: 짧게 감속하며 미끄러짐.</summary>
+        Dash,
+
+        /// <summary>밀려남/당겨짐: 타격 시점까지 기다렸다가 감속하며 미끄러짐.</summary>
+        Knockback,
+    }
+
     /// <summary>
     /// 경기의 모든 유닛 뷰를 Unit.Id 기준으로 관리한다.
     /// 경기 중에 생기는 유닛(분신 등 소환물)은 Sync 때 뷰를 새로 만든다.
@@ -29,18 +42,23 @@ namespace MiniChess.Client.Units
         [Tooltip("유닛 머리 위 상태 배지 모양. 플레이 중에 바꾸면 바로 반영된다.")]
         [SerializeField] private StatusBadgeStyle statusBadge = new StatusBadgeStyle();
 
-        [Tooltip("일반 이동/밀려남 등에서 칸 하나를 지나는 시간(초).")]
+        [Tooltip("일반 이동에서 칸 하나를 지나는 시간(초).")]
         [SerializeField, Min(0f)] private float moveCellDuration = 0.12f;
         [Tooltip("돌진 전체에 걸리는 시간(초, 칸 수와 무관). 돌진 경로 이펙트(FX_Dash)의 travelTime 과 맞춘다.")]
         [SerializeField, Min(0f)] private float dashDuration = 0.15f;
+        [Tooltip("밀려남/당겨짐에서 칸 하나를 지나는 시간(초). 감속하며 미끄러진다.")]
+        [SerializeField, Min(0f)] private float knockbackCellDuration = 0.1f;
+        [Tooltip("밀려남/당겨짐이 출발하기 전 기다리는 시간(초). 스킬 타격 연출(심판 둔기 등)이 닿는 시점과 맞춘다.")]
+        [SerializeField, Min(0f)] private float knockbackDelay = 0.15f;
 
         private readonly List<Vector3> _movePoints = new List<Vector3>();
 
         /// <summary>
         /// 유닛을 지금 자리에서 cells(거치는 칸, 마지막이 도착 칸)를 차례로 지나 옮긴다. Sync 전에 호출한다.
-        /// 돌진은 칸 수와 상관없이 dashDuration 동안 감속하며, 그 밖에는 칸마다 moveCellDuration 의 일정한 속도로 지난다.
+        /// 돌진은 칸 수와 상관없이 dashDuration 동안 감속하고, 밀려남/당겨짐은 knockbackDelay 뒤 칸마다 knockbackCellDuration 으로 감속하며 미끄러진다.
+        /// 그 밖(일반 이동)은 칸마다 moveCellDuration 의 일정한 속도로 지난다.
         /// </summary>
-        public void PlayMove(int unitId, IReadOnlyList<Position> cells, bool dash)
+        public void PlayMove(int unitId, IReadOnlyList<Position> cells, UnitMoveStyle style)
         {
             if (_coordinates == null || cells == null || cells.Count == 0 || !TryGetView(unitId, out UnitView view))
                 return;
@@ -49,8 +67,18 @@ namespace MiniChess.Client.Units
             foreach (Position cell in cells)
                 _movePoints.Add(_coordinates.ToWorld(cell));
 
-            float duration = dash ? dashDuration : moveCellDuration * cells.Count;
-            view.BeginMove(_movePoints, duration, easeOut: dash);
+            switch (style)
+            {
+                case UnitMoveStyle.Dash:
+                    view.BeginMove(_movePoints, dashDuration, easeOut: true);
+                    break;
+                case UnitMoveStyle.Knockback:
+                    view.BeginMove(_movePoints, knockbackCellDuration * cells.Count, easeOut: true, knockbackDelay);
+                    break;
+                default:
+                    view.BeginMove(_movePoints, moveCellDuration * cells.Count, easeOut: false);
+                    break;
+            }
         }
 
         /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>

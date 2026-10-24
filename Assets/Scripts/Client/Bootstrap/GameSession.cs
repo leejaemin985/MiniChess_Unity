@@ -667,28 +667,33 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>
         /// 이번에 일어난 이동을 유닛마다 모아, 순간이동 대신 거친 칸을 차례로 지나가게 한다(일반 이동, 돌진, 밀려남/당겨짐).
-        /// 워프/위치 교환이 섞인 유닛은 원래 뜻대로 바로 옮긴다(연출 없음). 돌진만으로 이동한 유닛은 돌진 속도로 지난다.
+        /// 워프/위치 교환이 섞인 유닛은 원래 뜻대로 바로 옮긴다(연출 없음). 돌진만으로 이동한 유닛은 돌진 속도로 지나고,
+        /// 밀려남/당겨짐이 섞인 유닛은 타격 연출이 닿을 때까지 기다렸다가 감속하며 미끄러진다.
         /// </summary>
         private void PlayMoves(IReadOnlyList<GameEvent> events)
         {
-            var paths = new Dictionary<int, (List<Position> Cells, bool Dash, bool Instant)>();
+            var paths = new Dictionary<int, (List<Position> Cells, bool Dash, bool Knockback, bool Instant)>();
             foreach (GameEvent gameEvent in events)
             {
                 if (!(gameEvent is UnitMovedEvent moved))
                     continue;
 
                 if (!paths.TryGetValue(moved.UnitId, out var path))
-                    path = (new List<Position>(), true, false);
+                    path = (new List<Position>(), true, false, false);
 
                 bool instant = moved.Kind == MoveKind.Warp || moved.Kind == MoveKind.Swap;
                 path.Cells.Add(moved.To);
-                paths[moved.UnitId] = (path.Cells, path.Dash && moved.Kind == MoveKind.Dash, path.Instant || instant);
+                bool knockback = moved.Kind == MoveKind.Knockback || moved.Kind == MoveKind.Pull;
+                paths[moved.UnitId] = (path.Cells, path.Dash && moved.Kind == MoveKind.Dash, path.Knockback || knockback, path.Instant || instant);
             }
 
-            foreach (KeyValuePair<int, (List<Position> Cells, bool Dash, bool Instant)> pair in paths)
+            foreach (KeyValuePair<int, (List<Position> Cells, bool Dash, bool Knockback, bool Instant)> pair in paths)
             {
-                if (!pair.Value.Instant)
-                    unitsView.PlayMove(pair.Key, pair.Value.Cells, pair.Value.Dash);
+                if (pair.Value.Instant)
+                    continue;
+
+                UnitMoveStyle style = pair.Value.Knockback ? UnitMoveStyle.Knockback : pair.Value.Dash ? UnitMoveStyle.Dash : UnitMoveStyle.Walk;
+                unitsView.PlayMove(pair.Key, pair.Value.Cells, style);
             }
         }
 

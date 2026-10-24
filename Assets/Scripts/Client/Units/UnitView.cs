@@ -137,10 +137,11 @@ namespace MiniChess.Client.Units
 
         /// <summary>
         /// 지금 자리에서 cells(거치는 칸들의 월드 위치, 마지막이 도착 칸)를 차례로 지나 duration 초 동안 옮긴다. Sync 전에 호출한다.
-        /// easeOut 이면 경로 전체에 감속을 건다(돌진), 아니면 일정한 속도로 지난다(일반 이동, 밀려남 등).
+        /// easeOut 이면 경로 전체에 감속을 건다(돌진, 밀려남), 아니면 일정한 속도로 지난다(일반 이동).
+        /// delay 초 동안은 제자리에 있다가 출발한다(밀려남을 타격 시점에 맞출 때).
         /// 끝나면 Sync 가 정한 자리에 맞춘다. 이 연출 없이 Sync 하면 바로 옮겨진다(워프 등).
         /// </summary>
-        public void BeginMove(IReadOnlyList<Vector3> cells, float duration, bool easeOut)
+        public void BeginMove(IReadOnlyList<Vector3> cells, float duration, bool easeOut, float delay = 0f)
         {
             if (!gameObject.activeInHierarchy || duration <= 0f || cells == null || cells.Count == 0)
                 return;
@@ -148,7 +149,7 @@ namespace MiniChess.Client.Units
             _movePath.Clear();
             _movePath.Add(transform.localPosition);
             _movePath.AddRange(cells);
-            _moveStart = Time.time;
+            _moveStart = Time.time + delay;
             _moveDuration = duration;
             _moveEaseOut = easeOut;
         }
