@@ -15,6 +15,7 @@ namespace MiniChess.Client.Board
     ///   - 투사체(PlayProjectile): 시전자에서 범위 각 칸으로 날아가 명중한다.
     ///   - 경로(PlayPath): 시전자가 직접 이동한 경로의 출발 칸에서 도착 칸까지 재생한다.
     ///   - 착탄(PlayStrike): 범위 중심에 놓고 각 칸 위치를 함께 넘긴다.
+    ///   - 워프(PlayWarp): 시전자가 일으킨 순간이동마다 시전자/출발 칸/도착 칸을 넘긴다.
     /// </summary>
     public class SkillEffectsView : MonoBehaviour
     {
@@ -108,6 +109,23 @@ namespace MiniChess.Client.Board
                 if (pushedTo != null && pushedTo.TryGetValue(cell, out Position destination))
                     effect.SetPushedTo(_coordinates.ToWorld(destination));
             }
+        }
+
+        /// <summary>
+        /// 스킬로 시전자가 일으킨 순간이동(from 칸 → to 칸) 연출(실 관문 등)을 재생하고 그 이펙트를 돌려준다(옮겨지는 유닛의 가라앉기 시점에 쓴다).
+        /// 이펙트가 없거나 시전자 뷰가 없으면 재생하지 않고 null.
+        /// </summary>
+        public WarpEffect PlayWarp(int casterId, string skillId, Position from, Position to)
+        {
+            WarpEffect prefab = _catalog != null ? _catalog.FindWarp(skillId) : null;
+            if (prefab == null || _casters == null || _coordinates == null || _units == null)
+                return null;
+            if (!_units.TryGetView(casterId, out UnitView caster))
+                return null;
+
+            WarpEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get();
+            effect.Place(caster.transform.position, _coordinates.ToWorld(from), _coordinates.ToWorld(to));
+            return effect;
         }
 
         /// <summary>스킬 사용 직후 시전자가 이동한 경로(from 칸 → to 칸)를 따라 재생하는 연출(돌진 등). 이펙트가 없으면 재생하지 않는다.</summary>

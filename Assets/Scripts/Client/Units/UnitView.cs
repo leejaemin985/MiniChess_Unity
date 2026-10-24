@@ -29,6 +29,9 @@ namespace MiniChess.Client.Units
         private const float IconSize = 0.55f;
         private const float IconPopTime = 0.12f;
         private const float IconFadeTime = 0.15f;
+        /// <summary>관문 이동에서 가라앉는 깊이(몸 높이보다 조금 깊게)와 가장 작아지는 크기.</summary>
+        private const float PortalDepth = 1.2f;
+        private const float PortalMinScale = 0.35f;
 
         private UnitBody _body;
         private StatusVisualCatalog _statusVisuals;
@@ -52,6 +55,13 @@ namespace MiniChess.Client.Units
         private float _moveDuration;
         /// <summary>경로 전체에 감속을 거는지(돌진). 아니면 일정한 속도로 칸을 지난다.</summary>
         private bool _moveEaseOut;
+        /// <summary>관문 이동 중인지(출발 칸으로 가라앉았다가 도착 칸에서 솟아오름). 이동 중이면 Sync 가 자리를 바로 옮기지 않는다.</summary>
+        private bool _portal;
+        private Vector3 _portalFrom;
+        private Vector3 _portalTo;
+        private float _portalStart;
+        private float _portalSink;
+        private float _portalRise;
 
         public Unit Unit { get; private set; }
 
@@ -111,13 +121,14 @@ namespace MiniChess.Client.Units
             if (!Unit.IsPlaced)
             {
                 _movePath.Clear();
+                EndPortal();
                 gameObject.SetActive(false);
                 return;
             }
 
             gameObject.SetActive(true);
             _targetPosition = coordinates.ToWorld(Unit.Position.Value);
-            if (_movePath.Count == 0)
+            if (_movePath.Count == 0 && !_portal)
                 transform.localPosition = _targetPosition;
 
             UnitTurnState turn = Unit.TurnState;
@@ -154,8 +165,33 @@ namespace MiniChess.Client.Units
             _moveEaseOut = easeOut;
         }
 
+        /// <summary>
+        /// 관문 이동: delay 초 뒤 sinkTime 동안 from 칸 아래로 작아지며 가라앉고, riseTime 동안 to 칸에서 커지며 솟아오른다(실 관문 등). Sync 전에 호출한다.
+        /// 위치는 BeginMove 와 같은 좌표(칸 윗면 중심). 끝나면 Sync 가 정한 자리에 맞춘다.
+        /// </summary>
+        public void BeginPortal(Vector3 from, Vector3 to, float delay, float sinkTime, float riseTime)
+        {
+            if (!gameObject.activeInHierarchy)
+                return;
+
+            _movePath.Clear();
+            _portal = true;
+            _portalFrom = from;
+            _portalTo = to;
+            _portalStart = Time.time + delay;
+            _portalSink = Mathf.Max(0.01f, sinkTime);
+            _portalRise = Mathf.Max(0.01f, riseTime);
+            transform.localPosition = from;
+        }
+
         private void Update()
         {
+            if (_portal)
+            {
+                UpdatePortal();
+                return;
+            }
+
             if (_movePath.Count == 0)
                 return;
 
@@ -174,6 +210,30 @@ namespace MiniChess.Client.Units
             float scaled = t * (_movePath.Count - 1);
             int segment = Mathf.Min((int)scaled, _movePath.Count - 2);
             transform.localPosition = Vector3.Lerp(_movePath[segment], _movePath[segment + 1], scaled - segment);
+        }
+
+        private void UpdatePortal()
+        {
+            float elapsed = Time.time - _portalStart;
+            if (elapsed >= _portalSink + _portalRise)
+            {
+                EndPortal();
+                transform.localPosition = _targetPosition;
+                return;
+            }
+
+            // under: 0 = 제자리, 1 = 바닥 아래로 다 들어감.
+            bool rising = elapsed >= _portalSink;
+            float t = rising ? 1f - (elapsed - _portalSink) / _portalRise : Mathf.Clamp01(elapsed / _portalSink);
+            float under = t * t;
+            transform.localPosition = (rising ? _portalTo : _portalFrom) + Vector3.down * (PortalDepth * under);
+            transform.localScale = Vector3.one * Mathf.Lerp(1f, PortalMinScale, under);
+        }
+
+        private void EndPortal()
+        {
+            _portal = false;
+            transform.localScale = Vector3.one;
         }
 
         /// <summary>

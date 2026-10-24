@@ -81,6 +81,15 @@ namespace MiniChess.Client.Units
             }
         }
 
+        /// <summary>유닛을 from 칸 관문으로 가라앉혔다가 to 칸 관문에서 솟아오르게 한다(실 관문 등). Sync 전에 호출한다.</summary>
+        public void PlayPortal(int unitId, Position from, Position to, float delay, float sinkTime, float riseTime)
+        {
+            if (_coordinates == null || !TryGetView(unitId, out UnitView view))
+                return;
+
+            view.BeginPortal(_coordinates.ToWorld(from), _coordinates.ToWorld(to), delay, sinkTime, riseTime);
+        }
+
         /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>
         public void Build(GameState state, BoardCoordinates coordinates, CharacterVisualCatalog visuals)
         {

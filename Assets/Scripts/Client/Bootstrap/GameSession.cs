@@ -580,6 +580,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘, 범위 이펙트(일자 베기 등).
         ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
         ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트.
+        ///   - 스킬로 시전자가 유닛을 순간이동시켰으면(실 관문 등) 워프 이펙트, 그 유닛은 관문으로 가라앉았다 솟아오른다.
         ///   - 칸을 거치는 이동(일반 이동, 돌진, 밀려남/당겨짐)은 순간이동 대신 거친 칸을 차례로 지나간다(워프/위치 교환은 바로).
         ///   - 호위자가 피해를 대신 받음: 보호 대상 → 호위자로 호위 반응 이펙트.
         ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
@@ -592,7 +593,10 @@ namespace MiniChess.Client.Bootstrap
             {
                 GameEvent gameEvent = list[i];
                 if (gameEvent is SkillUsedEvent cast)
+                {
                     PlaySkillPath(list, i, cast);
+                    PlaySkillWarps(list, i, cast);
+                }
 
                 switch (gameEvent)
                 {
@@ -623,6 +627,23 @@ namespace MiniChess.Client.Bootstrap
                         skillEffectsView.PlayStrike(landed.Strike.SourceId, landed.Strike.SkillId, landed.Strike.Cells);
                         break;
                 }
+            }
+        }
+
+        /// <summary>
+        /// events[castIndex] 의 스킬 사용 뒤(다음 스킬 사용 전까지) 시전자가 일으킨 순간이동마다 워프 이펙트(실 관문 등)를 재생하고,
+        /// 이펙트가 있으면 옮겨지는 유닛을 출발 칸으로 가라앉혔다가 도착 칸에서 솟아오르게 한다(없으면 원래대로 바로 옮겨짐).
+        /// </summary>
+        private void PlaySkillWarps(IReadOnlyList<GameEvent> events, int castIndex, SkillUsedEvent used)
+        {
+            for (int i = castIndex + 1; i < events.Count && !(events[i] is SkillUsedEvent); i++)
+            {
+                if (!(events[i] is UnitMovedEvent moved) || moved.Kind != MoveKind.Warp || moved.InitiatorId != used.CasterId)
+                    continue;
+
+                WarpEffect effect = skillEffectsView.PlayWarp(used.CasterId, used.SkillId, moved.From, moved.To);
+                if (effect != null)
+                    unitsView.PlayPortal(moved.UnitId, moved.From, moved.To, effect.SinkDelay, effect.SinkTime, effect.RiseTime);
             }
         }
 
