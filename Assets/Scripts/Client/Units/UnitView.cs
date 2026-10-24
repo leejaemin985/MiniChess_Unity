@@ -32,6 +32,12 @@ namespace MiniChess.Client.Units
         /// <summary>관문 이동에서 가라앉는 깊이(몸 높이보다 조금 깊게)와 가장 작아지는 크기.</summary>
         private const float PortalDepth = 1.2f;
         private const float PortalMinScale = 0.35f;
+        /// <summary>소환물 발밑 팀 색 고리(Resources, MiniChess/GlowMarker)와 지름(월드).</summary>
+        private const string TeamRingPath = "Materials/TeamRing";
+        private const float TeamRingSize = 0.8f;
+        private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
+        /// <summary>그림자 소환물의 얼굴 색(보라 그림자 톤, 반투명).</summary>
+        private static readonly Color SummonFaceTint = new Color(0.75f, 0.55f, 1f, 0.7f);
 
         private UnitBody _body;
         private StatusVisualCatalog _statusVisuals;
@@ -109,6 +115,51 @@ namespace MiniChess.Client.Units
             view._label = CreateLabel(root.transform, labelHeight);
 
             return view;
+        }
+
+        /// <summary>
+        /// 소환물 모습을 소환자 캐릭터의 소환물 데이터로 바꾼다(분신 → 그림자 몸, 발밑 연기, 보라빛 얼굴).
+        /// 기본 몸체 머티리얼이 있으면 팀 색 대신 발밑에 팀 색 고리를 둔다. 데이터가 없으면 그대로(옅은 팀 색).
+        /// </summary>
+        public void ApplySummonLook(CharacterVisual visual, Color ringColor)
+        {
+            if (visual == null || visual.SummonBodyMaterial == null)
+                return;
+
+            _body.SetBaseMaterial(visual.SummonBodyMaterial);
+            if (visual.SummonAura != null)
+                Instantiate(visual.SummonAura, transform, false).name = "Summon Aura";
+            CreateTeamRing(ringColor);
+            if (_face != null)
+                _face.SetImageColor(SummonFaceTint);
+        }
+
+        /// <summary>몸체가 delay 초 뒤 duration 초 동안 바닥에서 솟아오르며 형체를 갖춘다(소환 연출).</summary>
+        public void PlayAppear(float delay, float duration)
+        {
+            _body.Appear(delay, duration);
+        }
+
+        private void CreateTeamRing(Color color)
+        {
+            Material material = Resources.Load<Material>(TeamRingPath);
+            if (material == null)
+                return;
+
+            GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            ring.name = "Team Ring";
+            Destroy(ring.GetComponent<Collider>()); // 클릭은 칸이 받는다
+            ring.transform.SetParent(transform, false);
+            ring.transform.localPosition = Vector3.up * 0.015f;
+            ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // 바닥에 눕힌다
+            ring.transform.localScale = Vector3.one * TeamRingSize;
+            var renderer = ring.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            var block = new MaterialPropertyBlock();
+            block.SetColor(ColorId, color);
+            renderer.SetPropertyBlock(block);
         }
 
         /// <summary>같은 유닛(같은 Id)을 새로 만든 상태의 객체로 바꾼다(온라인 스냅샷 복원). 모양은 그대로 둔다.</summary>

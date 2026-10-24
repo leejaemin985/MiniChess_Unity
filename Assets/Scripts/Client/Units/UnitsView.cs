@@ -52,6 +52,8 @@ namespace MiniChess.Client.Units
         [SerializeField, Min(0f)] private float knockbackDelay = 0.15f;
 
         private readonly List<Vector3> _movePoints = new List<Vector3>();
+        /// <summary>방금 소환되어 뷰를 만들 때 솟아오르는 연출을 할 소환물 Id(ExpectSummon).</summary>
+        private readonly HashSet<int> _appearing = new HashSet<int>();
 
         /// <summary>
         /// 유닛을 지금 자리에서 cells(거치는 칸, 마지막이 도착 칸)를 차례로 지나 옮긴다. Sync 전에 호출한다.
@@ -88,6 +90,35 @@ namespace MiniChess.Client.Units
                 return;
 
             view.BeginPortal(_coordinates.ToWorld(from), _coordinates.ToWorld(to), delay, sinkTime, riseTime);
+        }
+
+        /// <summary>곧 Sync 에서 뷰가 만들어질 소환물. 그 뷰는 소환자 캐릭터의 등장 시간대로 바닥에서 솟아오른다. Sync 전에 호출한다.</summary>
+        public void ExpectSummon(int summonId)
+        {
+            _appearing.Add(summonId);
+        }
+
+        /// <summary>소환물의 소환물 데이터(자기 캐릭터 데이터에 없으면 소환자 캐릭터 것). 소환물이 아니거나 없으면 null.</summary>
+        public CharacterVisual FindSummonVisual(Unit unit)
+        {
+            if (_visuals == null || unit == null || !unit.IsSummon)
+                return null;
+
+            CharacterVisual own = _visuals.Find(unit.Stats.Base.Id);
+            if (own != null && own.SummonBodyMaterial != null)
+                return own;
+
+            return unit.SummonOwner != null ? _visuals.Find(unit.SummonOwner.Stats.Base.Id) : null;
+        }
+
+        /// <summary>소환자(ownerId)의 캐릭터 데이터 중 소환물 데이터가 있는 것. 없으면 null. 소환물 뷰가 아직 없을 때(소환 순간) 쓴다.</summary>
+        public CharacterVisual FindSummonVisualByOwner(int ownerId)
+        {
+            if (_visuals == null || !TryGetView(ownerId, out UnitView owner))
+                return null;
+
+            CharacterVisual visual = _visuals.Find(owner.Unit.Stats.Base.Id);
+            return visual != null && visual.SummonBodyMaterial != null ? visual : null;
         }
 
         /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>
@@ -185,6 +216,7 @@ namespace MiniChess.Client.Units
             }
 
             _views.Clear();
+            _appearing.Clear();
             _state = null;
         }
 
@@ -199,8 +231,16 @@ namespace MiniChess.Client.Units
             if (statusVisuals == null)
                 statusVisuals = Resources.Load<StatusVisualCatalog>(StatusVisualCatalog.ResourcePath);
 
-            return UnitView.Create(
+            UnitView view = UnitView.Create(
                 transform, unit, color, actedColor, FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame, statusVisuals, statusBadge, FindBodyPrefab(unit));
+
+            // 소환물: 소환자 캐릭터의 소환물 모습(분신 → 그림자, 발밑 팀 색 고리). 방금 소환된 것이면 바닥에서 솟아오른다.
+            CharacterVisual summonVisual = FindSummonVisual(unit);
+            view.ApplySummonLook(summonVisual, GetTeamColor(unit.Team));
+            if (_appearing.Remove(unit.Id) && summonVisual != null)
+                view.PlayAppear(summonVisual.SummonAppearDelay, summonVisual.SummonAppearTime);
+
+            return view;
         }
 
         /// <summary>유닛의 몸체 모델 프리팹. 소환물은 자기 데이터가 없으면 소환자의 것을 쓴다. 없으면 null(캡슐).</summary>

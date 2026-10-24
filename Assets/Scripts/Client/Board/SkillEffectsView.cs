@@ -16,6 +16,7 @@ namespace MiniChess.Client.Board
     ///   - 경로(PlayPath): 시전자가 직접 이동한 경로의 출발 칸에서 도착 칸까지 재생한다.
     ///   - 착탄(PlayStrike): 범위 중심에 놓고 각 칸 위치를 함께 넘긴다.
     ///   - 워프(PlayWarp): 시전자가 일으킨 순간이동마다 시전자/출발 칸/도착 칸을 넘긴다.
+    ///   - 소환/소멸(PlaySummon/PlayVanish): 소환자 캐릭터 데이터(CharacterVisual)의 소환물 이펙트. 소환은 소환자 → 소환 칸, 소멸은 사라진 자리.
     ///   - 밀기(PlayPush): 대상과 방향을 고르는 밀기 스킬에서 대상 칸 → 고른 방향으로, 실제 도착 칸까지 재생한다.
     /// </summary>
     public class SkillEffectsView : MonoBehaviour
@@ -127,6 +128,28 @@ namespace MiniChess.Client.Board
             WarpEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get();
             effect.Place(caster.transform.position, _coordinates.ToWorld(from), _coordinates.ToWorld(to));
             return effect;
+        }
+
+        /// <summary>소환 연출(분신: 그림자가 소환 칸으로 미끄러져 가 연기로 솟음)을 소환자 → 소환 칸으로 재생한다. 소환물 데이터가 없거나 소환자 뷰가 없으면 재생하지 않는다.</summary>
+        public void PlaySummon(int ownerId, Position cell)
+        {
+            LineEffect prefab = _units != null ? _units.FindSummonVisualByOwner(ownerId)?.SummonSpawnEffect : null;
+            if (prefab == null || _casters == null || _coordinates == null || !_units.TryGetView(ownerId, out UnitView owner))
+                return;
+
+            _casters.Get(ownerId, GetCasterName(ownerId)).GetPool(prefab, poolSize).Get()
+                .Place(owner.transform.position, _coordinates.ToWorld(cell));
+        }
+
+        /// <summary>소환물이 사라지는(사망) 연출을 그 자리에서 재생한다. 소환물이 아니거나 데이터가 없으면 재생하지 않는다. 뷰를 숨기기 전에 호출한다.</summary>
+        public void PlayVanish(int unitId)
+        {
+            if (_units == null || _casters == null || !_units.TryGetView(unitId, out UnitView view))
+                return;
+
+            CastEffect prefab = _units.FindSummonVisual(view.Unit)?.SummonVanishEffect;
+            if (prefab != null)
+                _casters.Get(unitId, GetCasterName(unitId)).GetPool(prefab, 1).Get().Place(view.transform.position);
         }
 
         /// <summary>

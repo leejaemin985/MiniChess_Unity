@@ -1,4 +1,5 @@
 using System;
+using MiniChess.Client.Visuals.Effects;
 using UnityEngine;
 
 namespace MiniChess.Client.Visuals
@@ -22,6 +23,20 @@ namespace MiniChess.Client.Visuals
         [Tooltip("보드 위 몸체로 쓸 캐릭터 모델 프리팹(피벗은 발밑, 높이 약 1). 비우면 팀 색 캡슐을 쓴다.")]
         [SerializeField] private GameObject bodyPrefab;
 
+        [Header("Summon (이 캐릭터가 부른 소환물, 예: 낫 → 그림자 분신)")]
+        [Tooltip("소환물 몸체의 기본 머티리얼(예: 그림자). 비우면 팀 색을 옅게 칠한다. 지정하면 소환물 발밑에 팀 색 고리를 둔다.")]
+        [SerializeField] private Material summonBodyMaterial;
+        [Tooltip("소환물에 붙여 두는 상주 연출 프리팹(예: 발밑 그림자 연기). 소환물이 있는 동안 계속 재생된다.")]
+        [SerializeField] private GameObject summonAura;
+        [Tooltip("소환할 때 소환자 → 소환 칸으로 재생하는 이펙트(예: 그림자가 미끄러져 가 연기로 솟음).")]
+        [SerializeField] private LineEffect summonSpawnEffect;
+        [Tooltip("소환 뒤 몸체가 바닥에서 솟아오르기 시작하기까지(초). 소환 이펙트가 소환 칸에 닿는 시점과 맞춘다.")]
+        [SerializeField, Min(0f)] private float summonAppearDelay = 0.25f;
+        [Tooltip("몸체가 바닥에서 솟아올라 형체를 갖추는 시간(초). 0 이면 바로 보인다.")]
+        [SerializeField, Min(0f)] private float summonAppearTime = 0.35f;
+        [Tooltip("소환물이 사라질(사망) 때 그 자리에서 재생하는 이펙트(예: 보라 연기로 흩어짐).")]
+        [SerializeField] private CastEffect summonVanishEffect;
+
         [NonSerialized] private Sprite _faceSprite;
 
         public string CharacterId => characterId;
@@ -29,6 +44,14 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>몸체 모델 프리팹. 지정하지 않았으면 null(캡슐).</summary>
         public GameObject BodyPrefab => bodyPrefab;
+
+        /// <summary>소환물 몸체 기본 머티리얼. 없으면 null(팀 색).</summary>
+        public Material SummonBodyMaterial => summonBodyMaterial;
+        public GameObject SummonAura => summonAura;
+        public LineEffect SummonSpawnEffect => summonSpawnEffect;
+        public float SummonAppearDelay => summonAppearDelay;
+        public float SummonAppearTime => summonAppearTime;
+        public CastEffect SummonVanishEffect => summonVanishEffect;
 
         /// <summary>
         /// 얼굴 정사각형(텍스처 픽셀 좌표). 일러스트 밖으로 나가지 않게 안쪽으로 밀어 넣는다.

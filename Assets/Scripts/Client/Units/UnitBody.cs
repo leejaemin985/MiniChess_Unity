@@ -10,6 +10,8 @@ namespace MiniChess.Client.Units
     /// 머티리얼 교체(상태 표현 등) 중에는 색을 칠하지 않는다(교체 머티리얼의 _BaseColor 가 팀 색으로 물들지 않게).
     /// 교체를 연출할 수도 있다(굳기/깨지기, 마법석 셰이더처럼 _FillHeight/_Crack/_Dissolve 를 가진 머티리얼만): 같은 메시를 겹쳐 그린 덧씌움 렌더러로
     /// 원래 모습 위에 교체 머티리얼이 아래에서 위로 차오르거나(굳기), 교체를 먼저 걷어낸 뒤 덧씌움이 금 가며 조각나 사라진다(깨지기).
+    /// 기본 머티리얼(SetBaseMaterial, 분신의 그림자 등)을 쓰면 원래 머티리얼 대신 그것이 기본 모습이 되고, 매 프레임 몸체 높이 범위(_BottomY/_TopY)를 넣어 준다.
+    /// 그 몸체는 바닥에서 솟아오르며 형체를 갖출 수 있다(Appear, _FillHeight).
     /// </summary>
     public class UnitBody : MonoBehaviour
     {
@@ -18,6 +20,9 @@ namespace MiniChess.Client.Units
         private static readonly int CrackId = Shader.PropertyToID("_Crack");
         private static readonly int DissolveId = Shader.PropertyToID("_Dissolve");
         private static readonly int DepthOffsetId = Shader.PropertyToID("_DepthOffset");
+        private static readonly int BottomYId = Shader.PropertyToID("_BottomY");
+        private static readonly int TopYId = Shader.PropertyToID("_TopY");
+        private const float NoFill = 100000f;
 
         /// <summary>깨지기 연출에서 금이 번지는 구간(나머지는 조각나 사라짐).</summary>
         private const float CrackPortion = 0.55f;
@@ -41,6 +46,12 @@ namespace MiniChess.Client.Units
         private Transition _transition;
         private float _transitionTime;
         private float _transitionDuration;
+
+        private Material _baseMaterial;
+        private MaterialPropertyBlock _baseBlock;
+        private float _appearDelay;
+        private float _appearDuration;
+        private float _appearTime = -1f;
 
         /// <param name="prefab">캐릭터 모델 프리팹. null 이면 width × height 캡슐을 만든다.</param>
         /// <param name="scale">전체 크기 배율(소환물 축소 등).</param>
@@ -101,6 +112,41 @@ namespace MiniChess.Client.Units
             ApplyTint();
         }
 
+        /// <summary>
+        /// 원래 머티리얼 대신 material 을 기본 모습으로 쓴다(분신의 그림자 몸 등). 색은 칠하지 않고, 매 프레임 몸체 높이 범위를 머티리얼에 넣어 준다.
+        /// 상태 교체(SetOverride)가 풀리면 이 머티리얼로 돌아온다.
+        /// </summary>
+        public void SetBaseMaterial(Material material)
+        {
+            _baseMaterial = material;
+            _baseBlock = new MaterialPropertyBlock();
+            _tintable = false;
+            for (int i = 0; i < _originals.Length; i++)
+            {
+                var replaced = new Material[_originals[i].Length];
+                for (int slot = 0; slot < replaced.Length; slot++)
+                    replaced[slot] = material;
+                _originals[i] = replaced;
+                if (_override == null)
+                    _renderers[i].sharedMaterials = replaced;
+            }
+
+            ApplyTint();
+            UpdateBase();
+        }
+
+        /// <summary>기본 머티리얼 몸체가 delay 초 뒤 duration 초 동안 바닥에서 위로 솟아오르며 형체를 갖춘다(그 전에는 보이지 않음). 기본 머티리얼이 _FillHeight 를 지원해야 한다.</summary>
+        public void Appear(float delay, float duration)
+        {
+            if (_baseMaterial == null || duration <= 0f)
+                return;
+
+            _appearDelay = delay;
+            _appearDuration = duration;
+            _appearTime = 0f;
+            UpdateBase();
+        }
+
         /// <summary>원래 모습 위로 material 이 아래에서 위로 차올라 굳은 뒤 교체한다(duration 초). duration 이 0 이면 바로 교체한다.</summary>
         public void PetrifyTo(Material material, float duration)
         {
@@ -126,6 +172,7 @@ namespace MiniChess.Client.Units
 
         private void Update()
         {
+            UpdateBase();
             if (_transition == Transition.None)
                 return;
 
@@ -248,6 +295,34 @@ namespace MiniChess.Client.Units
                 overlay.receiveShadows = source.receiveShadows;
                 overlay.gameObject.SetActive(false);
                 _overlays.Add(overlay);
+            }
+        }
+
+        /// <summary>기본 머티리얼 몸체에 높이 범위와 솟아오르는 경계를 넣는다.</summary>
+        private void UpdateBase()
+        {
+            if (_baseMaterial == null)
+                return;
+
+            GetHeightRange(out float bottom, out float top);
+            float fill = NoFill;
+            if (_appearTime >= 0f)
+            {
+                _appearTime += Time.deltaTime;
+                float t = Mathf.Clamp01((_appearTime - _appearDelay) / _appearDuration);
+                float eased = 1f - (1f - t) * (1f - t);
+                fill = Mathf.Lerp(bottom - FillMargin, top + FillMargin, eased);
+                if (t >= 1f)
+                    _appearTime = -1f;
+            }
+
+            foreach (Renderer target in _renderers)
+            {
+                target.GetPropertyBlock(_baseBlock);
+                _baseBlock.SetFloat(BottomYId, bottom);
+                _baseBlock.SetFloat(TopYId, top);
+                _baseBlock.SetFloat(FillHeightId, fill);
+                target.SetPropertyBlock(_baseBlock);
             }
         }
 
