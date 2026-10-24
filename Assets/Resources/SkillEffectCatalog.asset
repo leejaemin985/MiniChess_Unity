@@ -21,6 +21,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: MORTAR_BOMBARD
     prefab: {fileID: 0}
     castEffect: {fileID: 3951989144858904478, guid: 4a64577007cda824c925fe74687473c3, type: 3}
@@ -29,6 +30,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 8547910967128957860, guid: 012ebb0095680bc4a8c9657c90a384d5, type: 3}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: WARRIOR_SMASH
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -37,6 +39,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: ARCHER_AIMED_SHOT
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -45,6 +48,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: ARCHER_BOLA
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -53,6 +57,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: WARRIOR_DASH
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -61,6 +66,7 @@ MonoBehaviour:
     pathEffect: {fileID: 3675737014630378770, guid: 743e60ec51c35db41bb5b64a8dafed83, type: 3}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: ASSASSIN_CHARGE
     prefab: {fileID: 0}
     castEffect: {fileID: 9186359798505698876, guid: 3a0087755388b3f4687ba736842d63df, type: 3}
@@ -69,6 +75,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: ASSASSIN_LEAP
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -77,6 +84,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: FLAME_COMPRESSED_SHELL
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -85,6 +93,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: GARDENER_SINGLE_SHIELD
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -93,6 +102,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: CHAIN_GUARD_CHAIN_BIND
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -101,6 +111,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: CHAIN_GUARD_GUARD
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -109,6 +120,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: INQUISITOR_PURIFY
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -117,6 +129,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: INQUISITOR_JUDGMENT
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -125,6 +138,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: MORTAR_SHOCK_SHELL
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -133,6 +147,7 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
   - skillId: SEAMSTRESS_WARP
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -141,3 +156,13 @@ MonoBehaviour:
     pathEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 9182663622605788441, guid: 4a898e0828b5f3b45af7be4af42f89a4, type: 3}
+    pushEffect: {fileID: 0}
+  - skillId: SCULPTOR_CORRECTION
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 0}
+    pathEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
+    warpEffect: {fileID: 0}
+    pushEffect: {fileID: 7308400959056003178, guid: 50403b8c7f396bb47aa5a294878fc213, type: 3}
