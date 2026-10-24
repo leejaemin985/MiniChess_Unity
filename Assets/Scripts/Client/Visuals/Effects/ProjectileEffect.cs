@@ -40,6 +40,21 @@ namespace MiniChess.Client.Visuals.Effects
 
         protected override bool IsFinished => !_flying && !IsAnyParticleAlive();
 
+        /// <summary>날아가는 부분.</summary>
+        protected Transform Projectile => projectile;
+
+        /// <summary>발사 지점(월드).</summary>
+        protected Vector3 LaunchPoint => _from;
+
+        /// <summary>명중 지점(월드, hitPullback 적용 후).</summary>
+        protected Vector3 HitPoint => _to;
+
+        /// <summary>대상 칸 윗면 중심(월드, Place 에 넘긴 값).</summary>
+        protected Vector3 TargetCell { get; private set; }
+
+        /// <summary>날아가는 중인지.</summary>
+        protected bool IsFlying => _flying;
+
         private ParticleSystem[] ProjectileParticles =>
             _projectileParticles ?? (_projectileParticles = projectile.GetComponentsInChildren<ParticleSystem>(true));
 
@@ -47,6 +62,7 @@ namespace MiniChess.Client.Visuals.Effects
         /// <param name="to">대상 칸 윗면 중심(월드).</param>
         public void Place(Vector3 from, Vector3 to)
         {
+            TargetCell = to;
             _from = from + Vector3.up * launchHeight;
             _to = to + Vector3.up * hitHeight;
             Vector3 direction = _to - _from;
@@ -69,6 +85,7 @@ namespace MiniChess.Client.Visuals.Effects
             SetModelVisible(true);
             foreach (ParticleSystem particle in ProjectileParticles)
                 particle.Play(false);
+            OnLaunched();
         }
 
         protected override void OnReleased()
@@ -117,6 +134,13 @@ namespace MiniChess.Client.Visuals.Effects
                 particle.Stop(false, ParticleSystemStopBehavior.StopEmitting);
             if (impact != null)
                 impact.Play(true);
+            OnArrived();
         }
+
+        /// <summary>발사 직후(Place 끝)에 호출된다.</summary>
+        protected virtual void OnLaunched() { }
+
+        /// <summary>명중 지점에 도착해 impact 를 재생한 뒤 호출된다.</summary>
+        protected virtual void OnArrived() { }
     }
 }
