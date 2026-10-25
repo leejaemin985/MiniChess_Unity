@@ -16,3 +16,11 @@ MonoBehaviour:
   displayName: "\uAE30\uC808"
   color: {r: 1, g: 0.95, b: 0.4, a: 1}
   icon: {fileID: 21300000, guid: acdee5a3ac30d03478d996ab69c81706, type: 3}
+  description: "\uC774\uB3D9, \uACF5\uACA9, \uC2A4\uD0AC\uC744 \uBAA8\uB450 \uC4F8
+    \uC218 \uC5C6\uB2E4"
+  bodyMaterial: {fileID: 0}
+  bodyApplyTime: 0
+  bodyRemoveTime: 0
+  applyEffect: {fileID: 0}
+  removeEffect: {fileID: 0}
+  reactionEffect: {fileID: 0}

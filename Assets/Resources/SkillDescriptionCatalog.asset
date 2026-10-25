@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 516d0b92f4d01f5418868aacbba96b31, type: 3}
+  m_Name: SkillDescriptionCatalog
+  m_EditorClassIdentifier: 
+  entries:
+  - skillId: WARRIOR_SMASH
+    description: "\uC778\uC811\uD55C \uC801\uC5D0\uAC8C 5\uC758 \uD53C\uD574\uB97C
+      \uC785\uD78C\uB2E4"
+  - skillId: WARRIOR_DASH
+    description: "\uC9C1\uC120\uC73C\uB85C \uB3CC\uC9C4\uD55C \uB4A4 \uC55E\uC758
+      \uC801\uC5D0\uAC8C 3\uC758 \uD53C\uD574\uB97C \uC785\uD78C\uB2E4"
+  - skillId: ARCHER_AIMED_SHOT
+    description: "\uBA3C \uAC70\uB9AC\uC758 \uC801\uC5D0\uAC8C 3\uC758 \uD53C\uD574\uB97C
+      \uC785\uD78C\uB2E4"
+  - skillId: ARCHER_BOLA
+    description: "1\uC758 \uD53C\uD574\uB97C \uC785\uD788\uACE0 \uC774\uB3D9 \uC81C\uD55C\uC744
+      \uAC74\uB2E4"
+  - skillId: FLAME_FLAME_ZONE
+    description: "\uC2ED\uC790 \uBC94\uC704\uC5D0 2\uC758 \uD53C\uD574\uB97C \uC785\uD788\uACE0
+      \uD654\uC5FC \uC7A5\uD310\uC744 \uAE50\uB2E4"
+  - skillId: FLAME_COMPRESSED_SHELL
+    description: "1\uC758 \uD53C\uD574\uB97C \uC785\uD788\uACE0 \uD654\uC0C1\uC744
+      \uC785\uD78C\uB2E4"
+  - skillId: CHEMIST_ROOT_TRAP
+    description: "\uB36B\uC744 \uC124\uCE58\uD55C\uB2E4. \uBC1F\uC740 \uC801\uC5D0\uAC8C
+      1\uC758 \uD53C\uD574\uB97C \uC785\uD788\uACE0 \uC18D\uBC15\uC744 \uAC74\uB2E4"
+  - skillId: CHEMIST_POISON_GAS
+    description: "2\xD72 \uBC94\uC704\uC5D0 \uB3C5\uAC00\uC2A4\uB97C \uD37C\uB728\uB824
+      \uC911\uB3C5\uC744 \uAC74\uB2E4"
+  - skillId: CHAIN_GUARD_GUARD
+    description: "\uC544\uAD70\uC744 \uD638\uC704\uD574 \uB300\uC2E0 \uD53C\uD574\uB97C
+      \uBC1B\uB294\uB2E4"
+  - skillId: CHAIN_GUARD_CHAIN_BIND
+    description: "\uC801 \uD558\uB098\uC5D0\uAC8C \uC18D\uBC15\uC744 \uAC74\uB2E4"
+  - skillId: GARDENER_HEALING_MEADOW
+    description: "3\xD73 \uBC94\uC704\uC5D0 \uD68C\uBCF5 \uCD08\uC6D0\uC744 \uAE50\uB2E4(\uD134\uB9C8\uB2E4
+      1 \uD68C\uBCF5)"
+  - skillId: GARDENER_SINGLE_SHIELD
+    description: "\uC544\uAD70 \uD558\uB098\uC5D0\uAC8C \uBCF4\uD638\uB9C9 3\uC744
+      \uC900\uB2E4"
+  - skillId: SEAMSTRESS_WARP
+    description: "\uC544\uAD70 \uD558\uB098\uB97C \uC6D0\uD558\uB294 \uCE78\uC73C\uB85C
+      \uC774\uB3D9\uC2DC\uD0A8\uB2E4"
+  - skillId: SEAMSTRESS_OBSTACLE
+    description: "\uB450 \uCE78 \uAE38\uBAA9\uC744 \uC2E4 \uADF8\uBB3C\uB85C \uB9C9\uB294\uB2E4"
+  - skillId: SCYTHE_SLASH
+    description: "\uAC00\uB85C 4\uCE78 \uBC94\uC704\uC758 \uC801\uC5D0\uAC8C 3\uC758
+      \uD53C\uD574\uB97C \uC785\uD78C\uB2E4"
+  - skillId: SCYTHE_SHADOW_CLONE
+    description: "\uC778\uC811 \uCE78\uC5D0 \uBD84\uC2E0\uC744 \uC18C\uD658\uD55C\uB2E4"
+  - skillId: SCYTHE_CLONE_SWAP
+    description: "\uBD84\uC2E0\uACFC \uC790\uB9AC\uB97C \uB9DE\uBC14\uAFBC\uB2E4"
+  - skillId: MORTAR_BOMBARD
+    description: "\uB2E4\uC74C \uD134, \uC2ED\uC790 \uBC94\uC704\uC5D0 5\uC758 \uD53C\uD574\uB97C
+      \uC785\uD78C\uB2E4"
+  - skillId: MORTAR_SHOCK_SHELL
+    description: "1\uC758 \uD53C\uD574\uB97C \uC785\uD788\uACE0 2\uCE78 \uBC00\uC5B4\uB0B8
+      \uB4A4 \uC774\uB3D9 \uC81C\uD55C\uC744 \uAC74\uB2E4"
+  - skillId: MORTAR_UNINSTALL
+    description: "\uC124\uCE58\uB97C \uD480\uC5B4 \uB2E4\uC2DC \uC774\uB3D9\uD560
+      \uC218 \uC788\uB2E4"
+  - skillId: ASSASSIN_LEAP
+    description: "\uBE48 \uCE78\uC73C\uB85C \uC21C\uAC04\uC774\uB3D9\uD55C\uB2E4"
+  - skillId: ASSASSIN_CHARGE
+    description: "\uB2E4\uC74C \uAE30\uBCF8 \uACF5\uACA9\uC774 4\uC758 \uCD94\uAC00
+      \uD53C\uD574\uB97C \uC785\uD78C\uB2E4"
+  - skillId: SCULPTOR_SEAL
+    description: "\uC720\uB2DB \uD558\uB098\uC5D0\uAC8C \uBD09\uC778\uC744 \uAC74\uB2E4"
+  - skillId: SCULPTOR_CORRECTION
+    description: "1\uC758 \uD53C\uD574\uB97C \uC785\uD788\uACE0 \uC6D0\uD558\uB294
+      \uBC29\uD5A5\uC73C\uB85C 1~2\uCE78 \uBBFC\uB2E4"
+  - skillId: INQUISITOR_PURIFY
+    description: "\uC544\uAD70\uC5D0\uAC8C \uAC78\uB9B0 \uC0C1\uB300 \uD300 \uD6A8\uACFC\uB97C
+      \uBAA8\uB450 \uC9C0\uC6B4\uB2E4"
+  - skillId: INQUISITOR_JUDGMENT
+    description: "\uC778\uC811\uD55C \uC801\uC5D0\uAC8C 3\uC758 \uD53C\uD574\uB97C
+      \uC785\uD788\uACE0 2\uCE78 \uBC00\uC5B4\uB0B8 \uB4A4 \uAE30\uC808\uC744 \uAC74\uB2E4"
