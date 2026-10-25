@@ -6,6 +6,9 @@ namespace MiniChess.Client.Board
         Move,
         Attack,
 
+        /// <summary>스킬이 닿는 사거리(대상 유무와 무관, 스킬 버튼에 마우스를 올렸을 때 미리보기).</summary>
+        SkillRange,
+
         /// <summary>스킬로 지정할 수 있는 칸.</summary>
         SkillTarget,
 

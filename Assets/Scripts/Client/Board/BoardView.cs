@@ -33,6 +33,8 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color selectedColor = new Color(1f, 0.9f, 0.2f);
         [SerializeField] private Color moveColor = new Color(0.3f, 0.85f, 0.4f);
         [SerializeField] private Color attackColor = new Color(0.95f, 0.2f, 0.2f);
+        [Tooltip("스킬 사거리 미리보기(스킬 버튼에 마우스를 올렸을 때, 대상 유무와 무관).")]
+        [SerializeField] private Color skillRangeColor = new Color(0.72f, 0.55f, 0.98f);
         [SerializeField] private Color skillTargetColor = new Color(0.2f, 0.8f, 0.95f);
         [SerializeField] private Color skillAreaColor = new Color(1f, 0.55f, 0.1f);
         [SerializeField] private Color skillChosenColor = new Color(0.75f, 0.35f, 0.95f);
@@ -251,6 +253,7 @@ namespace MiniChess.Client.Board
                 case CellHighlight.Selected: return selectedColor;
                 case CellHighlight.Move: return moveColor;
                 case CellHighlight.Attack: return attackColor;
+                case CellHighlight.SkillRange: return skillRangeColor;
                 case CellHighlight.SkillTarget: return skillTargetColor;
                 case CellHighlight.SkillArea: return skillAreaColor;
                 case CellHighlight.SkillChosen: return skillChosenColor;

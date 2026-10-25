@@ -36,6 +36,8 @@ namespace MiniChess.Client.Interaction
         private readonly List<Position> _attackObstacles = new List<Position>();
 
         private string _pendingSkillId;
+        /// <summary>마우스를 올린 스킬 버튼의 스킬(사거리 미리보기). 지정 중인 스킬이 있으면 그리지 않는다.</summary>
+        private string _previewSkillId;
         private readonly List<Position> _skillTargets = new List<Position>();
         private readonly List<Position> _chosenTargets = new List<Position>();
         private int _targetCount;
@@ -408,6 +410,29 @@ namespace MiniChess.Client.Interaction
             SelectionChanged?.Invoke();
         }
 
+        /// <summary>
+        /// 보고 있는 유닛(선택 또는 정보만 보는 유닛)의 스킬 사거리를 미리 그린다(스킬 버튼에 마우스를 올렸을 때).
+        /// 대상이 없거나 지금 쓸 수 없어도 사거리는 보이고, 내 유닛이면 지금 지정할 수 있는 칸을 더 진하게 그린다. 지정 중인 스킬이 있으면 그리지 않는다.
+        /// </summary>
+        public void PreviewSkill(string skillId)
+        {
+            if (_previewSkillId == skillId)
+                return;
+
+            _previewSkillId = skillId;
+            Redraw();
+        }
+
+        /// <summary>skillId 미리보기를 끈다(다른 스킬로 바뀌었으면 그대로 둔다).</summary>
+        public void ClearPreview(string skillId)
+        {
+            if (_previewSkillId != skillId)
+                return;
+
+            _previewSkillId = null;
+            Redraw();
+        }
+
         private void ClearSkillMode()
         {
             _pendingSkillId = null;
@@ -422,6 +447,9 @@ namespace MiniChess.Client.Interaction
         private void Redraw()
         {
             _boardView.ClearHighlights();
+
+            if (_previewSkillId != null && _pendingSkillId == null && DrawSkillPreview())
+                return;
 
             if (_selected == null && _inspected != null && _inspected.IsPlaced)
             {
@@ -467,6 +495,27 @@ namespace MiniChess.Client.Interaction
                 _boardView.Highlight(target.Position.Value, CellHighlight.Attack);
             foreach (Position obstacle in _attackObstacles)
                 _boardView.Highlight(obstacle, CellHighlight.Attack);
+        }
+
+        /// <summary>미리보기 스킬의 사거리(옅게)와, 내 유닛이면 지금 지정할 수 있는 칸(진하게). 보고 있는 유닛이 없으면 false.</summary>
+        private bool DrawSkillPreview()
+        {
+            Unit unit = Displayed;
+            GameController game = _session.Game;
+            if (unit == null || !unit.IsPlaced || game == null)
+                return false;
+
+            _boardView.Highlight(unit.Position.Value, CellHighlight.Selected);
+            foreach (Position cell in game.GetSkillReach(unit.Id, _previewSkillId))
+                _boardView.Highlight(cell, CellHighlight.SkillRange);
+
+            if (unit == _selected)
+            {
+                foreach (Position cell in game.GetSkillTargets(unit.Id, _previewSkillId))
+                    _boardView.Highlight(cell, CellHighlight.SkillTarget);
+            }
+
+            return true;
         }
     }
 }
