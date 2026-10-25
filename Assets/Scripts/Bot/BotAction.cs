@@ -68,6 +68,20 @@ namespace MiniChess.Bot
 
         public static BotAction EndTurn(Team team) => new BotAction(BotActionKind.EndTurn, team);
 
+        /// <summary>같은 요청인지(종류, 팀, 유닛, 칸, 대상, 스킬, 지정 칸 순서, 회전이 모두 같다). 복사한 경기에서 고른 행동을 실제 경기 후보와 맞춰 볼 때 쓴다.</summary>
+        public bool SameAs(BotAction other)
+        {
+            return other != null
+                && Kind == other.Kind
+                && Team == other.Team
+                && UnitId == other.UnitId
+                && Cell == other.Cell
+                && TargetUnitId == other.TargetUnitId
+                && SkillId == other.SkillId
+                && Rotation == other.Rotation
+                && Targets.SequenceEqual(other.Targets);
+        }
+
         /// <summary>컨트롤러에 요청한다. 성공 여부만 돌려준다(실패하면 상태는 바뀌지 않는다).</summary>
         public bool Execute(GameController game)
         {

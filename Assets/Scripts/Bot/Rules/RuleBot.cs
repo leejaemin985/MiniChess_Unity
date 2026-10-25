@@ -5,13 +5,13 @@ using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
 using MiniChess.Core.Skills;
-using MiniChess.Core.Turns;
 
 namespace MiniChess.Bot.Rules
 {
     /// <summary>
-    /// 규칙 기반 봇. 시뮬레이션 없이 매 행동마다 모든 후보의 점수(ActionScorer)를 매겨 가장 좋은 것을 고르고,
+    /// 규칙 기반 봇(탐색 깊이 0). 시뮬레이션 없이 매 행동마다 모든 후보의 점수(ActionScorer)를 매겨 가장 좋은 것을 고르고,
     /// 남은 후보가 모두 MinActionScore 이하면 턴을 끝낸다. 모든 행동이 AP 를 쓰므로 한 턴은 반드시 끝난다.
+    /// MistakeChance 를 주면 그 확률로 차선책을 골라 약해진다(쉬움 난이도).
     /// </summary>
     public class RuleBot : BotPlayer
     {
@@ -21,12 +21,12 @@ namespace MiniChess.Bot.Rules
         private int _committedUnitId;
         private int _committedTurn = -1;
 
-        /// <summary>교착 판정: 마지막으로 본 적 체력 합, 줄지 않은 내 턴 수, 이미 센 턴 번호.</summary>
-        private int _lastEnemyHp = int.MaxValue;
-        private int _turnsWithoutProgress;
-        private int _stallCheckedTurn = -1;
+        private readonly StallTracker _stall = new StallTracker();
 
         public BotWeights Weights { get; }
+
+        /// <summary>최선 대신 2~3 번째로 좋은 행동(점수가 MinActionScore 초과인 것)을 고를 확률. 0 이면 항상 최선.</summary>
+        public double MistakeChance { get; set; }
 
         /// <summary>배치할 캐릭터 Id. 비우면 역할(전투 2, 수호 1, 제어 1)에 맞춰 무작위로 고른다.</summary>
         public IReadOnlyList<string> Lineup { get; set; }
@@ -51,7 +51,7 @@ namespace MiniChess.Bot.Rules
             if (candidates.Count == 0)
                 return null;
 
-            UpdateStall(game, team);
+            _stall.Update(game, team);
 
             var scorer = new ActionScorer(new BoardAnalysis(game, team, Weights, IsStalled));
             LastScores = candidates
@@ -75,6 +75,13 @@ namespace MiniChess.Bot.Rules
             if (bestScore <= Weights.MinActionScore)
                 return null;
 
+            if (MistakeChance > 0 && _random.NextDouble() < MistakeChance)
+            {
+                List<BotAction> worse = LastScores.Skip(1).Take(2).Where(pair => pair.Score > Weights.MinActionScore).Select(pair => pair.Action).ToList();
+                if (worse.Count > 0)
+                    best = worse[_random.Next(worse.Count)];
+            }
+
             if (scorer.IsOffensiveMove(best))
             {
                 _committedUnitId = best.UnitId;
@@ -85,19 +92,7 @@ namespace MiniChess.Bot.Rules
         }
 
         /// <summary>교착 상태인지: 내 턴이 StallTurns 번 지나도록 적 체력(보호막 포함) 합이 줄지 않았다.</summary>
-        public bool IsStalled => _turnsWithoutProgress >= Weights.StallTurns;
-
-        /// <summary>내 턴이 바뀔 때마다 적 체력 합을 비교해 교착 카운트를 갱신한다.</summary>
-        private void UpdateStall(GameController game, Team team)
-        {
-            if (_stallCheckedTurn == game.State.TurnNumber)
-                return;
-            _stallCheckedTurn = game.State.TurnNumber;
-
-            int enemyHp = BoardAnalysis.TeamEffectiveHp(game.State, TurnSystem.GetOpponent(team));
-            _turnsWithoutProgress = enemyHp < _lastEnemyHp ? 0 : _turnsWithoutProgress + 1;
-            _lastEnemyHp = enemyHp;
-        }
+        public bool IsStalled => _stall.IsStalled(Weights);
 
         /// <summary>적에게 피해를 주는 행동(기본 공격 또는 피해 스킬)인지.</summary>
         private static bool IsDamaging(GameController game, BotAction action)

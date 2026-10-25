@@ -82,14 +82,14 @@ namespace MiniChess.Bot.Rules
         /// <summary>
         /// 유닛이 이 칸에 있을 때의 가치: 이번 턴에 바로 할 수 있는 공격 + 적과의 거리 + 위협도 + 칸 보너스(점령, 회복 장판).
         /// </summary>
-        private double PositionValue(Unit unit, Position cell, int apAvailable, bool canFight)
+        private double PositionValue(Unit unit, Position cell, int apAvailable, bool canFight, string spentSkillId = null)
         {
             double value = 0;
 
             if (canFight)
-                value += _w.ImmediateOffense * BestOffenseFrom(unit, cell, apAvailable);
+                value += _w.ImmediateOffense * BestOffenseFrom(unit, cell, apAvailable, spentSkillId);
 
-            value -= _w.Approach * _a.StepsToEngage(cell, PreferredRange(unit));
+            value -= _w.Approach * _a.StepsToEngage(cell, _a.PreferredRange(unit));
 
             double danger = _a.DangerAt(cell);
             int effectiveHp = BoardAnalysis.EffectiveHp(unit);
@@ -106,55 +106,77 @@ namespace MiniChess.Bot.Rules
             return value;
         }
 
-        /// <summary>싸우기 좋은 적과의 거리: 기본 공격 사거리와 피해 스킬 사거리 중 큰 값.</summary>
-        private int PreferredRange(Unit unit)
+        /// <summary>
+        /// 이 칸에서 이번 턴에 바로 할 수 있는 공격들(아직 쓰지 않은 기본 공격과 피해 스킬, 각각 한 번)의 점수 합.
+        /// 남은 AP 안에서 가장 좋은 것부터 고르고, 같은 대상에게 먼저 준 피해는 다음 공격의 가치에 반영한다.
+        /// spentSkillId 는 지금 쓰려는 스킬이라 이어서 쓸 수 없는 것으로 본다.
+        /// </summary>
+        private double BestOffenseFrom(Unit unit, Position cell, int ap, string spentSkillId = null)
         {
-            int skillRange = _a.SkillsOf(unit)
-                .Where(skill => SkillEstimates.EnemyDamage(skill) > 0)
-                .Select(SkillEstimates.Reach)
-                .DefaultIfEmpty(0)
-                .Max();
-            return Math.Max(1, Math.Max(unit.Stats.AttackRange, skillRange - 1));
-        }
+            var options = new List<(string Kind, Unit Enemy, double Damage, int Cost, bool Basic)>();
 
-        /// <summary>이 칸에서 이번 턴에 바로 할 수 있는 가장 좋은 공격(기본 공격 또는 피해 스킬)의 점수.</summary>
-        private double BestOffenseFrom(Unit unit, Position cell, int ap)
-        {
-            double best = 0;
-
-            if (!BoardAnalysis.IsInstalled(unit) && ap >= _a.AttackCost)
+            if (!BoardAnalysis.IsInstalled(unit) && !unit.TurnState.BasicAttackUsed)
             {
                 foreach (Unit enemy in _a.Enemies)
                 {
-                    if (RangeCalculator.GetDistance(cell, enemy.Position.Value) > unit.Stats.AttackRange)
-                        continue;
-
-                    double value = _a.DamageValue(unit, enemy, BoardAnalysis.BasicAttackDamage(unit), DamageType.Direct)
-                        + OnHitStatusValue(unit, enemy)
-                        - ApPenalty(_a.AttackCost, ap);
-                    best = Math.Max(best, value);
+                    if (RangeCalculator.GetDistance(cell, enemy.Position.Value) <= unit.Stats.AttackRange)
+                        options.Add((null, enemy, BoardAnalysis.BasicAttackDamage(unit), _a.AttackCost, true));
                 }
             }
 
             foreach (SkillInfo info in UsableSkills(unit))
             {
                 SkillDefinition skill = info.Definition;
-                int cost = skill.ApCost ?? 0;
                 double damage = SkillEstimates.EnemyDamage(skill);
-                if (damage <= 0 || ap < cost)
+                if (damage <= 0 || skill.Id == spentSkillId)
                     continue;
 
                 int reach = SkillEstimates.Reach(skill);
                 foreach (Unit enemy in _a.Enemies)
                 {
-                    if (RangeCalculator.GetDistance(cell, enemy.Position.Value) > reach)
-                        continue;
-
-                    best = Math.Max(best, _a.DamageValue(unit, enemy, damage, DamageType.Direct) - ApPenalty(cost, ap));
+                    if (RangeCalculator.GetDistance(cell, enemy.Position.Value) <= reach)
+                        options.Add((skill.Id, enemy, damage, skill.ApCost ?? 0, false));
                 }
             }
 
-            return best;
+            var dealt = new Dictionary<int, double>();
+            var spent = new HashSet<string>();
+            bool basicSpent = false;
+            double total = 0;
+
+            while (true)
+            {
+                double bestValue = 0;
+                int bestIndex = -1;
+                for (int i = 0; i < options.Count; i++)
+                {
+                    var option = options[i];
+                    if (option.Cost > ap || (option.Basic ? basicSpent : spent.Contains(option.Kind)))
+                        continue;
+
+                    dealt.TryGetValue(option.Enemy.Id, out double before);
+                    double value = _a.DamageValue(unit, option.Enemy, option.Damage, DamageType.Direct, before)
+                        + (option.Basic ? OnHitStatusValue(unit, option.Enemy) : 0)
+                        - ApPenalty(option.Cost, ap);
+                    if (value > bestValue)
+                    {
+                        bestValue = value;
+                        bestIndex = i;
+                    }
+                }
+
+                if (bestIndex < 0)
+                    return total;
+
+                var chosen = options[bestIndex];
+                total += bestValue;
+                ap -= chosen.Cost;
+                dealt[chosen.Enemy.Id] = (dealt.TryGetValue(chosen.Enemy.Id, out double sum) ? sum : 0) + chosen.Damage;
+                if (chosen.Basic)
+                    basicSpent = true;
+                else
+                    spent.Add(chosen.Kind);
+            }
         }
 
         private List<SkillInfo> UsableSkills(Unit unit)
@@ -184,11 +206,11 @@ namespace MiniChess.Bot.Rules
             return value;
         }
 
-        /// <summary>유닛을 from → to 로 옮겼을 때의 위치 가치 변화.</summary>
-        private double Relocation(Unit unit, Position to, int apAfter, bool canFightAfter)
+        /// <summary>유닛을 from → to 로 옮겼을 때의 위치 가치 변화. spentSkillId 는 옮기면서 쓰는 유닛 자신의 스킬.</summary>
+        private double Relocation(Unit unit, Position to, int apAfter, bool canFightAfter, string spentSkillId = null)
         {
             Position from = unit.Position.Value;
-            return PositionValue(unit, to, apAfter, canFightAfter)
+            return PositionValue(unit, to, apAfter, canFightAfter, spentSkillId)
                 - PositionValue(unit, from, _a.Ap, BoardAnalysis.CanStillFight(unit));
         }
 
@@ -300,11 +322,11 @@ namespace MiniChess.Bot.Rules
                 }
 
                 case DashEffect _:
-                    return Relocation(caster, target, g.ApAfter, BoardAnalysis.CanFightAfter(caster, g.Skill))
+                    return Relocation(caster, target, g.ApAfter, BoardAnalysis.CanFightAfter(caster, g.Skill), g.Skill.Id)
                         + PathHazard(_a.State.Board.GetStraightPath(caster.Position.Value, target));
 
                 case TeleportEffect _:
-                    return Relocation(caster, target, g.ApAfter, BoardAnalysis.CanFightAfter(caster, g.Skill))
+                    return Relocation(caster, target, g.ApAfter, BoardAnalysis.CanFightAfter(caster, g.Skill), g.Skill.Id)
                         + PathHazard(new[] { target });
 
                 case ScheduleStrikeEffect scheduled:
@@ -377,10 +399,9 @@ namespace MiniChess.Bot.Rules
             if (unit == null)
                 return 0;
 
-            bool fights = unit == g.Caster
-                ? BoardAnalysis.CanFightAfter(g.Caster, g.Skill)
-                : BoardAnalysis.CanStillFight(unit);
-            return Relocation(unit, destination, g.ApAfter, fights) + PathHazard(new[] { destination });
+            bool self = unit == g.Caster;
+            bool fights = self ? BoardAnalysis.CanFightAfter(g.Caster, g.Skill) : BoardAnalysis.CanStillFight(unit);
+            return Relocation(unit, destination, g.ApAfter, fights, self ? g.Skill.Id : null) + PathHazard(new[] { destination });
         }
 
         /// <summary>두 칸의 유닛 자리를 맞바꿨을 때 두 유닛의 위치 가치 변화 합.</summary>
@@ -395,7 +416,8 @@ namespace MiniChess.Bot.Rules
             bool aFights = a == g.Caster ? casterFights : BoardAnalysis.CanStillFight(a);
             bool bFights = b == g.Caster ? casterFights : BoardAnalysis.CanStillFight(b);
 
-            return Relocation(a, second, g.ApAfter, aFights) + Relocation(b, first, g.ApAfter, bFights);
+            return Relocation(a, second, g.ApAfter, aFights, a == g.Caster ? g.Skill.Id : null)
+                + Relocation(b, first, g.ApAfter, bFights, b == g.Caster ? g.Skill.Id : null);
         }
 
         /// <summary>상태 부여 가치. 적에게는 제약/피해, 아군에게는 보호(호위), 자신에게는 SelfStatusValue.</summary>
@@ -464,13 +486,22 @@ namespace MiniChess.Bot.Rules
             return wouldDie ? _a.KillValue(target) * _a.Caution - lostTurn : -lostTurn;
         }
 
-        /// <summary>자신에게 거는 상태(차징, 설치)의 가치.</summary>
+        /// <summary>
+        /// 자신에게 거는 상태(차징, 설치)의 가치. 차징은 이번 턴에 기본 공격이 남아 있고 사거리 안에 적이 있으면
+        /// 바로 이어서 칠 수 있어 추가 피해를 그대로, 아니면 다음 턴 몫으로 낮춰 본다.
+        /// </summary>
         private double SelfStatusValue(StatusDefinition status, Unit caster)
         {
             switch (status.Behavior)
             {
                 case ChargedBehavior charged:
-                    return caster.FindStatus(status.Id) != null ? 0 : charged.BonusDamage * _w.DamageOverTime;
+                {
+                    if (caster.FindStatus(status.Id) != null)
+                        return 0;
+                    bool hitNow = !caster.TurnState.BasicAttackUsed && _a.Ap >= _a.AttackCost
+                        && _a.Enemies.Any(enemy => RangeCalculator.GetDistance(caster.Position.Value, enemy.Position.Value) <= caster.Stats.AttackRange);
+                    return charged.BonusDamage * (hitNow ? 1 : _w.DamageOverTime);
+                }
                 case InstalledBehavior _:
                     return 0;
                 default:

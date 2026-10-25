@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using MiniChess.Bot;
-using MiniChess.Bot.Rules;
 using MiniChess.Client.Bootstrap;
 using MiniChess.Client.Interaction;
 using MiniChess.Core.Actions;
@@ -16,7 +16,7 @@ namespace MiniChess.Client.Players
     /// 봇 팀을 대신 조작한다. 배치 단계에서는 봇 팀의 배치를 요청하고, 봇 팀의 턴에는 행동을 하나씩
     /// (BotActionDelay 간격으로) 받아 GameSession 을 통해 요청한다. 사람 입력과 같은 경로라 뷰도 그대로 갱신된다.
     /// 판단은 로컬 실제 경기(GameSession.Authority)로 한다.
-    /// 봇의 결정(무엇을 할지)은 MiniChess.Bot(RuleBot)이 하고, 여기서는 진행 타이밍만 맡는다.
+    /// 봇의 결정(무엇을 할지)은 MiniChess.Bot(GameSession 의 팀별 난이도로 BotFactory 가 만든 봇)이 하고, 여기서는 진행 타이밍만 맡는다.
     /// </summary>
     public class BotDriver : MonoBehaviour
     {
@@ -110,7 +110,22 @@ namespace MiniChess.Client.Players
                 if (game != _game)
                     break;
 
-                BotAction action = bot.DecideNext(game, team);
+                // 수 읽기(깊이 2~3)는 오래 걸릴 수 있어 별도 스레드에서 한다. 봇은 실제 경기를 읽고 복사본만 바꾸며,
+                // 봇 차례에는 봇의 요청 말고는 실제 경기가 바뀌지 않으므로 읽기가 겹쳐도 안전하다.
+                Task<BotAction> decision = Task.Run(() => bot.DecideNext(game, team));
+                while (!decision.IsCompleted)
+                    yield return null;
+                if (game != _game)
+                    break;
+
+                if (decision.IsFaulted)
+                {
+                    Debug.LogError($"[BotDriver] 봇 판단 중 오류: {decision.Exception?.GetBaseException()}. 턴을 종료합니다.");
+                    _session.TryBotAction(BotAction.EndTurn(team));
+                    break;
+                }
+
+                BotAction action = decision.Result;
                 if (action == null)
                     break;
 
@@ -142,7 +157,7 @@ namespace MiniChess.Client.Players
             if (!_bots.TryGetValue(team, out BotPlayer bot))
             {
                 int seed = _session.BotSeed != 0 ? _session.BotSeed + (int)team : Random.Range(int.MinValue, int.MaxValue);
-                bot = new RuleBot(seed);
+                bot = BotFactory.Create(_session.GetBotDifficulty(team), seed, _session.GetBotSearch(team).ToSettings());
                 _bots[team] = bot;
             }
 

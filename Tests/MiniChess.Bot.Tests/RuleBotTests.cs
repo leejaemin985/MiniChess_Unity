@@ -60,6 +60,26 @@ namespace MiniChess.Bot.Tests
         }
 
         [Fact]
+        public void Uses_a_skill_and_a_basic_attack_in_the_same_turn()
+        {
+            // 기본 공격과 각 스킬은 턴에 한 번씩 함께 쓸 수 있다: 강타(3 AP) + 기본 공격(2 AP) 모두 AP 8 안.
+            GameController game = CreateSmallBattle(
+                new[]
+                {
+                    "...",
+                    ".2.",
+                    ".1.",
+                },
+                new[] { WarriorPiece.PieceId },
+                new[] { GardenerPiece.PieceId });
+
+            List<BotAction> played = BotMatch.PlayTurn(game, new RuleBot(1));
+
+            Assert.Contains(played, action => action.Kind == BotActionKind.Attack);
+            Assert.Contains(played, action => action.Kind == BotActionKind.UseSkill && action.SkillId == WarriorPiece.SmashId);
+        }
+
+        [Fact]
         public void Approaches_a_distant_enemy()
         {
             GameController game = CreateSmallBattle(

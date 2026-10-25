@@ -87,7 +87,7 @@ namespace MiniChess.Bot.Rules
 
         public SkillDefinition FindSkill(string skillId) => State.Skills.Find(skillId);
 
-        /// <summary>유닛이 한 번의 행동(기본 공격 또는 스킬 하나)으로 줄 수 있는 가장 큰 피해.</summary>
+        /// <summary>유닛이 한 턴에 줄 수 있는 피해(기본 공격과 피해 스킬을 한 번씩, 최대 AP 안에서). 유닛 자체의 위험성이라 지금 남은 AP 와는 무관하다.</summary>
         public double Threat(Unit unit)
         {
             return _threat.TryGetValue(unit.Id, out double threat) ? threat : ComputeThreat(unit);
@@ -129,11 +129,65 @@ namespace MiniChess.Bot.Rules
             return unit.Stats.Base.SkillIds.Select(FindSkill).Where(skill => skill != null);
         }
 
+        /// <summary>싸우기 좋은 적과의 거리: 기본 공격 사거리와 피해 스킬 사거리 중 큰 값.</summary>
+        public int PreferredRange(Unit unit)
+        {
+            int skillRange = SkillsOf(unit)
+                .Where(skill => SkillEstimates.EnemyDamage(skill) > 0)
+                .Select(SkillEstimates.Reach)
+                .DefaultIfEmpty(0)
+                .Max();
+            return Math.Max(1, Math.Max(unit.Stats.AttackRange, skillRange - 1));
+        }
+
         private double ComputeThreat(Unit unit)
         {
-            double basic = IsInstalled(unit) ? 0 : unit.Stats.Attack;
-            double skill = SkillsOf(unit).Select(SkillEstimates.EnemyDamage).DefaultIfEmpty(0).Max();
-            return Math.Max(basic, skill);
+            var hits = new List<(double Damage, int Cost)>();
+            if (!IsInstalled(unit))
+                hits.Add((unit.Stats.Attack, AttackCost));
+            foreach (SkillDefinition skill in SkillsOf(unit))
+            {
+                double damage = SkillEstimates.EnemyDamage(skill);
+                if (damage > 0)
+                    hits.Add((damage, skill.ApCost ?? 0));
+            }
+
+            return BestWithinBudget(hits, State.GetPlayer(unit.Team).Ap.Max);
+        }
+
+        /// <summary>
+        /// 팀이 이번(지금 그 팀 차례면) 또는 다음 자기 턴에 쓸 수 있는 AP. 차례가 아니면 지금 AP + 회복(최대치까지).
+        /// 탐색 봇은 내 턴을 끝낸 뒤(상대 차례, 상대 AP 회복 후)의 판도 평가하므로 차례를 본다.
+        /// </summary>
+        public int ApNextTurn(Team team)
+        {
+            PlayerState player = State.GetPlayer(team);
+            if (State.CurrentTeam == team)
+                return player.Ap.Current;
+            return Math.Min(player.Ap.Max, player.Ap.Current + State.Rules.Ap.TurnRecoveryAp);
+        }
+
+        /// <summary>각 공격을 한 번씩만 쓸 때 AP budget 안에서 낼 수 있는 가장 큰 피해 합(공격 수가 적어 모든 조합을 본다).</summary>
+        private static double BestWithinBudget(IReadOnlyList<(double Damage, int Cost)> hits, int budget)
+        {
+            double best = 0;
+            for (int mask = 1; mask < 1 << hits.Count; mask++)
+            {
+                double damage = 0;
+                int cost = 0;
+                for (int i = 0; i < hits.Count; i++)
+                {
+                    if ((mask & (1 << i)) == 0)
+                        continue;
+                    damage += hits[i].Damage;
+                    cost += hits[i].Cost;
+                }
+
+                if (cost <= budget)
+                    best = Math.Max(best, damage);
+            }
+
+            return best;
         }
 
         #endregion
@@ -142,8 +196,15 @@ namespace MiniChess.Bot.Rules
 
         /// <summary>
         /// target 에게 amount 피해를 주는 가치. 호위(직접 피해 대신 받기), 저주 표식 추가 피해, 보호막, 처치를 반영한다.
-        /// 아군이 맞으면 음수.
+        /// 아군이 맞으면 음수. dealtBefore 는 같은 턴에 이 대상에게 먼저 줄 피해로, 그 뒤에 더하는 몫의 가치만 센다(처치 보너스는 한 번).
         /// </summary>
+        public double DamageValue(Unit attacker, Unit target, double amount, DamageType type, double dealtBefore)
+        {
+            return dealtBefore <= 0
+                ? DamageValue(attacker, target, amount, type)
+                : DamageValue(attacker, target, dealtBefore + amount, type) - DamageValue(attacker, target, dealtBefore, type);
+        }
+
         public double DamageValue(Unit attacker, Unit target, double amount, DamageType type)
         {
             if (amount <= 0 || !target.IsOnBoard)
@@ -270,15 +331,13 @@ namespace MiniChess.Bot.Rules
         public bool CaptureOpen => State.Capture.IsActive && State.Capture.Tile.HasValue && !State.Capture.CapturedBy.HasValue;
 
         /// <summary>
-        /// 다음 상대 턴 예상 피해. 적마다 (이동 가정 + 사거리) 안이면 가장 큰 한 방을 더하되,
-        /// 상대 AP 로 할 수 있는 공격 수만큼 큰 것부터 더한다. 상대 예약 포격과 상대 피해 장판도 더한다.
+        /// 다음 상대 턴 예상 피해. 적마다 (이동 가정 + 사거리) 안에 닿는 기본 공격과 피해 스킬을 모아(각각 한 번씩),
+        /// 상대의 다음 턴 AP 로 할 수 있는 만큼 큰 것부터 더한다. 상대 예약 포격과 상대 피해 장판도 더한다.
         /// </summary>
         private double[,] ComputeDanger()
         {
             var danger = new double[State.Board.Width, State.Board.Height];
-            PlayerState enemyPlayer = State.GetPlayer(Enemy);
-            int enemyApNext = Math.Min(enemyPlayer.Ap.Max, enemyPlayer.Ap.Current + State.Rules.Ap.TurnRecoveryAp);
-            int attacks = Math.Max(1, enemyApNext / Math.Max(1, AttackCost + 1));
+            int enemyApNext = ApNextTurn(Enemy);
 
             foreach (BoardCell cell in State.Board.AllCells())
             {
@@ -286,18 +345,20 @@ namespace MiniChess.Bot.Rules
                     continue;
 
                 Position position = cell.Position;
-                List<double> hits = Enemies
-                    .Select(enemy => EnemyHitAt(enemy, position))
-                    .Where(hit => hit > 0)
-                    .OrderByDescending(hit => hit)
-                    .Take(attacks)
-                    .ToList();
-                double total = hits.Sum();
+                double total = 0;
+                int ap = enemyApNext;
+                foreach ((double damage, int cost) in Enemies.SelectMany(enemy => EnemyHitsAt(enemy, position)).OrderByDescending(hit => hit.Damage))
+                {
+                    if (cost > ap)
+                        continue;
+                    total += damage;
+                    ap -= cost;
+                }
 
                 // 상대 포격의 조준 칸은 봇에게 숨겨진 정보라(GameVisibility) 위험에 넣지 않는다.
                 foreach (ScheduledStrike strike in State.ScheduledStrikes)
                 {
-                    if (strike.Source.Team != Team && !GameVisibility.IsHidden(strike, Team) && strike.Cells.Contains(position))
+                    if (strike.SourceTeam != Team && !GameVisibility.IsHidden(strike, Team) && strike.Cells.Contains(position))
                         total += strike.Damage;
                 }
 
@@ -310,12 +371,15 @@ namespace MiniChess.Bot.Rules
             return danger;
         }
 
-        /// <summary>적 하나가 다음 턴에 이 칸을 칠 수 있으면 그 피해, 아니면 0.</summary>
-        private double EnemyHitAt(Unit enemy, Position position)
+        /// <summary>
+        /// 적 하나가 다음 턴에 이 칸을 칠 수 있는 공격들(기본 공격, 피해 스킬 각각)의 피해와 AP 비용.
+        /// 다가가야 닿으면 이동 1칸 비용을 더한다(한 번 다가가면 나머지 공격도 그 자리에서 한다고 본다).
+        /// </summary>
+        private IEnumerable<(double Damage, int Cost)> EnemyHitsAt(Unit enemy, Position position)
         {
             // 기절한 적은 스스로 아무것도 못 한다.
             if (IsStunned(enemy))
-                return 0;
+                yield break;
 
             // 걷기는 속박/설치면 못 한다. 스킬 이동은 그 스킬의 이동 조건으로 본다(돌진은 속박을 무시하고, 도약은 막힌다).
             int mobility = IsRooted(enemy) || IsInstalled(enemy) ? 0 : Weights.EnemyMobility;
@@ -326,19 +390,17 @@ namespace MiniChess.Bot.Rules
                 .Max());
 
             int distance = RangeCalculator.GetDistance(enemy.Position.Value, position);
-            double best = 0;
 
             if (!IsInstalled(enemy) && distance <= mobility + enemy.Stats.AttackRange)
-                best = BasicAttackDamage(enemy);
+                yield return (BasicAttackDamage(enemy), AttackCost + (distance > enemy.Stats.AttackRange ? MoveCostPerCell : 0));
 
             foreach (SkillDefinition skill in SkillsOf(enemy))
             {
                 double damage = SkillEstimates.EnemyDamage(skill);
-                if (damage > best && distance <= mobility + SkillEstimates.Reach(skill))
-                    best = damage;
+                int reach = SkillEstimates.Reach(skill);
+                if (damage > 0 && distance <= mobility + reach)
+                    yield return (damage, (skill.ApCost ?? 0) + (distance > reach ? MoveCostPerCell : 0));
             }
-
-            return best;
         }
 
         #endregion

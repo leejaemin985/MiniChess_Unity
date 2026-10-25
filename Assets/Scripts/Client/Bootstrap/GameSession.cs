@@ -48,6 +48,12 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField, Min(0f)] private float botActionDelay = 0.5f;
         [Tooltip("봇 무작위 시드. 0 이면 매 경기 다르게.")]
         [SerializeField] private int botSeed;
+        [Tooltip("봇 난이도(수를 읽는 깊이). 쉬움 = 깊이 0(가끔 실수), 보통 = 이번 턴 행동 순서까지, 어려움 = 상대 응수까지, Custom = 아래 설정.")]
+        [SerializeField] private BotDifficulty player1BotDifficulty = BotDifficulty.Normal;
+        [SerializeField] private BotDifficulty player2BotDifficulty = BotDifficulty.Normal;
+        [Tooltip("난이도가 Custom 일 때의 탐색 설정. 깊이별 연산량은 BotSearchConfig 주석 참고.")]
+        [SerializeField] private BotSearchConfig player1BotSearch = new BotSearchConfig();
+        [SerializeField] private BotSearchConfig player2BotSearch = new BotSearchConfig();
 
         [Header("Online (켜면 서버에 접속해 상대와 대전. 봇/Quick Start 는 쓰지 않는다)")]
         [Tooltip("시작 화면의 접속 패널에서 고른 방식으로 바뀐다(연결 = 켬, 로컬 플레이 = 끔).")]
@@ -146,6 +152,17 @@ namespace MiniChess.Client.Bootstrap
 
         public float BotActionDelay => botActionDelay;
         public int BotSeed => botSeed;
+
+        public BotDifficulty GetBotDifficulty(Team team)
+        {
+            return team == Team.Player1 ? player1BotDifficulty : player2BotDifficulty;
+        }
+
+        /// <summary>난이도가 Custom 일 때 쓰는 팀의 탐색 설정.</summary>
+        public BotSearchConfig GetBotSearch(Team team)
+        {
+            return team == Team.Player1 ? player1BotSearch : player2BotSearch;
+        }
 
         /// <summary>서버에 접속해 대전하는 중인지.</summary>
         public bool IsOnline => online;
