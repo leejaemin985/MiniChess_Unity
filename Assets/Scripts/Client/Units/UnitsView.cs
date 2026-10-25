@@ -145,7 +145,7 @@ namespace MiniChess.Client.Units
             }
 
             foreach (UnitView view in _views.Values)
-                view.Sync(_coordinates);
+                view.Sync(_coordinates, _state);
         }
 
         /// <summary>

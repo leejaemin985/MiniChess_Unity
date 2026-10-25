@@ -71,6 +71,7 @@ namespace MiniChess.Client.UI
                 case AttackFailReason.BlockedByStatus: return "This unit can't attack now";
                 case AttackFailReason.UnknownUnit: return "Unknown unit";
                 case AttackFailReason.NotYourUnit: return "Not your unit";
+                case AttackFailReason.AlreadyUsedThisTurn: return "Already attacked this turn";
                 default: return reason.ToString();
             }
         }
@@ -93,6 +94,7 @@ namespace MiniChess.Client.UI
                 case SkillFailReason.BlockedByStatus: return "This unit can't use skills now";
                 case SkillFailReason.UnknownUnit: return "Unknown unit";
                 case SkillFailReason.NotYourUnit: return "Not your unit";
+                case SkillFailReason.AlreadyUsedThisTurn: return "Skill already used this turn";
                 default: return reason.ToString();
             }
         }

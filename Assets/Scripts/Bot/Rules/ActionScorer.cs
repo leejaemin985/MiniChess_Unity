@@ -58,7 +58,7 @@ namespace MiniChess.Bot.Rules
 
             Unit unit = _a.State.FindUnit(action.UnitId);
             int cost = Math.Max(1, _a.State.Board.GetStraightPath(unit.Position.Value, action.Cell).Count) * _a.MoveCostPerCell;
-            return BoardAnalysis.CanStillFight(unit) && BestOffenseFrom(unit, action.Cell, _a.Ap - cost) > 0;
+            return _a.CanStillFight(unit) && BestOffenseFrom(unit, action.Cell, _a.Ap - cost) > 0;
         }
 
         #region AP
@@ -189,7 +189,7 @@ namespace MiniChess.Bot.Rules
         {
             Position from = unit.Position.Value;
             return PositionValue(unit, to, apAfter, canFightAfter)
-                - PositionValue(unit, from, _a.Ap, BoardAnalysis.CanStillFight(unit));
+                - PositionValue(unit, from, _a.Ap, _a.CanStillFight(unit));
         }
 
         #endregion
@@ -203,7 +203,7 @@ namespace MiniChess.Bot.Rules
             IReadOnlyList<Position> path = _a.State.Board.GetStraightPath(from, action.Cell);
             int cost = Math.Max(1, path.Count) * _a.MoveCostPerCell;
 
-            return Relocation(unit, action.Cell, _a.Ap - cost, BoardAnalysis.CanStillFight(unit))
+            return Relocation(unit, action.Cell, _a.Ap - cost, _a.CanStillFight(unit))
                 + PathHazard(path)
                 - ApPenalty(cost, _a.Ap);
         }
@@ -304,7 +304,7 @@ namespace MiniChess.Bot.Rules
                         + PathHazard(_a.State.Board.GetStraightPath(caster.Position.Value, target));
 
                 case TeleportEffect _:
-                    return Relocation(caster, target, g.ApAfter, BoardAnalysis.CanStillFight(caster) && g.Skill.ActionKind == SkillActionKind.Movement)
+                    return Relocation(caster, target, g.ApAfter, _a.CanStillFight(caster) && g.Skill.ActionKind == SkillActionKind.Movement)
                         + PathHazard(new[] { target });
 
                 case ScheduleStrikeEffect scheduled:
@@ -378,8 +378,8 @@ namespace MiniChess.Bot.Rules
                 return 0;
 
             bool fights = unit == g.Caster
-                ? g.Skill.ActionKind == SkillActionKind.Movement && BoardAnalysis.CanStillFight(g.Caster)
-                : BoardAnalysis.CanStillFight(unit);
+                ? g.Skill.ActionKind == SkillActionKind.Movement && _a.CanStillFight(g.Caster)
+                : _a.CanStillFight(unit);
             return Relocation(unit, destination, g.ApAfter, fights) + PathHazard(new[] { destination });
         }
 
@@ -391,9 +391,9 @@ namespace MiniChess.Bot.Rules
             if (a == null || b == null)
                 return 0;
 
-            bool casterFights = g.Skill.ActionKind == SkillActionKind.Movement && BoardAnalysis.CanStillFight(g.Caster);
-            bool aFights = a == g.Caster ? casterFights : BoardAnalysis.CanStillFight(a);
-            bool bFights = b == g.Caster ? casterFights : BoardAnalysis.CanStillFight(b);
+            bool casterFights = g.Skill.ActionKind == SkillActionKind.Movement && _a.CanStillFight(g.Caster);
+            bool aFights = a == g.Caster ? casterFights : _a.CanStillFight(a);
+            bool bFights = b == g.Caster ? casterFights : _a.CanStillFight(b);
 
             return Relocation(a, second, g.ApAfter, aFights) + Relocation(b, first, g.ApAfter, bFights);
         }

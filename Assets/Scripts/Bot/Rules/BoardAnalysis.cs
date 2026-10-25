@@ -111,10 +111,10 @@ namespace MiniChess.Bot.Rules
         public static bool IsInstalled(Unit unit) => unit.FindStatus(StatusLibrary.InstalledId) != null;
         public static bool IsStunned(Unit unit) => unit.FindStatus(StatusLibrary.StunnedId) != null;
 
-        /// <summary>이번 턴에 아직 전투 행동(기본 공격/전투 스킬)을 할 수 있는지.</summary>
-        public static bool CanStillFight(Unit unit)
+        /// <summary>이번 턴에 아직 전투 행동(기본 공격/전투 스킬)을 할 수 있는지(경기 규칙의 행동 제한 반영).</summary>
+        public bool CanStillFight(Unit unit)
         {
-            return !unit.TurnState.CombatActionUsed && !unit.TurnState.ActionsEnded;
+            return TurnActionRules.CanStillFight(State, unit);
         }
 
         public IEnumerable<SkillDefinition> SkillsOf(Unit unit)
