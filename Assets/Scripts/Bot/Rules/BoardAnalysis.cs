@@ -87,7 +87,7 @@ namespace MiniChess.Bot.Rules
 
         public SkillDefinition FindSkill(string skillId) => State.Skills.Find(skillId);
 
-        /// <summary>유닛이 한 번의 전투 행동으로 줄 수 있는 가장 큰 피해(기본 공격 또는 스킬).</summary>
+        /// <summary>유닛이 한 번의 행동(기본 공격 또는 스킬 하나)으로 줄 수 있는 가장 큰 피해.</summary>
         public double Threat(Unit unit)
         {
             return _threat.TryGetValue(unit.Id, out double threat) ? threat : ComputeThreat(unit);
@@ -111,10 +111,17 @@ namespace MiniChess.Bot.Rules
         public static bool IsInstalled(Unit unit) => unit.FindStatus(StatusLibrary.InstalledId) != null;
         public static bool IsStunned(Unit unit) => unit.FindStatus(StatusLibrary.StunnedId) != null;
 
-        /// <summary>이번 턴에 아직 전투 행동(기본 공격/전투 스킬)을 할 수 있는지(경기 규칙의 행동 제한 반영).</summary>
-        public bool CanStillFight(Unit unit)
+        /// <summary>이번 턴에 아직 쓰지 않은 기본 공격이나 스킬이 남아 있는지.</summary>
+        public static bool CanStillFight(Unit unit) => unit.HasCombatActionLeft;
+
+        /// <summary>used 를 쓴 뒤에도 이번 턴에 기본 공격이나 다른 스킬이 남는지(행동 종료 스킬이면 false).</summary>
+        public static bool CanFightAfter(Unit unit, SkillDefinition used)
         {
-            return TurnActionRules.CanStillFight(State, unit);
+            if (used.EndsCasterActions || unit.TurnState.ActionsEnded)
+                return false;
+
+            return !unit.TurnState.BasicAttackUsed
+                || unit.Stats.Base.SkillIds.Any(id => id != used.Id && !unit.TurnState.HasUsedSkill(id));
         }
 
         public IEnumerable<SkillDefinition> SkillsOf(Unit unit)

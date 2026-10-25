@@ -4,7 +4,6 @@ using MiniChess.Client.Common;
 using MiniChess.Client.Visuals;
 using MiniChess.Core.State;
 using MiniChess.Core.Statuses;
-using MiniChess.Core.Turns;
 using TMPro;
 using UnityEngine;
 
@@ -169,8 +168,8 @@ namespace MiniChess.Client.Units
             Unit = unit;
         }
 
-        /// <summary>코어 상태를 그대로 반영한다. 보드에서 빠진 유닛(사망 등)은 숨긴다. 이번 턴에 더 전투 행동을 할 수 없으면(규칙상 잠금/행동 종료) 어둡게 그린다.</summary>
-        public void Sync(BoardCoordinates coordinates, GameState state)
+        /// <summary>코어 상태를 그대로 반영한다. 보드에서 빠진 유닛(사망 등)은 숨긴다. 이번 턴에 쓸 기본 공격/스킬이 없으면(행동 종료 포함) 어둡게 그린다.</summary>
+        public void Sync(BoardCoordinates coordinates)
         {
             if (!Unit.IsPlaced)
             {
@@ -185,7 +184,7 @@ namespace MiniChess.Client.Units
             if (_movePath.Count == 0 && !_portal)
                 transform.localPosition = _targetPosition;
 
-            bool acted = !TurnActionRules.CanStillFight(state, Unit);
+            bool acted = !Unit.HasCombatActionLeft;
             _body.SetTint(acted ? _actedColor : _teamColor);
             SyncBodyMaterial();
             if (_face != null)

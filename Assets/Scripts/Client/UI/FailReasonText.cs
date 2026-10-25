@@ -39,7 +39,6 @@ namespace MiniChess.Client.UI
                 case MoveFailReason.NotBattlePhase: return "Not in battle";
                 case MoveFailReason.NotYourTurn: return "Not your turn";
                 case MoveFailReason.UnitNotOnBoard: return "Unit is not on the board";
-                case MoveFailReason.AlreadyActed: return "This unit already acted";
                 case MoveFailReason.NotStraightLine: return "Move in a straight line only";
                 case MoveFailReason.PathBlocked: return "Path is blocked";
                 case MoveFailReason.NotEnoughAp: return "Not enough AP";
@@ -62,7 +61,6 @@ namespace MiniChess.Client.UI
                 case AttackFailReason.NotBattlePhase: return "Not in battle";
                 case AttackFailReason.NotYourTurn: return "Not your turn";
                 case AttackFailReason.AttackerNotOnBoard: return "Attacker is not on the board";
-                case AttackFailReason.AlreadyActed: return "This unit already acted";
                 case AttackFailReason.InvalidTarget: return "Invalid target";
                 case AttackFailReason.TargetNotEnemy: return "Target is not an enemy";
                 case AttackFailReason.OutOfRange: return "Out of range";
@@ -86,8 +84,6 @@ namespace MiniChess.Client.UI
                 case SkillFailReason.SkillNotOwned: return "Skill not available";
                 case SkillFailReason.ConfigMissing: return "Skill values not set (TBD)";
                 case SkillFailReason.ActionsEnded: return "This unit can't act this turn";
-                case SkillFailReason.AlreadyActed: return "This unit already acted";
-                case SkillFailReason.MoveLocked: return "Can't move after acting";
                 case SkillFailReason.ConditionNotMet: return "Skill condition not met";
                 case SkillFailReason.InvalidTarget: return "No valid target";
                 case SkillFailReason.NotEnoughAp: return "Not enough AP";
