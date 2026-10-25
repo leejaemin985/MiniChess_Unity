@@ -21,6 +21,9 @@ namespace MiniChess.Client.UI
     /// 모양은 프리팹(Resources/UI/UnitInfoPanel)에서 자유롭게 바꾸고, 아래 참조만 유지하면 된다.
     /// 상태 칸은 상태 칸 프리팹, 스킬 버튼은 템플릿(비활성 자식)을 복제해 만든다. 유닛을 고르지 않았으면 Content 를 숨긴다.
     /// 스킬 버튼을 누르면 스킬 지정 모드로 들어가고, 다시 누르면 취소한다(사용 불가면 이유가 토스트로 뜬다).
+    /// 스킬 버튼이나 상태 칸에 마우스를 올리면 그 위에 짧은 설명 말풍선을 띄운다(스킬: SkillDescriptionCatalog, 상태: StatusVisual 설명).
+    /// 마우스를 올린 것이 없으면 지정 중인 스킬 버튼 위에 띄운다. 누를 수 없는 스킬(상대 유닛, 대상 없음)도 마우스를 올리면 볼 수 있다.
+    /// 스킬 버튼에 마우스를 올리면 보드에 그 스킬의 사거리도 미리 그린다(SelectionController.PreviewSkill).
     /// </summary>
     public class UnitInfoPanel : MonoBehaviour
     {
@@ -65,6 +68,8 @@ namespace MiniChess.Client.UI
         [SerializeField] private Color usableColor = new Color(0.2f, 0.25f, 0.35f, 1f);
         [SerializeField] private Color unusableColor = new Color(0.16f, 0.17f, 0.2f, 0.8f);
         [SerializeField] private Color activeColor = new Color(0.95f, 0.55f, 0.1f, 1f);
+        [Tooltip("스킬 설명(지정 중인 스킬 버튼 위 말풍선). 비우면 Resources/SkillDescriptionCatalog 를 불러온다.")]
+        [SerializeField] private SkillDescriptionCatalog skillDescriptions;
 
         private GameSession _session;
         private SelectionController _selection;
@@ -73,6 +78,11 @@ namespace MiniChess.Client.UI
         private readonly List<StatusChipView> _chips = new List<StatusChipView>();
         private readonly List<SkillButtonView> _skillButtons = new List<SkillButtonView>();
         private readonly List<string> _skillIds = new List<string>();
+        private readonly List<string> _chipStatusIds = new List<string>();
+        private InfoBubbleView _tooltip;
+        /// <summary>마우스가 올라와 있는 스킬 버튼/상태 칸 순번. 없으면 -1.</summary>
+        private int _hoverSkill = -1;
+        private int _hoverChip = -1;
 
         public void Bind(GameSession session, Func<Team, Color> teamColor)
         {
@@ -84,8 +94,12 @@ namespace MiniChess.Client.UI
             if (statusChipPrefab == null)
                 statusChipPrefab = Resources.Load<StatusChipView>(StatusChipPrefabPath);
 
+            if (skillDescriptions == null)
+                skillDescriptions = Resources.Load<SkillDescriptionCatalog>(SkillDescriptionCatalog.ResourcePath);
+
             KoreanFont.ApplyToDefaultTexts(gameObject);
             skillTemplate.gameObject.SetActive(false);
+            _tooltip = InfoBubbleView.Create(transform);
 
             _selection.SelectionChanged += Refresh;
             _session.StateChanged += Refresh;
@@ -107,7 +121,10 @@ namespace MiniChess.Client.UI
             bool visible = unit != null && state != null && !state.IsGameOver && unit.IsPlaced;
             content.SetActive(visible);
             if (!visible)
+            {
+                _tooltip.Hide();
                 return;
+            }
 
             RefreshUnit(unit);
             RefreshStatuses(unit);
@@ -146,12 +163,20 @@ namespace MiniChess.Client.UI
             int before = _chips.Count;
             Ensure(_chips, statusChipPrefab, statusContainer, entries.Count);
             for (int i = before; i < _chips.Count; i++)
+            {
                 KoreanFont.ApplyToDefaultTexts(_chips[i].gameObject);
+                int index = i;
+                HoverRelay relay = HoverRelay.Attach(_chips[i].gameObject);
+                relay.Entered += () => { _hoverChip = index; RefreshTooltip(); };
+                relay.Exited += () => { if (_hoverChip == index) _hoverChip = -1; RefreshTooltip(); };
+                _chipStatusIds.Add(null);
+            }
 
             for (int i = 0; i < _chips.Count; i++)
             {
                 bool used = i < entries.Count;
                 _chips[i].gameObject.SetActive(used);
+                _chipStatusIds[i] = used ? entries[i].Id : null;
                 if (!used)
                     continue;
 
@@ -188,6 +213,9 @@ namespace MiniChess.Client.UI
             {
                 int index = i;
                 _skillButtons[i].Button.onClick.AddListener(() => OnSkillClicked(index));
+                HoverRelay relay = HoverRelay.Attach(_skillButtons[i].gameObject);
+                relay.Entered += () => OnSkillHover(index, true);
+                relay.Exited += () => OnSkillHover(index, false);
                 _skillIds.Add(null);
             }
 
@@ -210,6 +238,78 @@ namespace MiniChess.Client.UI
                 _skillButtons[i].Set(DisplayName(unit, skill.Id, skill.Definition), cost, null,
                     active ? activeColor : usable ? usableColor : unusableColor);
             }
+
+            RefreshTooltip();
+        }
+
+        /// <summary>
+        /// 설명 말풍선: 마우스를 올린 상태 칸 → 마우스를 올린 스킬 버튼 → 지정 중인 스킬 버튼 순으로 하나를 그 위에 띄운다. 설명이 없으면 숨긴다.
+        /// </summary>
+        private void RefreshTooltip()
+        {
+            if (_tooltip == null)
+                return;
+
+            if (TryGetStatusText(_hoverChip, out string statusText))
+            {
+                _tooltip.Show((RectTransform)_chips[_hoverChip].transform, statusText);
+                return;
+            }
+
+            int index = _hoverSkill;
+            if (!IsShownSkill(index))
+            {
+                string pending = _selection.Displayed == _selection.Selected ? _selection.PendingSkillId : null;
+                index = pending != null ? _skillIds.IndexOf(pending) : -1;
+            }
+
+            string description = IsShownSkill(index) && skillDescriptions != null ? skillDescriptions.Find(_skillIds[index]) : null;
+            if (description == null)
+            {
+                _tooltip.Hide();
+                return;
+            }
+
+            _tooltip.Show((RectTransform)_skillButtons[index].transform, description);
+        }
+
+        private bool IsShownSkill(int index) =>
+            index >= 0 && index < _skillButtons.Count && _skillIds[index] != null && _skillButtons[index].gameObject.activeInHierarchy;
+
+        /// <summary>상태 칸의 말풍선 글: 상태 색 이름 + 설명. 설명이 없으면 false.</summary>
+        private bool TryGetStatusText(int index, out string text)
+        {
+            text = null;
+            if (index < 0 || index >= _chips.Count || _chipStatusIds[index] == null || !_chips[index].gameObject.activeInHierarchy)
+                return false;
+
+            StatusVisual visual = statusVisuals != null ? statusVisuals.Find(_chipStatusIds[index]) : null;
+            if (visual == null || string.IsNullOrWhiteSpace(visual.Description))
+                return false;
+
+            text = $"<color=#{ColorUtility.ToHtmlStringRGB(visual.Color)}>{visual.DisplayName}</color>  {visual.Description}";
+            return true;
+        }
+
+        /// <summary>스킬 버튼에 마우스가 올라오면 설명 말풍선과 보드 사거리 미리보기를 켜고, 나가면 끈다.</summary>
+        private void OnSkillHover(int index, bool entered)
+        {
+            string skillId = index < _skillIds.Count ? _skillIds[index] : null;
+            if (entered)
+            {
+                _hoverSkill = index;
+                if (skillId != null)
+                    _selection.PreviewSkill(skillId);
+            }
+            else
+            {
+                if (_hoverSkill == index)
+                    _hoverSkill = -1;
+                if (skillId != null)
+                    _selection.ClearPreview(skillId);
+            }
+
+            RefreshTooltip();
         }
 
         private void OnSkillClicked(int index)

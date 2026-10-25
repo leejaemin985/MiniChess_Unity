@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using MiniChess.Client.Bootstrap;
 using MiniChess.Client.Interaction;
+using MiniChess.Client.Visuals;
 using MiniChess.Core.Capture;
 using MiniChess.Core.Common;
 using MiniChess.Core.Events;
@@ -13,7 +14,7 @@ using UnityEngine.UI;
 namespace MiniChess.Client.UI
 {
     /// <summary>
-    /// 턴 종료 버튼, 실패 이유/점령 알림 토스트, 경기 종료 패널. 위 정보 바(TopBar)와 아래 유닛 패널(UnitInfoPanel), 시작 화면 접속 패널(ConnectPanel)은 프리팹으로 띄운다.
+    /// 턴 종료 버튼, 상태이상 설명 창, 실패 이유/점령 알림 토스트, 경기 종료 패널. 위 정보 바(TopBar)와 아래 유닛 패널(UnitInfoPanel), 시작 화면 접속 패널(ConnectPanel)은 프리팹으로 띄운다.
     /// GameSession 이벤트를 받아 상태를 다시 그리고, 버튼 입력은 GameSession 에 요청한다.
     /// </summary>
     public class HudView : MonoBehaviour
@@ -161,6 +162,8 @@ namespace MiniChess.Client.UI
             _endTurnButton = UiFactory.CreateButton(root, "EndTurn", "END TURN", new Color(0.15f, 0.15f, 0.18f, 0.9f), OnEndTurnClicked);
             // 하단은 유닛 패널이 쓰므로 턴 종료는 오른쪽 위(정보 바 아래)에 둔다.
             UiFactory.Place((RectTransform)_endTurnButton.transform, new Vector2(1f, 1f), new Vector2(-40f, -160f), new Vector2(280f, 80f));
+            // 상태이상 설명 창 버튼은 턴 종료 바로 아래.
+            StatusGuideView.Create(root, Resources.Load<StatusVisualCatalog>(StatusVisualCatalog.ResourcePath), new Vector2(-40f, -256f));
 
             CreatePrefabPanel<TopBarView>(TopBarView.ResourcePath)?.Bind(_session, _teamColor);
             CreatePrefabPanel<UnitInfoPanel>(UnitInfoPanel.ResourcePath)?.Bind(_session, _teamColor);

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace MiniChess.Client.Visuals
 {
     /// <summary>
-    /// 상태(상태이상/버프) 하나의 표시 데이터: 이름, 색, 아이콘, 몸체 머티리얼(굳기/깨지기 시간), 걸릴 때/풀릴 때/반응 이펙트. 상태 Id 로 코어 상태와 연결한다.
+    /// 상태(상태이상/버프) 하나의 표시 데이터: 이름, 색, 아이콘, 설명, 몸체 머티리얼(굳기/깨지기 시간), 걸릴 때/풀릴 때/반응 이펙트. 상태 Id 로 코어 상태와 연결한다.
     /// </summary>
     [CreateAssetMenu(menuName = "MiniChess/Status Visual", fileName = "StatusVisual")]
     public class StatusVisual : ScriptableObject
@@ -19,6 +19,9 @@ namespace MiniChess.Client.Visuals
 
         [Tooltip("상태 아이콘. 비우면 이름(글자)으로 표시한다.")]
         [SerializeField] private Sprite icon;
+
+        [Tooltip("짧은 설명(상태 아이콘에 마우스를 올리거나 상태이상 설명 창에서 보인다).")]
+        [SerializeField, TextArea(1, 3)] private string description;
 
         [Tooltip("이 상태에 걸린 동안 유닛 몸체 전체에 씌울 머티리얼(예: 봉인 → 마법석). 비우면 몸체를 바꾸지 않는다.")]
         [SerializeField] private Material bodyMaterial;
@@ -42,6 +45,9 @@ namespace MiniChess.Client.Visuals
         public string DisplayName => string.IsNullOrEmpty(displayName) ? statusId : displayName;
         public Color Color => color;
         public Sprite Icon => icon;
+
+        /// <summary>짧은 설명. 없으면 빈 문자열.</summary>
+        public string Description => description ?? string.Empty;
 
         /// <summary>몸체 교체 머티리얼. 지정하지 않았으면 null.</summary>
         public Material BodyMaterial => bodyMaterial;
