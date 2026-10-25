@@ -191,7 +191,7 @@ namespace MiniChess.Client.Board
             foreach (ScheduledStrike strike in state.ScheduledStrikes)
             {
                 foreach (Position cell in strike.Cells)
-                    strikeTeams[cell] = strike.Source.Team;
+                    strikeTeams[cell] = strike.SourceTeam;
             }
 
             foreach ((IReadOnlyList<Position> cells, Team team, float _) in _revealedStrikes)
