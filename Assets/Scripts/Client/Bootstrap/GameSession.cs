@@ -120,6 +120,12 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>서버 결과를 기다리는 내 명령. 없으면 null.</summary>
         private CommandMessage _pendingCommand;
 
+        /// <summary>_pendingCommand 를 보낸 시각(Time.realtimeSinceStartup).</summary>
+        private float _pendingSince;
+
+        /// <summary>명령 결과를 이 시간(초) 안에 받지 못하면 기다리기를 그만두고 입력을 다시 받는다(늦게 온 결과는 무시된다).</summary>
+        private const float CommandResultTimeoutSeconds = 10f;
+
         /// <summary>
         /// 이 화면의 시점 경기(표시와 조회 전용). 경기를 만들지 못했거나 온라인 상대를 기다리는 중이면 null.
         ///   온라인: 서버가 보낸 내 팀 시점 스냅샷으로 만든 경기.
@@ -556,6 +562,7 @@ namespace MiniChess.Client.Bootstrap
 
             command.RequestId = ++_lastRequestId;
             _pendingCommand = command;
+            _pendingSince = Time.realtimeSinceStartup;
             LogNetwork($"=> {MessageTypes.NameOf(command.GetType())} #{command.RequestId} ({team}, turn {command.TurnNumber})");
             _ = _connection.SendAsync(command);
             StateChanged?.Invoke();
@@ -897,7 +904,10 @@ namespace MiniChess.Client.Bootstrap
                         OnStateUpdate(update);
                         break;
                     case ErrorMessage error:
+                        // 서버는 해석할 수 없거나 받을 수 없는 명령에 결과 대신 오류를 보낸다. 기다리던 명령이 있으면 풀어 준다.
+                        _pendingCommand = null;
                         ReportFailure(error.Message);
+                        StateChanged?.Invoke();
                         break;
                     case null:
                         Debug.LogError("[GameSession] 해석할 수 없는 서버 메시지");
@@ -907,6 +917,14 @@ namespace MiniChess.Client.Bootstrap
 
             if (connection == null || connection != _connection)
                 return;
+
+            if (_pendingCommand != null && Time.realtimeSinceStartup - _pendingSince > CommandResultTimeoutSeconds)
+            {
+                LogNetwork($"no result for #{_pendingCommand.RequestId} in {CommandResultTimeoutSeconds}s");
+                _pendingCommand = null;
+                ReportFailure("서버 응답이 없습니다");
+                StateChanged?.Invoke();
+            }
 
             if (connection.IsClosed)
             {
