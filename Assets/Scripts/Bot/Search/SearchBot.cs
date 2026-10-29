@@ -128,7 +128,9 @@ namespace MiniChess.Bot.Search
         private int _nodes;
         private Stopwatch _deadline;
 
-        private bool TimeUp => Settings.TimeLimitMs > 0 && _deadline.ElapsedMilliseconds >= Settings.TimeLimitMs;
+        /// <summary>시간이 다 되었거나 판단이 취소되었다. 그때까지 읽은 것 중에서 고른다.</summary>
+        private bool TimeUp => Cancellation.IsCancellationRequested
+            || (Settings.TimeLimitMs > 0 && _deadline.ElapsedMilliseconds >= Settings.TimeLimitMs);
 
         /// <summary>
         /// start 에서 team 의 이번 턴 행동 순서를 빔 탐색으로 읽는다(깊이 1). 읽은 모든 순서(아무것도 안 하는 순서 포함)를

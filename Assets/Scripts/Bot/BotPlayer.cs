@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
@@ -45,6 +46,26 @@ namespace MiniChess.Bot
             _actionsThisTurn++;
             return Choose(game, team) ?? BotAction.EndTurn(team);
         }
+
+        /// <summary>
+        /// DecideNext 와 같되, cancellation 이 취소되면 오래 걸리는 판단(수 읽기)을 그때까지 본 것으로 바로 끝낸다.
+        /// 경기를 나가거나 다시 시작해 결과가 필요 없어졌을 때 계산을 멈추는 용도다.
+        /// </summary>
+        public BotAction DecideNext(GameController game, Team team, CancellationToken cancellation)
+        {
+            Cancellation = cancellation;
+            try
+            {
+                return DecideNext(game, team);
+            }
+            finally
+            {
+                Cancellation = CancellationToken.None;
+            }
+        }
+
+        /// <summary>지금 판단을 멈춰야 하는지. 오래 걸리는 봇은 이 값을 보고 판단을 일찍 끝낸다.</summary>
+        protected CancellationToken Cancellation { get; private set; }
 
         /// <summary>다음 행동을 고른다. 턴을 끝내려면 null 또는 EndTurn.</summary>
         protected abstract BotAction Choose(GameController game, Team team);

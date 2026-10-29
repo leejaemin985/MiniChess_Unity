@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using MiniChess.Bot;
 using MiniChess.Client.Bootstrap;
@@ -26,6 +27,9 @@ namespace MiniChess.Client.Players
         private readonly Dictionary<Team, BotPlayer> _bots = new Dictionary<Team, BotPlayer>();
         private bool _running;
 
+        /// <summary>진행 중인 봇 판단(별도 스레드)의 취소. 경기가 바뀌거나 이 컴포넌트가 사라지면 취소한다.</summary>
+        private CancellationTokenSource _thinking;
+
         public void Initialize(GameSession session)
         {
             if (_session != null)
@@ -37,8 +41,15 @@ namespace MiniChess.Client.Players
 
         private void OnDestroy()
         {
+            CancelThinking();
             if (_session != null)
                 _session.StateChanged -= OnStateChanged;
+        }
+
+        private void CancelThinking()
+        {
+            _thinking?.Cancel();
+            _thinking = null;
         }
 
         private void OnStateChanged()
@@ -50,6 +61,7 @@ namespace MiniChess.Client.Players
             if (_session.MatchId != _matchId)
             {
                 StopAllCoroutines();
+                CancelThinking();
                 _running = false;
                 _matchId = _session.MatchId;
                 _bots.Clear();
@@ -112,9 +124,13 @@ namespace MiniChess.Client.Players
 
                 // 수 읽기(깊이 2~3)는 오래 걸릴 수 있어 별도 스레드에서 한다. 봇은 실제 경기를 읽고 복사본만 바꾸며,
                 // 봇 차례에는 봇의 요청 말고는 실제 경기가 바뀌지 않으므로 읽기가 겹쳐도 안전하다.
-                Task<BotAction> decision = Task.Run(() => bot.DecideNext(game, team));
+                // 경기가 바뀌면(새 경기, 다시 시작) 코루틴은 멈추고 이 판단은 취소되어 일찍 끝난다(결과는 버린다).
+                _thinking = new CancellationTokenSource();
+                CancellationToken cancellation = _thinking.Token;
+                Task<BotAction> decision = Task.Run(() => bot.DecideNext(game, team, cancellation));
                 while (!decision.IsCompleted)
                     yield return null;
+                _thinking = null;
                 if (game != _game)
                     break;
 

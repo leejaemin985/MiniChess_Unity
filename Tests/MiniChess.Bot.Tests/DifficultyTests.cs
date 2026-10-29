@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Threading;
 using MiniChess.Bot.Search;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
@@ -75,6 +76,26 @@ namespace MiniChess.Bot.Tests
             BotMatch.Run(game, deep, BotFactory.Create(BotDifficulty.Normal, 2));
 
             Assert.True(game.State.IsGameOver);
+        }
+
+        // 판단이 취소되면(경기를 나감 등) 깊이 3 이라도 거의 읽지 않고 바로 끝내며, 그래도 할 수 있는 행동을 돌려준다.
+        [Fact]
+        public void Cancelled_search_returns_early_with_a_legal_action()
+        {
+            GameController game = BotMatchTests.CreatePresetGame(3);
+            BotMatch.Place(game, Team.Player1, new RandomBot(1));
+            BotMatch.Place(game, Team.Player2, new RandomBot(2));
+            BotMatch.PlayTurn(game, BotFactory.Create(BotDifficulty.Normal, 1));
+            var full = new SearchBot(1, new SearchSettings { Depth = 3 });
+            var cancelled = new SearchBot(1, new SearchSettings { Depth = 3 });
+
+            full.DecideNext(game, game.State.CurrentTeam);
+            BotAction action = cancelled.DecideNext(game, game.State.CurrentTeam, new CancellationToken(canceled: true));
+
+            Assert.NotNull(action);
+            Assert.Contains(BotActionGenerator.Generate(game, game.State.CurrentTeam).Append(BotAction.EndTurn(game.State.CurrentTeam)), candidate => candidate.SameAs(action));
+            Assert.True(cancelled.LastNodesSearched * 10 < full.LastNodesSearched,
+                $"취소: {cancelled.LastNodesSearched}, 전체: {full.LastNodesSearched}");
         }
 
         [Fact]
