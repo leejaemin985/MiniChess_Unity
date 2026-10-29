@@ -16,6 +16,9 @@ namespace MiniChess.Client.Board
         /// <summary>판석 메시의 두께(StoneSlabMeshBuilder 와 같은 값).</summary>
         public const float SlabThickness = 0.2f;
 
+        private static readonly int HazeColorId = Shader.PropertyToID("_BackdropHazeColor");
+        private static readonly int HazeId = Shader.PropertyToID("_BackdropHaze");
+
         [Header("Floor")]
         [Tooltip("온전한 판석 메시 변형들. 칸마다 칸 좌표로 하나를 고른다.")]
         [SerializeField] private Mesh[] slabMeshes;
@@ -62,9 +65,26 @@ namespace MiniChess.Client.Board
         [Tooltip("보드 가장자리(외곽 벽 밑) 칸마다 풀/돌조각이 붙을 확률.")]
         [SerializeField, Range(0f, 1f)] private float borderDecorChance = 0.75f;
 
-        [Header("Background")]
+        [Header("Background (하늘/절벽/숲/산, BoardBackdrop)")]
         [SerializeField] private bool applyBackground = true;
+        [Tooltip("하늘 스카이박스 머티리얼. 비우면 카메라 배경을 backgroundColor 단색으로 칠한다.")]
+        [SerializeField] private Material skyMaterial;
         [SerializeField] private Color backgroundColor = new Color(0.38f, 0.31f, 0.45f);
+        [Tooltip("절벽/숲/산을 그리는 머티리얼(Backdrop 셰이더). 비우면 보드 바깥 배경을 만들지 않는다.")]
+        [SerializeField] private Material backdropMaterial;
+        [Tooltip("먼 곳과 절벽 아래가 묻히는 안개 색. 하늘 지평선 색으로도 쓴다.")]
+        [SerializeField] private Color hazeColor = new Color(0.40f, 0.34f, 0.48f);
+        [Tooltip("카메라에서 x 거리부터 안개가 끼기 시작해 y 거리에서 완전히 묻힌다.")]
+        [SerializeField] private Vector2 hazeDistance = new Vector2(25f, 320f);
+        [Tooltip("절벽 아래 낮게 깔린 안개의 진하기(보드 높이에서 0, 숲 바닥에서 이 값).")]
+        [SerializeField, Range(0f, 1f)] private float lowMist = 0.4f;
+        [Tooltip("외곽 벽 바깥 땅의 폭(칸 단위, 보드 가장자리에서 절벽 끝까지).")]
+        [SerializeField, Min(0.2f)] private float plateauWidth = 0.7f;
+        [Tooltip("보드에서 숲 바닥까지 절벽 높이(월드 단위).")]
+        [SerializeField, Min(1f)] private float cliffDepth = 14f;
+        [SerializeField, Min(0)] private int treeCount = 500;
+        [Tooltip("나무가 자라는 범위(보드 중심에서의 거리).")]
+        [SerializeField, Min(10f)] private float forestRadius = 90f;
 
         [Header("Lighting")]
         [Tooltip("돌 색은 거의 중립이고, 분위기는 여기서 정한다: 햇빛 = 밝은 면의 따뜻함, 주변광 = 그늘의 보랏빛.")]
@@ -101,6 +121,12 @@ namespace MiniChess.Client.Board
         public Mesh GetGrassMesh(int index) => Pick(grassMeshes, index);
         public Mesh GetRubbleMesh(int index) => Pick(rubbleMeshes, index);
 
+        public Material BackdropMaterial => applyBackground ? backdropMaterial : null;
+        public float PlateauWidth => plateauWidth;
+        public float CliffDepth => cliffDepth;
+        public int TreeCount => treeCount;
+        public float ForestRadius => forestRadius;
+
         public Mesh GetSlabMesh(int index) => Pick(slabMeshes, index);
         public Mesh GetBrokenSlabMesh(int index) => Pick(brokenSlabMeshes, index);
         public Mesh GetWallMesh(int index) => Pick(wallMeshes, index);
@@ -113,13 +139,22 @@ namespace MiniChess.Client.Board
             return meshes[Mathf.Abs(index) % meshes.Length];
         }
 
-        /// <summary>씬의 주광(방향광)과 주변광, 카메라 배경을 이 분위기로 바꾼다.</summary>
+        /// <summary>씬의 주광(방향광)과 주변광, 하늘(또는 카메라 배경색), 배경 안개를 이 분위기로 바꾼다.</summary>
         public void ApplyLighting()
         {
-            if (applyBackground && Camera.main != null)
+            if (applyBackground)
             {
-                Camera.main.clearFlags = CameraClearFlags.SolidColor;
-                Camera.main.backgroundColor = backgroundColor;
+                if (skyMaterial != null)
+                    RenderSettings.skybox = skyMaterial;
+                if (Camera.main != null)
+                {
+                    Camera.main.clearFlags = skyMaterial != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
+                    Camera.main.backgroundColor = backgroundColor;
+                }
+
+                // Sky/Backdrop 셰이더가 읽는 전역 값(a = 1 이면 설정됨)
+                Shader.SetGlobalColor(HazeColorId, new Color(hazeColor.r, hazeColor.g, hazeColor.b, 1f));
+                Shader.SetGlobalVector(HazeId, new Vector4(hazeDistance.x, hazeDistance.y, cliffDepth, lowMist));
             }
 
             if (!applyLighting)

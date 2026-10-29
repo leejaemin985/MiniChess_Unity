@@ -55,7 +55,16 @@ MonoBehaviour:
   wallDecorChance: 0.9
   borderDecorChance: 0.75
   applyBackground: 1
+  skyMaterial: {fileID: 2100000, guid: b5462624971a16b4b98df63799e7a360, type: 2}
   backgroundColor: {r: 0.38, g: 0.31, b: 0.45, a: 1}
+  backdropMaterial: {fileID: 2100000, guid: 31c088d0da68191478937bd1fe631ab3, type: 2}
+  hazeColor: {r: 0.4, g: 0.34, b: 0.48, a: 1}
+  hazeDistance: {x: 25, y: 320}
+  lowMist: 0.4
+  plateauWidth: 0.7
+  cliffDepth: 14
+  treeCount: 500
+  forestRadius: 90
   applyLighting: 1
   sunColor: {r: 1, g: 0.88, b: 0.74, a: 1}
   sunIntensity: 2.3

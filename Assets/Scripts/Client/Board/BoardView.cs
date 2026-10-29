@@ -82,6 +82,7 @@ namespace MiniChess.Client.Board
         private GameObject _bed;
         private readonly List<GameObject> _border = new List<GameObject>();
         private GameObject _decoration;
+        private GameObject _backdrop;
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -308,6 +309,7 @@ namespace MiniChess.Client.Board
                 art.ApplyLighting();
             CreateBed(coordinates);
             CreateBorder(coordinates);
+            _backdrop = BoardBackdrop.Build(transform, coordinates, art);
 
             _spawnTints.Clear();
             foreach (Position p in board.GetSpawnPositions(Team.Player1)) _spawnTints[p] = spawnPlayer1Tint;
@@ -357,15 +359,21 @@ namespace MiniChess.Client.Board
 
             _border.Clear();
 
-            if (_decoration != null)
+            DestroyGenerated(ref _decoration);
+            DestroyGenerated(ref _backdrop);
+        }
+
+        /// <summary>실행 중에 만든 메시(장식/배경)를 오브젝트와 함께 지운다.</summary>
+        private void DestroyGenerated(ref GameObject root)
+        {
+            if (root != null)
             {
-                // 장식은 실행 중에 합친 메시라 오브젝트와 함께 지운다.
-                foreach (MeshFilter filter in _decoration.GetComponentsInChildren<MeshFilter>())
+                foreach (MeshFilter filter in root.GetComponentsInChildren<MeshFilter>())
                     Destroy(filter.sharedMesh);
-                Destroy(_decoration);
+                Destroy(root);
             }
 
-            _decoration = null;
+            root = null;
         }
 
         private CellView CreateGround(Position position, BoardCell cell, BoardCoordinates coordinates)
