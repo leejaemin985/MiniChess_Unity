@@ -1,4 +1,4 @@
-// 하늘 스카이박스(BoardArt.skyMaterial). 텍스처 없이 방향만으로 그린다:
+// 하늘 스카이박스(BoardArt.skyMaterial). 방향으로 그린다(구름 노이즈만 작은 텍스처 한 번 읽기, SkyTextureBaker):
 //   지평선 → 위 하늘 → 천정 세로 그라데이션, 지평선 아래는 안개 색, 해 쪽 번짐(+작은 해), 천천히 흐르는 구름.
 // 지평선 색은 배경 안개 색(_BackdropHazeColor, BoardArt 가 전역으로 넣음)을 써서 먼 산/숲이 하늘에 자연스럽게 묻힌다.
 // 전역 값이 없으면(에디터 미리보기 등) _HorizonColor 를 쓴다. 나중에 그린 스카이박스로 바꾸려면 머티리얼만 바꾸면 된다.
@@ -14,6 +14,7 @@ Shader "MiniChess/Sky"
         _SunGlowSize ("Sun Glow Size", Range(1, 64)) = 5
         _SunGlowStrength ("Sun Glow Strength", Range(0, 2)) = 0.55
         _SunDisc ("Sun Disc", Range(0, 4)) = 1.5
+        [NoScaleOffset] _CloudMap ("Cloud Noise (R density, G shade)", 2D) = "gray" {}
         _CloudColor ("Cloud", Color) = (0.86, 0.74, 0.80, 1)
         _CloudShade ("Cloud Shade", Color) = (0.46, 0.40, 0.56, 1)
         _Clouds ("Cloud Amount", Range(0, 1)) = 0.45
@@ -51,6 +52,9 @@ Shader "MiniChess/Sky"
                 float _CloudSpeed;
             CBUFFER_END
 
+            TEXTURE2D(_CloudMap);
+            SAMPLER(sampler_CloudMap);
+
             // BoardArt.ApplyLighting 이 넣는 전역 값(a = 1 이면 설정됨)
             half4 _BackdropHazeColor;
 
@@ -73,30 +77,6 @@ Shader "MiniChess/Sky"
                 return output;
             }
 
-            float Hash(float2 p)
-            {
-                p = frac(p * float2(123.34, 456.21));
-                p += dot(p, p + 45.32);
-                return frac(p.x * p.y);
-            }
-
-            float Noise(float2 p)
-            {
-                float2 i = floor(p);
-                float2 f = frac(p);
-                f = f * f * (3.0 - 2.0 * f);
-                float a = Hash(i);
-                float b = Hash(i + float2(1, 0));
-                float c = Hash(i + float2(0, 1));
-                float d = Hash(i + float2(1, 1));
-                return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
-            }
-
-            float Fbm(float2 p)
-            {
-                return Noise(p) * 0.55 + Noise(p * 2.1 + 3.7) * 0.3 + Noise(p * 4.3 + 7.1) * 0.15;
-            }
-
             half4 frag(Varyings input) : SV_Target
             {
                 float3 direction = normalize(input.direction);
@@ -115,11 +95,12 @@ Shader "MiniChess/Sky"
                 sky += _SunGlowColor.rgb * (glow + pow(sun, 600.0) * _SunDisc);
 
                 // 구름: 하늘을 높은 평면에 투영해 흐르는 노이즈. 지평선 근처와 천정에서는 옅게.
-                float2 cloudUV = direction.xz / (up + 0.12) * _CloudScale + _Time.y * _CloudSpeed;
-                half density = Fbm(cloudUV);
-                half cloud = smoothstep(1.0 - _Clouds, 1.0 - _Clouds + 0.3, density);
+                // 노이즈는 미리 구운 텍스처(SkyTextureBaker, R = 밀도, G = 명암)에서 한 번 읽는다. 텍스처 한 장 = 덩어리 4개 주기.
+                float2 cloudUV = (direction.xz / (up + 0.12) * _CloudScale + _Time.y * _CloudSpeed) * 0.25;
+                half2 noise = SAMPLE_TEXTURE2D(_CloudMap, sampler_CloudMap, cloudUV).rg;
+                half cloud = smoothstep(1.0 - _Clouds, 1.0 - _Clouds + 0.3, noise.r);
                 cloud *= smoothstep(0.0, 0.12, direction.y) * (1.0 - 0.5 * smoothstep(0.5, 0.95, up));
-                half3 cloudColor = lerp(_CloudShade.rgb, _CloudColor.rgb, saturate(Fbm(cloudUV * 1.7 + 11.0) * 1.4 - 0.2));
+                half3 cloudColor = lerp(_CloudShade.rgb, _CloudColor.rgb, saturate(noise.g * 1.4 - 0.2));
                 cloudColor += _SunGlowColor.rgb * glow * 0.8;
                 sky = lerp(sky, cloudColor, cloud * 0.85);
 

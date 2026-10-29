@@ -177,8 +177,8 @@ namespace MiniChess.Client.Editor.Environment
             importer.SaveAndReimport();
         }
 
-        /// <summary>주기(period)마다 반복되는 노이즈. u, v 는 0~1 이고 1 에서 0 과 이어진다.</summary>
-        private static class Noise
+        /// <summary>주기(period)마다 반복되는 노이즈. u, v 는 0~1 이고 1 에서 0 과 이어진다. 하늘 구름(SkyTextureBaker)도 쓴다.</summary>
+        internal static class Noise
         {
             /// <summary>주기적 그래디언트 노이즈의 합(fBm). 대략 -0.5 ~ 0.5.</summary>
             public static float Fbm(float u, float v, int period, int octaves, int seed)
