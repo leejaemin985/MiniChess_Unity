@@ -2,7 +2,7 @@
 //   - 텍스처 3장(색, 노멀, 마스크)을 메시 UV 로 읽는다. 마스크: R = 금, G = 움푹한 곳, B = 매끈함 변화.
 //   - 칸마다 다르게: 월드 위치가 속한 칸(_CellSize)으로 난수를 만들어 텍스처 위치/90도 회전, 색조, 밝기, 금 유무를 흔든다.
 //     칸 중심이 (X * _CellSize, Y * _CellSize) 라는 보드 좌표 규칙(BoardCoordinates)을 따른다.
-//   - 모서리: 판석 메시의 정점 색을 쓴다(StoneSlabMeshBuilder). R = 모서리 닳음, G = 깨진 자리, B = 아래쪽 때.
+//   - 모서리: 메시의 정점 색을 쓴다(StoneSlabMeshBuilder, StoneMeshKit). R = 모서리 닳음, G = 깨진 자리/갈라진 면, B = 아래쪽 때, A = 조각 밝기.
 //   - _BaseColor 는 전체 색 곱(지형 색조: 시작 위치, 점령 칸, 벽). _OverlayColor 는 덧칠(칸 하이라이트/장판, a = 세기).
 // 모바일 기준: 텍스처 샘플 3번, 노이즈 계산 없음(텍스처는 StoneTextureBaker 로 미리 굽는다).
 Shader "MiniChess/StoneSurface"
@@ -188,6 +188,7 @@ Shader "MiniChess/StoneSurface"
                 albedo = lerp(albedo, albedo * _EdgeColor.rgb, edge * _EdgeWear);
                 albedo = lerp(albedo, _ChipColor.rgb * (0.85 + 0.3 * mask.b), chip);
                 albedo = lerp(albedo, albedo * _DirtColor.rgb, dirt * _Dirt);
+                albedo *= 0.75 + 0.25 * input.color.a; // 조각(벽돌)마다 밝기. 1 = 그대로
                 albedo *= _BaseColor.rgb;
 
                 // 덧칠(칸 하이라이트/장판): 돌 색을 덧칠 색 쪽으로 섞고, 그림자 안에서도 보이게 약하게 빛나게 한다.

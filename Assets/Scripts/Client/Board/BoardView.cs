@@ -27,7 +27,7 @@ namespace MiniChess.Client.Board
         [Header("Colors")]
         [Tooltip("바닥 판석 색에 곱하는 색. 판석마다의 톤 차이는 돌 셰이더가 만든다.")]
         [SerializeField] private Color groundColor = Color.white;
-        [SerializeField] private Color wallColor = new Color(0.55f, 0.52f, 0.55f);
+        [SerializeField] private Color wallColor = new Color(0.86f, 0.83f, 0.86f);
         [SerializeField] private Color captureColor = new Color(0.95f, 0.78f, 0.25f);
         [SerializeField] private Color spawnPlayer1Tint = new Color(0.55f, 0.7f, 0.95f);
         [SerializeField] private Color spawnPlayer2Tint = new Color(0.95f, 0.6f, 0.55f);
@@ -77,6 +77,7 @@ namespace MiniChess.Client.Board
         private readonly List<(IReadOnlyList<Position> Cells, Team Team, float Until)> _revealedStrikes = new List<(IReadOnlyList<Position>, Team, float)>();
         private BoardCoordinates _coordinates;
         private GameObject _bed;
+        private readonly List<GameObject> _border = new List<GameObject>();
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -277,6 +278,7 @@ namespace MiniChess.Client.Board
             if (art != null)
                 art.ApplyLighting();
             CreateBed(coordinates);
+            CreateBorder(coordinates);
 
             _spawnTints.Clear();
             foreach (Position p in board.GetSpawnPositions(Team.Player1)) _spawnTints[p] = spawnPlayer1Tint;
@@ -315,43 +317,131 @@ namespace MiniChess.Client.Board
             if (_bed != null)
                 Destroy(_bed);
             _bed = null;
+
+            foreach (GameObject piece in _border)
+            {
+                if (piece != null)
+                    Destroy(piece);
+            }
+
+            _border.Clear();
         }
 
         private CellView CreateGround(Position position, BoardCell cell, BoardCoordinates coordinates)
         {
-            CellView.SlabLook slab = GetSlabLook(position, art != null ? art.FloorMaterial : null, tilt: true);
-            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, 0f, slab, GetTerrainColor(position, cell));
+            // 시작 구역/점령 칸은 깨지거나 꺼지지 않은 판석(배치/점령이 잘 읽히게)
+            bool plain = cell.IsCaptureTile || _spawnTints.ContainsKey(position);
+            CellView.SlabLook slab = GetSlabLook(position, plain);
+            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, 0f, slab, default, GetTerrainColor(position, cell));
         }
 
         private CellView CreateWall(Position position, BoardCoordinates coordinates)
         {
-            CellView.SlabLook slab = GetSlabLook(position, art != null ? art.WallMaterial : null, tilt: false);
-            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, wallHeight, slab, wallColor);
+            CellView.SlabLook slab = GetSlabLook(position, plain: true);
+            CellView.SlabLook wall = default;
+            if (art != null)
+            {
+                var random = CellRandom(position, 1);
+                wall = new CellView.SlabLook
+                {
+                    Mesh = art.GetWallMesh(random.Next(1024)),
+                    Material = art.WallMaterial,
+                    Rotation = Quaternion.Euler(0f, random.Next(4) * 90f, 0f),
+                };
+            }
+
+            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, wallHeight, slab, wall, wallColor);
         }
 
-        /// <summary>칸 좌표로 정한 판석 모양: 변형, 90도 회전, 높이/기울기 흔들림(벽은 기울이지 않는다).</summary>
-        private CellView.SlabLook GetSlabLook(Position position, Material material, bool tilt)
+        /// <summary>칸 좌표로 정하는 난수(같은 칸은 항상 같은 값). salt 로 용도마다 다른 수열을 쓴다.</summary>
+        private static System.Random CellRandom(Position position, int salt)
+        {
+            // 이웃한 칸의 시드가 비슷하면 System.Random 의 첫 값들이 서로 닮으므로, 시드를 한 번 섞어서 쓴다.
+            unchecked
+            {
+                uint h = (uint)(position.X * 374761393 + position.Y * 668265263 + salt * 1442695041);
+                h = (h ^ (h >> 13)) * 1274126177u;
+                h ^= h >> 16;
+                return new System.Random((int)(h & 0x7fffffff));
+            }
+        }
+
+        /// <summary>
+        /// 칸 좌표로 정한 바닥 판석 모양: 변형(일부는 깨진 판석), 90도 회전, 높이/기울기 흔들림(일부는 통째로 내려앉음).
+        /// plain 이면 온전한 판석에 흔들림만.
+        /// </summary>
+        private CellView.SlabLook GetSlabLook(Position position, bool plain)
         {
             if (art == null)
                 return default;
 
-            var random = new System.Random(position.X * 73856093 ^ position.Y * 19349663);
+            System.Random random = CellRandom(position, 0);
             float Jitter(float amount) => ((float)random.NextDouble() * 2f - 1f) * amount;
 
-            Mesh mesh = art.GetSlabMesh(random.Next(1024));
+            bool broken = !plain && art.HasBrokenSlabs && random.NextDouble() < art.BrokenChance;
+            bool sunk = !plain && !broken && random.NextDouble() < art.SinkChance;
+            Mesh mesh = broken ? art.GetBrokenSlabMesh(random.Next(1024)) : art.GetSlabMesh(random.Next(1024));
             float yaw = random.Next(4) * 90f;
-            float heightOffset = Jitter(art.HeightJitter);
-            Quaternion rotation = tilt
-                ? Quaternion.Euler(Jitter(art.TiltJitter), yaw, Jitter(art.TiltJitter))
-                : Quaternion.Euler(0f, yaw, 0f);
+            float tilt = sunk ? art.SinkTilt : art.TiltJitter;
+            float heightOffset = Jitter(art.HeightJitter) - (sunk ? art.SinkDepth : 0f);
 
             return new CellView.SlabLook
             {
                 Mesh = mesh,
-                Material = material,
-                Rotation = rotation,
-                HeightOffset = tilt ? heightOffset : 0f,
+                Material = art.FloorMaterial,
+                Rotation = Quaternion.Euler(Jitter(tilt), yaw, Jitter(tilt)),
+                HeightOffset = heightOffset,
             };
+        }
+
+        /// <summary>
+        /// 보드 둘레의 낮은 외곽 벽: 가장자리 칸마다 성벽 조각(칸 좌표로 변형 선택), 네 모서리에 기둥. 클릭 대상 아님.
+        /// 조각 메시는 원점 중심, x 방향 길이 1 이므로 위/아래 변은 그대로(위 변은 180도), 왼쪽/오른쪽 변은 90도 돌려 놓는다.
+        /// </summary>
+        private void CreateBorder(BoardCoordinates coordinates)
+        {
+            if (art == null || !art.HasBorder)
+                return;
+
+            float cell = coordinates.CellSize;
+            float offset = 0.5f * cell + art.BorderOffset * cell;
+            float right = (coordinates.Width - 1) * cell;
+            float top = (coordinates.Height - 1) * cell;
+
+            for (int x = 0; x < coordinates.Width; x++)
+            {
+                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(x, -1), 2).Next(1024)), new Vector3(x * cell, 0f, -offset), 0f);
+                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(x, coordinates.Height), 2).Next(1024)), new Vector3(x * cell, 0f, top + offset), 180f);
+            }
+
+            for (int y = 0; y < coordinates.Height; y++)
+            {
+                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(-1, y), 2).Next(1024)), new Vector3(-offset, 0f, y * cell), 90f);
+                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(coordinates.Width, y), 2).Next(1024)), new Vector3(right + offset, 0f, y * cell), -90f);
+            }
+
+            if (art.BorderCornerMesh != null)
+            {
+                AddBorderPiece(art.BorderCornerMesh, new Vector3(-offset, 0f, -offset), 0f);
+                AddBorderPiece(art.BorderCornerMesh, new Vector3(right + offset, 0f, -offset), 90f);
+                AddBorderPiece(art.BorderCornerMesh, new Vector3(right + offset, 0f, top + offset), 180f);
+                AddBorderPiece(art.BorderCornerMesh, new Vector3(-offset, 0f, top + offset), 270f);
+            }
+        }
+
+        private void AddBorderPiece(Mesh mesh, Vector3 localPosition, float yaw)
+        {
+            if (mesh == null)
+                return;
+
+            var piece = new GameObject("Border");
+            piece.transform.SetParent(transform, false);
+            piece.transform.localPosition = localPosition;
+            piece.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            piece.transform.localScale = Vector3.one * _coordinates.CellSize;
+            piece.AddComponent<MeshFilter>().sharedMesh = mesh;
+            piece.AddComponent<MeshRenderer>().sharedMaterial = art.WallMaterial;
+            _border.Add(piece);
         }
 
         /// <summary>판석 사이 줄눈으로 보이는 보드 아래 어두운 바닥(클릭/그림자 대상 아님).</summary>

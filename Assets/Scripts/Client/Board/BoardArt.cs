@@ -17,24 +17,48 @@ namespace MiniChess.Client.Board
         public const float SlabThickness = 0.2f;
 
         [Header("Floor")]
-        [Tooltip("판석 메시 변형들. 칸마다 칸 좌표로 하나를 고른다.")]
+        [Tooltip("온전한 판석 메시 변형들. 칸마다 칸 좌표로 하나를 고른다.")]
         [SerializeField] private Mesh[] slabMeshes;
+        [Tooltip("깨진 판석 메시 변형들(조각마다 높이/기울기가 다름).")]
+        [SerializeField] private Mesh[] brokenSlabMeshes;
+        [Tooltip("일반 바닥 칸 중 깨진 판석을 쓰는 비율. 시작 구역/점령 칸은 항상 온전한 판석.")]
+        [SerializeField, Range(0f, 1f)] private float brokenChance = 0.18f;
         [SerializeField] private Material floorMaterial;
         [Tooltip("판석 사이 줄눈으로 보이는 보드 아래 바닥.")]
         [SerializeField] private Material bedMaterial;
-        [SerializeField] private Material wallMaterial;
         [Tooltip("판석 높이를 칸마다 흔드는 폭(월드 단위).")]
         [SerializeField, Min(0f)] private float heightJitter = 0.008f;
         [Tooltip("판석 기울기를 칸마다 흔드는 폭(도).")]
         [SerializeField, Min(0f)] private float tiltJitter = 0.6f;
+        [Tooltip("일반 바닥 칸 중 판석이 통째로 내려앉은 칸의 비율.")]
+        [SerializeField, Range(0f, 1f)] private float sinkChance = 0.1f;
+        [Tooltip("내려앉은 판석의 깊이(월드 단위, 유닛/표식이 묻히지 않게 2~3cm 이내).")]
+        [SerializeField, Min(0f)] private float sinkDepth = 0.015f;
+        [Tooltip("내려앉은 판석의 기울기 폭(도).")]
+        [SerializeField, Min(0f)] private float sinkTilt = 1.8f;
+
+        [Header("Walls")]
+        [Tooltip("벽 칸 메시 변형들(바닥 판석 위에 선다).")]
+        [SerializeField] private Mesh[] wallMeshes;
+        [SerializeField] private Material wallMaterial;
+        [Tooltip("보드 둘레 외곽 벽 조각(원점 중심, x 방향 길이 1). 비우면 외곽 벽을 그리지 않는다.")]
+        [SerializeField] private Mesh[] borderMeshes;
+        [SerializeField] private Mesh borderCornerMesh;
+        [Tooltip("외곽 벽 조각 중심이 보드 가장자리에서 떨어진 거리.")]
+        [SerializeField] private float borderOffset = 0.23f;
+
+        [Header("Background")]
+        [SerializeField] private bool applyBackground = true;
+        [SerializeField] private Color backgroundColor = new Color(0.30f, 0.26f, 0.38f);
 
         [Header("Lighting")]
         [SerializeField] private bool applyLighting = true;
         [SerializeField] private Color sunColor = new Color(1f, 0.87f, 0.72f);
         [SerializeField] private float sunIntensity = 1.9f;
-        [SerializeField] private Vector3 sunRotation = new Vector3(32f, 225f, 0f);
+        [Tooltip("기본은 앞 왼쪽에서 비추는 빛(그림자가 뒤 오른쪽으로). 카메라 쪽 벽면이 밝게 보인다.")]
+        [SerializeField] private Vector3 sunRotation = new Vector3(38f, 40f, 0f);
         [SerializeField] private Color ambientSky = new Color(0.40f, 0.38f, 0.52f);
-        [SerializeField] private Color ambientEquator = new Color(0.32f, 0.30f, 0.34f);
+        [SerializeField] private Color ambientEquator = new Color(0.38f, 0.35f, 0.40f);
         [SerializeField] private Color ambientGround = new Color(0.10f, 0.09f, 0.09f);
 
         public Material FloorMaterial => floorMaterial;
@@ -42,17 +66,36 @@ namespace MiniChess.Client.Board
         public Material WallMaterial => wallMaterial != null ? wallMaterial : floorMaterial;
         public float HeightJitter => heightJitter;
         public float TiltJitter => tiltJitter;
+        public float BrokenChance => brokenChance;
+        public float SinkChance => sinkChance;
+        public float SinkDepth => sinkDepth;
+        public float SinkTilt => sinkTilt;
+        public bool HasBrokenSlabs => brokenSlabMeshes != null && brokenSlabMeshes.Length > 0;
+        public Mesh BorderCornerMesh => borderCornerMesh;
+        public bool HasBorder => borderMeshes != null && borderMeshes.Length > 0;
+        public float BorderOffset => borderOffset;
 
-        public Mesh GetSlabMesh(int index)
+        public Mesh GetSlabMesh(int index) => Pick(slabMeshes, index);
+        public Mesh GetBrokenSlabMesh(int index) => Pick(brokenSlabMeshes, index);
+        public Mesh GetWallMesh(int index) => Pick(wallMeshes, index);
+        public Mesh GetBorderMesh(int index) => Pick(borderMeshes, index);
+
+        private static Mesh Pick(Mesh[] meshes, int index)
         {
-            if (slabMeshes == null || slabMeshes.Length == 0)
+            if (meshes == null || meshes.Length == 0)
                 return null;
-            return slabMeshes[Mathf.Abs(index) % slabMeshes.Length];
+            return meshes[Mathf.Abs(index) % meshes.Length];
         }
 
-        /// <summary>씬의 주광(방향광)과 주변광을 이 분위기로 바꾼다.</summary>
+        /// <summary>씬의 주광(방향광)과 주변광, 카메라 배경을 이 분위기로 바꾼다.</summary>
         public void ApplyLighting()
         {
+            if (applyBackground && Camera.main != null)
+            {
+                Camera.main.clearFlags = CameraClearFlags.SolidColor;
+                Camera.main.backgroundColor = backgroundColor;
+            }
+
             if (!applyLighting)
                 return;
 

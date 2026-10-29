@@ -16,7 +16,7 @@ namespace MiniChess.Client.Board
         private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int OverlayId = Shader.PropertyToID("_OverlayColor");
 
-        private Renderer _renderer;
+        private Renderer[] _renderers;
         private MaterialPropertyBlock _block;
         private Color _terrainColor;
         private float _height;
@@ -45,9 +45,10 @@ namespace MiniChess.Client.Board
         public Vector3 Top => transform.position + Vector3.up * _height;
 
         /// <param name="floorCenter">칸 바닥면 중심(보드 기준 로컬 좌표, 윗면 높이 0).</param>
-        /// <param name="height">윗면을 바닥면보다 올릴 높이(벽). 바닥 칸은 0.</param>
-        /// <param name="slab">판석 그림(메시/머티리얼/회전/높이 흔들림). 메시가 없으면 기본 상자로 그린다.</param>
-        public static CellView Create(Transform parent, Position position, Vector3 floorCenter, float cellSize, float height, SlabLook slab, Color color)
+        /// <param name="height">윗면 높이(벽 꼭대기, 표식/클릭 판정 기준). 바닥 칸은 0.</param>
+        /// <param name="slab">바닥 판석 그림. 메시가 없으면 기본 상자로 그린다.</param>
+        /// <param name="wall">벽 칸이면 판석 위에 세울 벽 그림(메시가 없으면 벽 없이 판석만, 높이가 있으면 판석을 세로로 늘린다).</param>
+        public static CellView Create(Transform parent, Position position, Vector3 floorCenter, float cellSize, float height, SlabLook slab, SlabLook wall, Color color)
         {
             var go = new GameObject($"Cell {position}");
             go.transform.SetParent(parent, false);
@@ -61,7 +62,11 @@ namespace MiniChess.Client.Board
             var view = go.AddComponent<CellView>();
             view.Position = position;
             view._height = height;
-            view._renderer = CreateSlab(go.transform, cellSize, height, slab);
+            bool stretch = height > 0f && wall.Mesh == null;
+            Renderer slabRenderer = CreateSlab(go.transform, cellSize, stretch ? height : 0f, slab);
+            view._renderers = wall.Mesh != null
+                ? new[] { slabRenderer, CreatePart(go.transform, "Wall", cellSize, wall) }
+                : new[] { slabRenderer };
             view._block = new MaterialPropertyBlock();
             view._terrainColor = color;
             view.Refresh();
@@ -69,7 +74,7 @@ namespace MiniChess.Client.Board
             return view;
         }
 
-        /// <summary>판석 한 장의 모양. BoardView 가 칸 좌표로 정한다(같은 칸은 항상 같은 모양).</summary>
+        /// <summary>판석/벽 한 장의 모양. BoardView 가 칸 좌표로 정한다(같은 칸은 항상 같은 모양).</summary>
         public struct SlabLook
         {
             public Mesh Mesh;
@@ -78,32 +83,40 @@ namespace MiniChess.Client.Board
             public float HeightOffset;
         }
 
+        /// <param name="height">0 보다 크면 판석을 그 높이까지 세로로 늘린다(벽 메시가 없을 때의 임시 벽).</param>
         private static Renderer CreateSlab(Transform cell, float cellSize, float height, SlabLook slab)
         {
             float thickness = BoardArt.SlabThickness;
-            GameObject go;
-            if (slab.Mesh != null)
+            if (slab.Mesh == null)
             {
-                go = new GameObject("Slab");
-                go.AddComponent<MeshFilter>().sharedMesh = slab.Mesh;
-                go.AddComponent<MeshRenderer>().sharedMaterial = slab.Material;
-                go.transform.SetParent(cell, false);
-                go.transform.localPosition = Vector3.up * (height + slab.HeightOffset);
-                go.transform.localRotation = slab.Rotation;
-                // 판석은 윗면 y = 0, 두께 thickness. 벽은 바닥면 아래까지 이어지도록 세로로 늘린다.
-                go.transform.localScale = new Vector3(cellSize, (height + thickness) / thickness, cellSize);
-            }
-            else
-            {
-                go = RuntimePrimitive.Create(PrimitiveType.Cube);
-                Destroy(go.GetComponent<Collider>());
-                go.name = "Slab";
-                go.transform.SetParent(cell, false);
-                go.transform.localPosition = Vector3.up * ((height - thickness) * 0.5f);
-                go.transform.localScale = new Vector3(cellSize * 0.94f, height + thickness, cellSize * 0.94f);
+                GameObject box = RuntimePrimitive.Create(PrimitiveType.Cube);
+                Destroy(box.GetComponent<Collider>());
+                box.name = "Slab";
+                box.transform.SetParent(cell, false);
+                box.transform.localPosition = Vector3.up * ((height - thickness) * 0.5f);
+                box.transform.localScale = new Vector3(cellSize * 0.94f, height + thickness, cellSize * 0.94f);
+                return box.GetComponent<Renderer>();
             }
 
-            return go.GetComponent<Renderer>();
+            Renderer renderer = CreatePart(cell, "Slab", cellSize, slab);
+            Transform t = renderer.transform;
+            t.localPosition += Vector3.up * height;
+            // 판석은 윗면 y = 0, 두께 thickness. 임시 벽은 바닥면 아래까지 이어지도록 세로로 늘린다.
+            t.localScale = new Vector3(cellSize, (height + thickness) / thickness, cellSize);
+            return renderer;
+        }
+
+        private static Renderer CreatePart(Transform cell, string name, float cellSize, SlabLook look)
+        {
+            var go = new GameObject(name);
+            go.AddComponent<MeshFilter>().sharedMesh = look.Mesh;
+            var renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = look.Material;
+            go.transform.SetParent(cell, false);
+            go.transform.localPosition = Vector3.up * look.HeightOffset;
+            go.transform.localRotation = look.Rotation;
+            go.transform.localScale = new Vector3(cellSize, cellSize, cellSize);
+            return renderer;
         }
 
         /// <summary>지형 기본 색(점령 칸 소멸 등으로 바뀔 때).</summary>
@@ -281,18 +294,21 @@ namespace MiniChess.Client.Board
                 overlay = new Color(rgb.r, rgb.g, rgb.b, Mathf.Max(overlay.a, _highlightStrength));
             }
 
-            _renderer.GetPropertyBlock(_block);
-            if (_renderer.sharedMaterial != null && _renderer.sharedMaterial.HasProperty(OverlayId))
+            foreach (Renderer renderer in _renderers)
             {
-                _block.SetColor(ColorId, _terrainColor);
-                _block.SetColor(OverlayId, overlay);
+                renderer.GetPropertyBlock(_block);
+                if (renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty(OverlayId))
+                {
+                    _block.SetColor(ColorId, _terrainColor);
+                    _block.SetColor(OverlayId, overlay);
+                }
+                else
+                {
+                    // 돌 셰이더가 아닌 기본 상자(BoardArt 없음): 덧칠을 색에 섞는다.
+                    _block.SetColor(ColorId, Color.Lerp(_terrainColor, overlay, overlay.a));
+                }
+                renderer.SetPropertyBlock(_block);
             }
-            else
-            {
-                // 돌 셰이더가 아닌 기본 상자(BoardArt 없음): 덧칠을 색에 섞는다.
-                _block.SetColor(ColorId, Color.Lerp(_terrainColor, overlay, overlay.a));
-            }
-            _renderer.SetPropertyBlock(_block);
         }
     }
 }

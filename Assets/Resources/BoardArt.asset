@@ -16,15 +16,35 @@ MonoBehaviour:
   - {fileID: 4300000, guid: 9d59842d068171d4bb856eb991d6eeff, type: 2}
   - {fileID: 4300000, guid: 0588ae8c22a9fb3448af4fc4d87e8bea, type: 2}
   - {fileID: 4300000, guid: 077a63aacaaf0034e9cd66db402bb898, type: 2}
+  brokenSlabMeshes:
+  - {fileID: 4300000, guid: e52cb5505f0ba7549a9d6b6681beeaab, type: 2}
+  - {fileID: 4300000, guid: a0af4716135b1ba40af9e6dae3b2ad03, type: 2}
+  - {fileID: 4300000, guid: d002cb988e4b8834482fcbb51e628316, type: 2}
+  - {fileID: 4300000, guid: e3580696a0b09cb4e8e96c439fa815af, type: 2}
+  brokenChance: 0.18
   floorMaterial: {fileID: 2100000, guid: 3e9349237f5ea974abf130e633a44165, type: 2}
   bedMaterial: {fileID: 2100000, guid: f253b7c359617ac46b4a249bae20bbcf, type: 2}
-  wallMaterial: {fileID: 0}
   heightJitter: 0.008
   tiltJitter: 0.6
+  sinkChance: 0.1
+  sinkDepth: 0.015
+  sinkTilt: 1.8
+  wallMeshes:
+  - {fileID: 4300000, guid: b9bfe6e2a242a104790a4d10a293b3cf, type: 2}
+  - {fileID: 4300000, guid: 9962a7174bbbe7d42933124d7f0f5041, type: 2}
+  - {fileID: 4300000, guid: 0f7dacfe5c32ef3469c6f6377d7b6aaa, type: 2}
+  wallMaterial: {fileID: 2100000, guid: 6198ba283a906b6419d6f4ea5ffc05d7, type: 2}
+  borderMeshes:
+  - {fileID: 4300000, guid: a026db63fda5f6d409d5858aac07985e, type: 2}
+  - {fileID: 4300000, guid: d6590b063fd778f4981c932808efd529, type: 2}
+  borderCornerMesh: {fileID: 4300000, guid: 2697bee4581eac34ea162fbf1fe3d2eb, type: 2}
+  borderOffset: 0.23
+  applyBackground: 1
+  backgroundColor: {r: 0.3, g: 0.26, b: 0.38, a: 1}
   applyLighting: 1
   sunColor: {r: 1, g: 0.87, b: 0.72, a: 1}
   sunIntensity: 1.9
-  sunRotation: {x: 32, y: 225, z: 0}
+  sunRotation: {x: 38, y: 40, z: 0}
   ambientSky: {r: 0.4, g: 0.38, b: 0.52, a: 1}
-  ambientEquator: {r: 0.32, g: 0.3, b: 0.34, a: 1}
+  ambientEquator: {r: 0.38, g: 0.35, b: 0.4, a: 1}
   ambientGround: {r: 0.1, g: 0.09, b: 0.09, a: 1}
