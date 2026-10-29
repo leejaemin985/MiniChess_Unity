@@ -22,8 +22,8 @@ namespace MiniChess.Client.Editor.Environment
         private const float Bevel = 0.045f;
         private const float Undulation = 0.006f;
 
-        /// <summary>베벨 안쪽(평평한 부분)을 나누는 칸 수. 깨진 자리를 표현할 만큼만.</summary>
-        private const int InteriorSteps = 10;
+        /// <summary>베벨 안쪽(평평한 부분)을 나누는 칸 수. 깨진 자리를 표현할 만큼만(모바일 화면에서 한 칸은 수십 픽셀).</summary>
+        private const int InteriorSteps = 7;
 
         /// <summary>깨진 판석 변형 수: 가로/세로로 두 조각 2종, 모서리가 떨어진 것 1종, 세 조각 1종.</summary>
         public const int BrokenVariantCount = 4;
@@ -379,7 +379,7 @@ namespace MiniChess.Client.Editor.Environment
         /// <summary>한 축의 정점 좌표: 베벨 구간은 촘촘하게, 안쪽은 고르게.</summary>
         private static float[] Coords(float half)
         {
-            var edge = new[] { 0f, 0.15f, 0.4f, 0.7f, 1f };
+            var edge = new[] { 0f, 0.25f, 0.6f, 1f };
             var coords = new List<float>();
             foreach (float e in edge)
                 coords.Add(-half + e * Bevel);

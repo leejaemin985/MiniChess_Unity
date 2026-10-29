@@ -16,8 +16,8 @@ namespace MiniChess.Client.Editor.Environment
         private readonly List<Vector2> _uvs = new List<Vector2>();
         private readonly List<int> _triangles = new List<int>();
 
-        /// <summary>베벨 단면을 나누는 비율(0 = 테두리, 1 = 베벨 안쪽 끝).</summary>
-        private static readonly float[] BevelSteps = { 0f, 0.15f, 0.4f, 0.7f, 1f };
+        /// <summary>베벨 단면을 나누는 비율(0 = 테두리, 1 = 베벨 안쪽 끝). 화면에서 작은 조각이라 4단이면 둥글게 보인다.</summary>
+        private static readonly float[] BevelSteps = { 0f, 0.25f, 0.6f, 1f };
 
         /// <summary>돌 조각 하나의 모양.</summary>
         public struct Piece
