@@ -10,20 +10,24 @@ using CoreBoard = MiniChess.Core.State.Board;
 
 namespace MiniChess.Client.Board
 {
-    /// <summary>코어 Board 의 칸 구성(바닥/벽/점령 칸/시작 위치)을 큐브로 그린다. 점령 칸이 소멸하면 SyncEffects 에서 바닥색으로 바뀐다.</summary>
+    /// <summary>
+    /// 코어 Board 의 칸 구성(바닥/벽/점령 칸/시작 위치)을 판석으로 그린다(BoardArt). 점령 칸이 소멸하면 SyncEffects 에서 바닥색으로 바뀐다.
+    /// 판석 모양(변형/회전/높이/기울기)은 칸 좌표로 정하므로 같은 맵은 항상 같아 보인다. 보드를 만들 때 BoardArt 의 조명을 씬에 적용한다.
+    /// </summary>
     public class BoardView : MonoBehaviour
     {
         public const string StrikeReticlePath = "Materials/StrikeReticle";
 
+        [Tooltip("판석 메시/머티리얼/조명. 비우면 Resources/BoardArt 를 불러온다(없으면 기본 상자로 그린다).")]
+        [SerializeField] private BoardArt art;
+
         [Header("Shape")]
-        [SerializeField] private float tileThickness = 0.1f;
-        [SerializeField] private float tileGap = 0.05f;
         [SerializeField] private float wallHeight = 0.8f;
 
         [Header("Colors")]
-        [SerializeField] private Color groundLight = new Color(0.82f, 0.82f, 0.78f);
-        [SerializeField] private Color groundDark = new Color(0.68f, 0.68f, 0.64f);
-        [SerializeField] private Color wallColor = new Color(0.25f, 0.25f, 0.28f);
+        [Tooltip("바닥 판석 색에 곱하는 색. 판석마다의 톤 차이는 돌 셰이더가 만든다.")]
+        [SerializeField] private Color groundColor = Color.white;
+        [SerializeField] private Color wallColor = new Color(0.55f, 0.52f, 0.55f);
         [SerializeField] private Color captureColor = new Color(0.95f, 0.78f, 0.25f);
         [SerializeField] private Color spawnPlayer1Tint = new Color(0.55f, 0.7f, 0.95f);
         [SerializeField] private Color spawnPlayer2Tint = new Color(0.95f, 0.6f, 0.55f);
@@ -72,6 +76,7 @@ namespace MiniChess.Client.Board
         private readonly List<(Position Cell, Team Team, float Until)> _revealedTraps = new List<(Position, Team, float)>();
         private readonly List<(IReadOnlyList<Position> Cells, Team Team, float Until)> _revealedStrikes = new List<(IReadOnlyList<Position>, Team, float)>();
         private BoardCoordinates _coordinates;
+        private GameObject _bed;
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -136,7 +141,7 @@ namespace MiniChess.Client.Board
                 if (trap == null && revealed)
                     trapColor = revealedTeam == Team.Player1 ? player1TrapColor : player2TrapColor;
 
-                Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
+                Vector3 top = view.Top;
                 // 드러난 상대 덫은 상태에 없으므로 덫 종류(속박 덫)로 본다.
                 bool trapModel = HasFieldVisual != null && HasFieldVisual(trap?.Kind ?? CellEffectKinds.RootTrap);
                 float trapSize = trapModel ? trapRimSize : trapMarkerSize;
@@ -205,7 +210,7 @@ namespace MiniChess.Client.Board
                 CellView view = pair.Value;
                 bool marked = strikeTeams.TryGetValue(pair.Key, out Team team);
                 Color color = team == Team.Player1 ? player1StrikeColor : player2StrikeColor;
-                Vector3 top = view.transform.position + Vector3.up * (view.transform.lossyScale.y * 0.5f);
+                Vector3 top = view.Top;
                 view.SetStrikeMarker(marked, color, top, strikeMarkerSize * _coordinates.CellSize, strikeReticleMaterial);
             }
         }
@@ -267,6 +272,12 @@ namespace MiniChess.Client.Board
             Clear();
             _coordinates = coordinates;
 
+            if (art == null)
+                art = Resources.Load<BoardArt>(BoardArt.ResourcePath);
+            if (art != null)
+                art.ApplyLighting();
+            CreateBed(coordinates);
+
             _spawnTints.Clear();
             foreach (Position p in board.GetSpawnPositions(Team.Player1)) _spawnTints[p] = spawnPlayer1Tint;
             foreach (Position p in board.GetSpawnPositions(Team.Player2)) _spawnTints[p] = spawnPlayer2Tint;
@@ -300,43 +311,82 @@ namespace MiniChess.Client.Board
             }
 
             _cells.Clear();
+
+            if (_bed != null)
+                Destroy(_bed);
+            _bed = null;
         }
 
         private CellView CreateGround(Position position, BoardCell cell, BoardCoordinates coordinates)
         {
-            Color color = GetTerrainColor(position, cell);
-
-            float size = coordinates.CellSize - tileGap;
-            Vector3 center = coordinates.ToWorld(position) + Vector3.down * (tileThickness * 0.5f);
-
-            return CellView.Create(transform, position, center, new Vector3(size, tileThickness, size), color);
+            CellView.SlabLook slab = GetSlabLook(position, art != null ? art.FloorMaterial : null, tilt: true);
+            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, 0f, slab, GetTerrainColor(position, cell));
         }
 
         private CellView CreateWall(Position position, BoardCoordinates coordinates)
         {
-            float size = coordinates.CellSize - tileGap;
-            float height = tileThickness + wallHeight;
-            Vector3 center = coordinates.ToWorld(position) + Vector3.up * (height * 0.5f - tileThickness);
+            CellView.SlabLook slab = GetSlabLook(position, art != null ? art.WallMaterial : null, tilt: false);
+            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, wallHeight, slab, wallColor);
+        }
 
-            return CellView.Create(transform, position, center, new Vector3(size, height, size), wallColor);
+        /// <summary>칸 좌표로 정한 판석 모양: 변형, 90도 회전, 높이/기울기 흔들림(벽은 기울이지 않는다).</summary>
+        private CellView.SlabLook GetSlabLook(Position position, Material material, bool tilt)
+        {
+            if (art == null)
+                return default;
+
+            var random = new System.Random(position.X * 73856093 ^ position.Y * 19349663);
+            float Jitter(float amount) => ((float)random.NextDouble() * 2f - 1f) * amount;
+
+            Mesh mesh = art.GetSlabMesh(random.Next(1024));
+            float yaw = random.Next(4) * 90f;
+            float heightOffset = Jitter(art.HeightJitter);
+            Quaternion rotation = tilt
+                ? Quaternion.Euler(Jitter(art.TiltJitter), yaw, Jitter(art.TiltJitter))
+                : Quaternion.Euler(0f, yaw, 0f);
+
+            return new CellView.SlabLook
+            {
+                Mesh = mesh,
+                Material = material,
+                Rotation = rotation,
+                HeightOffset = tilt ? heightOffset : 0f,
+            };
+        }
+
+        /// <summary>판석 사이 줄눈으로 보이는 보드 아래 어두운 바닥(클릭/그림자 대상 아님).</summary>
+        private void CreateBed(BoardCoordinates coordinates)
+        {
+            if (art == null || art.BedMaterial == null)
+                return;
+
+            _bed = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _bed.name = "Floor Bed";
+            Destroy(_bed.GetComponent<Collider>());
+            _bed.transform.SetParent(transform, false);
+            const float thickness = 0.1f;
+            Vector3 center = coordinates.Center;
+            center.y = -BoardArt.SlabThickness * 0.6f - thickness * 0.5f;
+            _bed.transform.localPosition = center;
+            _bed.transform.localScale = new Vector3(coordinates.Size.x + 0.2f, thickness, coordinates.Size.y + 0.2f);
+            var bedRenderer = _bed.GetComponent<Renderer>();
+            bedRenderer.sharedMaterial = art.BedMaterial;
+            bedRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
         /// <summary>바닥 칸의 기본 색(점령 칸 / 체크 무늬 + 시작 위치 색조).</summary>
         private Color GetTerrainColor(Position position, BoardCell cell)
         {
-            Color color = GetGroundColor(position, cell);
+            Color color = GetGroundColor(cell);
             if (_spawnTints.TryGetValue(position, out Color tint))
                 color = Color.Lerp(color, tint, spawnTintStrength);
 
             return color;
         }
 
-        private Color GetGroundColor(Position position, BoardCell cell)
+        private Color GetGroundColor(BoardCell cell)
         {
-            if (cell.IsCaptureTile)
-                return captureColor;
-
-            return (position.X + position.Y) % 2 == 0 ? groundDark : groundLight;
+            return cell.IsCaptureTile ? captureColor : groundColor;
         }
     }
 }

@@ -6,16 +6,20 @@ using UnityEngine;
 namespace MiniChess.Client.Board
 {
     /// <summary>
-    /// 보드 한 칸의 표시. 색은 지형 → 장판 색조 → 하이라이트 순으로 겹쳐 그린다.
+    /// 보드 한 칸의 표시. 칸 오브젝트는 칸 바닥면 중심(윗면 높이 0)에 놓이고 크기를 늘리지 않는다. 그림은 자식 판석(돌 셰이더)이다.
+    /// 색: 지형 색조(시작 위치/점령 칸/벽)는 판석 색에 곱하고(_BaseColor), 장판 → 하이라이트는 판석 위에 덧칠한다(_OverlayColor).
     /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자, 예약 포격은 칸 바닥의 조준점으로 그린다. 게임 상태는 갖지 않는다.
+    /// 클릭 판정 상자는 칸 전체 크기라 판석 사이 줄눈을 눌러도 그 칸이 잡힌다.
     /// </summary>
     public class CellView : MonoBehaviour
     {
         private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int OverlayId = Shader.PropertyToID("_OverlayColor");
 
         private Renderer _renderer;
         private MaterialPropertyBlock _block;
         private Color _terrainColor;
+        private float _height;
 
         private Color? _effectTint;
         private float _effectStrength;
@@ -37,22 +41,69 @@ namespace MiniChess.Client.Board
 
         public Position Position { get; private set; }
 
-        public static CellView Create(Transform parent, Position position, Vector3 center, Vector3 scale, Color color)
+        /// <summary>칸 윗면 중심(월드). 덫/장애물/조준점을 이 위에 놓는다. 벽은 벽 꼭대기.</summary>
+        public Vector3 Top => transform.position + Vector3.up * _height;
+
+        /// <param name="floorCenter">칸 바닥면 중심(보드 기준 로컬 좌표, 윗면 높이 0).</param>
+        /// <param name="height">윗면을 바닥면보다 올릴 높이(벽). 바닥 칸은 0.</param>
+        /// <param name="slab">판석 그림(메시/머티리얼/회전/높이 흔들림). 메시가 없으면 기본 상자로 그린다.</param>
+        public static CellView Create(Transform parent, Position position, Vector3 floorCenter, float cellSize, float height, SlabLook slab, Color color)
         {
-            GameObject go = RuntimePrimitive.Create(PrimitiveType.Cube);
-            go.name = $"Cell {position}";
+            var go = new GameObject($"Cell {position}");
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = center;
-            go.transform.localScale = scale;
+            go.transform.localPosition = floorCenter;
+
+            float thickness = BoardArt.SlabThickness;
+            var collider = go.AddComponent<BoxCollider>();
+            collider.center = new Vector3(0f, (height - thickness) * 0.5f, 0f);
+            collider.size = new Vector3(cellSize, height + thickness, cellSize);
 
             var view = go.AddComponent<CellView>();
             view.Position = position;
-            view._renderer = go.GetComponent<Renderer>();
+            view._height = height;
+            view._renderer = CreateSlab(go.transform, cellSize, height, slab);
             view._block = new MaterialPropertyBlock();
             view._terrainColor = color;
             view.Refresh();
 
             return view;
+        }
+
+        /// <summary>판석 한 장의 모양. BoardView 가 칸 좌표로 정한다(같은 칸은 항상 같은 모양).</summary>
+        public struct SlabLook
+        {
+            public Mesh Mesh;
+            public Material Material;
+            public Quaternion Rotation;
+            public float HeightOffset;
+        }
+
+        private static Renderer CreateSlab(Transform cell, float cellSize, float height, SlabLook slab)
+        {
+            float thickness = BoardArt.SlabThickness;
+            GameObject go;
+            if (slab.Mesh != null)
+            {
+                go = new GameObject("Slab");
+                go.AddComponent<MeshFilter>().sharedMesh = slab.Mesh;
+                go.AddComponent<MeshRenderer>().sharedMaterial = slab.Material;
+                go.transform.SetParent(cell, false);
+                go.transform.localPosition = Vector3.up * (height + slab.HeightOffset);
+                go.transform.localRotation = slab.Rotation;
+                // 판석은 윗면 y = 0, 두께 thickness. 벽은 바닥면 아래까지 이어지도록 세로로 늘린다.
+                go.transform.localScale = new Vector3(cellSize, (height + thickness) / thickness, cellSize);
+            }
+            else
+            {
+                go = RuntimePrimitive.Create(PrimitiveType.Cube);
+                Destroy(go.GetComponent<Collider>());
+                go.name = "Slab";
+                go.transform.SetParent(cell, false);
+                go.transform.localPosition = Vector3.up * ((height - thickness) * 0.5f);
+                go.transform.localScale = new Vector3(cellSize * 0.94f, height + thickness, cellSize * 0.94f);
+            }
+
+            return go.GetComponent<Renderer>();
         }
 
         /// <summary>지형 기본 색(점령 칸 소멸 등으로 바뀔 때).</summary>
@@ -100,10 +151,9 @@ namespace MiniChess.Client.Board
                 CreateTrapMarker();
 
             _trapMarker.SetActive(true);
-            // 기본 원통은 지름 1, 높이 2. 부모(칸 큐브)의 스케일을 상쇄해 월드 크기로 맞춘다.
+            // 기본 원통은 지름 1, 높이 2. 칸 오브젝트는 크기를 늘리지 않으므로 로컬 크기가 곧 월드 크기다.
             _trapMarker.transform.position = worldTop + Vector3.up * 0.02f;
-            _trapMarker.transform.localScale = new Vector3(
-                size / transform.lossyScale.x, 0.02f / transform.lossyScale.y, size / transform.lossyScale.z);
+            _trapMarker.transform.localScale = new Vector3(size, 0.02f, size);
 
             _trapRenderer.GetPropertyBlock(_trapBlock);
             _trapBlock.SetColor(ColorId, color);
@@ -135,7 +185,6 @@ namespace MiniChess.Client.Board
 
         private void CreateStrikeMarker(Material material)
         {
-            // 칸은 납작하게 늘린 큐브라, 표식은 크기 왜곡이 없도록 칸의 부모(보드) 아래에 둔다.
             _strikeMarker = GameObject.CreatePrimitive(PrimitiveType.Quad);
             _strikeMarker.name = $"Strike {Position}";
             Destroy(_strikeMarker.GetComponent<Collider>()); // 클릭은 칸이 받는다
@@ -170,8 +219,7 @@ namespace MiniChess.Client.Board
             _obstacle.SetActive(drawBlock);
             _obstacleLabel.gameObject.SetActive(true);
             _obstacle.transform.position = worldTop + Vector3.up * (height * 0.5f);
-            _obstacle.transform.localScale = new Vector3(
-                size / transform.lossyScale.x, height / transform.lossyScale.y, size / transform.lossyScale.z);
+            _obstacle.transform.localScale = new Vector3(size, height, size);
 
             _obstacleRenderer.GetPropertyBlock(_obstacleBlock);
             _obstacleBlock.SetColor(ColorId, color);
@@ -190,7 +238,6 @@ namespace MiniChess.Client.Board
             _obstacleRenderer = _obstacle.GetComponent<Renderer>();
             _obstacleBlock = new MaterialPropertyBlock();
 
-            // 칸은 납작하게 늘린 큐브라, 라벨은 크기 왜곡이 없도록 칸의 부모(보드) 아래에 둔다.
             var labelObject = new GameObject($"Obstacle Hits {Position}");
             labelObject.transform.SetParent(transform.parent, false);
             labelObject.AddComponent<Billboard>();
@@ -224,14 +271,27 @@ namespace MiniChess.Client.Board
 
         private void Refresh()
         {
-            Color color = _terrainColor;
+            // 덧칠: 장판 위에 하이라이트를 섞는다. a = 판석 색을 덧칠 색으로 바꾸는 정도.
+            var overlay = new Color(0f, 0f, 0f, 0f);
             if (_effectTint.HasValue)
-                color = Color.Lerp(color, _effectTint.Value, _effectStrength);
+                overlay = new Color(_effectTint.Value.r, _effectTint.Value.g, _effectTint.Value.b, _effectStrength);
             if (_highlight.HasValue)
-                color = Color.Lerp(color, _highlight.Value, _highlightStrength);
+            {
+                Color rgb = _effectTint.HasValue ? Color.Lerp(overlay, _highlight.Value, _highlightStrength) : _highlight.Value;
+                overlay = new Color(rgb.r, rgb.g, rgb.b, Mathf.Max(overlay.a, _highlightStrength));
+            }
 
             _renderer.GetPropertyBlock(_block);
-            _block.SetColor(ColorId, color);
+            if (_renderer.sharedMaterial != null && _renderer.sharedMaterial.HasProperty(OverlayId))
+            {
+                _block.SetColor(ColorId, _terrainColor);
+                _block.SetColor(OverlayId, overlay);
+            }
+            else
+            {
+                // 돌 셰이더가 아닌 기본 상자(BoardArt 없음): 덧칠을 색에 섞는다.
+                _block.SetColor(ColorId, Color.Lerp(_terrainColor, overlay, overlay.a));
+            }
             _renderer.SetPropertyBlock(_block);
         }
     }

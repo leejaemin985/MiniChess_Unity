@@ -3,7 +3,7 @@
 //   - 칸마다 다르게: 월드 위치가 속한 칸(_CellSize)으로 난수를 만들어 텍스처 위치/90도 회전, 색조, 밝기, 금 유무를 흔든다.
 //     칸 중심이 (X * _CellSize, Y * _CellSize) 라는 보드 좌표 규칙(BoardCoordinates)을 따른다.
 //   - 모서리: 판석 메시의 정점 색을 쓴다(StoneSlabMeshBuilder). R = 모서리 닳음, G = 깨진 자리, B = 아래쪽 때.
-//   - _BaseColor 는 전체 색 곱(칸 하이라이트/장판 색조를 입히는 데 쓴다).
+//   - _BaseColor 는 전체 색 곱(지형 색조: 시작 위치, 점령 칸, 벽). _OverlayColor 는 덧칠(칸 하이라이트/장판, a = 세기).
 // 모바일 기준: 텍스처 샘플 3번, 노이즈 계산 없음(텍스처는 StoneTextureBaker 로 미리 굽는다).
 Shader "MiniChess/StoneSurface"
 {
@@ -35,6 +35,10 @@ Shader "MiniChess/StoneSurface"
         [Header(Surface)]
         _Smoothness ("Smoothness", Range(0, 1)) = 0.22
         _Occlusion ("Cavity Occlusion", Range(0, 1)) = 0.6
+
+        [Header(Overlay)]
+        _OverlayColor ("Overlay (a = strength)", Color) = (0, 0, 0, 0)
+        _OverlayGlow ("Overlay Glow", Range(0, 1)) = 0.35
     }
 
     SubShader
@@ -62,6 +66,8 @@ Shader "MiniChess/StoneSurface"
             half _CrackAmount;
             half _Smoothness;
             half _Occlusion;
+            half4 _OverlayColor;
+            half _OverlayGlow;
         CBUFFER_END
         ENDHLSL
 
@@ -184,6 +190,10 @@ Shader "MiniChess/StoneSurface"
                 albedo = lerp(albedo, albedo * _DirtColor.rgb, dirt * _Dirt);
                 albedo *= _BaseColor.rgb;
 
+                // 덧칠(칸 하이라이트/장판): 돌 색을 덧칠 색 쪽으로 섞고, 그림자 안에서도 보이게 약하게 빛나게 한다.
+                albedo = lerp(albedo, _OverlayColor.rgb, _OverlayColor.a);
+                half3 emission = _OverlayColor.rgb * (_OverlayColor.a * _OverlayGlow);
+
                 float sgn = input.tangentWS.w;
                 half3 bitangentWS = sgn * cross(input.normalWS, input.tangentWS.xyz);
                 half3 normalWS = TransformTangentToWorld(normalTS, half3x3(input.tangentWS.xyz, bitangentWS, input.normalWS));
@@ -208,6 +218,7 @@ Shader "MiniChess/StoneSurface"
                 surface.smoothness = saturate(_Smoothness * (0.6 + 0.8 * mask.b) * (1.0 - dirt * 0.5) * (1.0 - chip * 0.5));
                 surface.normalTS = normalTS;
                 surface.occlusion = 1.0 - saturate(mask.g + crack) * _Occlusion;
+                surface.emission = emission;
                 surface.alpha = 1;
 
                 half4 color = UniversalFragmentPBR(inputData, surface);
