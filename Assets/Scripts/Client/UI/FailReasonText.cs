@@ -50,6 +50,7 @@ namespace MiniChess.Client.UI
                 case MoveFailReason.Stunned: return "Stunned units can't move";
                 case MoveFailReason.UnknownUnit: return "Unknown unit";
                 case MoveFailReason.NotYourUnit: return "Not your unit";
+                case MoveFailReason.Unknown: return "This unit can't move now";
                 default: return reason.ToString();
             }
         }
