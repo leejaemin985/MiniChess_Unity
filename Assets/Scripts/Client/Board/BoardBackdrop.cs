@@ -6,14 +6,10 @@ using UnityEngine.Rendering;
 namespace MiniChess.Client.Board
 {
     /// <summary>
-    /// 보드 바깥 배경: 보드가 올라앉은 거대한 성벽(외곽 벽 바로 아래로 떨어지는 낭떠러지), 성벽 아래 숲, 멀리 둘러싼 산.
+    /// 보드 바깥 배경: 보드 전체를 띄우는 큰 섬 하나, 아래 멀리 숲, 멀리 둘러싼 산.
     /// 카메라 각도가 자유롭게 바뀌어도 어느 쪽에서든 보이도록 보드 둘레 전체를 만든다(하늘은 BoardArt 의 스카이박스).
-    ///   - 성벽: 외곽 벽 바깥 면(보드 가장자리에서 RimOffset)에서 숲 바닥 아래까지 곧게 내려가는 석축. 몇 층마다 턱이 진다.
-    ///     벽돌 무늬는 Masonry 셰이더가 월드 좌표로 그린다(벽돌을 메시로 만들지 않음).
-    ///   - 모서리 단: 보드 네 모서리 바깥에 2 × 2 칸 돌바닥 단(아래로는 같은 성벽)을 두어 큰 석조물이 설 자리를 만든다.
-    ///     단 위는 저폴리 판석(보드와 같은 돌 머티리얼), 바깥 두 변에는 낮은 흉벽과 모서리 기둥.
-    /// 숲/산은 Backdrop 셰이더. 성벽/숲/산은 멀거나 낮을수록 안개 색(하늘 지평선 색)에 묻혀 멀게 보인다.
-    /// 보드 크기에 맞춰 실행 중에 메시를 만든다(성벽, 판석, 흉벽, 숲, 산 = 그리기 호출 5번). 같은 크기의 보드는 항상 같은 모습이다.
+    ///   - 떠 있는 섬: 섬 프리팹 하나를 보드보다 조금 크게 늘려 보드를 얹는다(BuildIsland).
+    ///   - 숲/산: Backdrop 셰이더. 멀거나 낮을수록 안개 색(하늘 지평선 색)에 묻혀 멀게 보인다. 보드 크기에 맞춰 실행 중에 메시를 만든다.
     /// </summary>
     internal static class BoardBackdrop
     {
@@ -26,56 +22,68 @@ namespace MiniChess.Client.Board
         /// <summary>먼 산 겹(보드 중심에서의 거리, 숲 바닥에서 최고 높이). 멀수록 높고 안개에 더 묻힌다.</summary>
         private static readonly Vector2[] MountainLayers = { new Vector2(95f, 22f), new Vector2(140f, 36f), new Vector2(200f, 55f) };
 
-        /// <summary>모서리 단 판석 윗면 높이(보드 판석 윗면 0 보다 조금 낮게). 석조물/넝쿨이 이 높이에 선다.</summary>
-        internal const float GroundHeight = -0.04f;
-
-        /// <summary>성벽 꼭대기(판석/외곽 벽 아래, 줄눈 바닥) 높이.</summary>
-        private const float WallTop = -0.12f;
-
-        /// <summary>성벽 바깥 면이 보드 가장자리에서 떨어진 거리(칸 단위). 외곽 벽(두께 약 0.46칸) 바로 바깥.</summary>
-        private const float RimOffset = 0.5f;
-
-        /// <summary>성벽 층 높이, 층마다 바깥으로 나오는 턱 폭(월드 단위).</summary>
-        private const float CourseHeight = 3.2f;
-        private const float Ledge = 0.18f;
-
-        /// <summary>모서리 단의 한 변(칸 단위). 보드 모서리에서 바깥으로 이만큼 칸 격자에 맞춰 나온다.</summary>
-        private const int BastionSize = 2;
-
-        /// <param name="cliffLip">채워 줄 목록: 성벽 가장자리를 따라 일정 간격의 (가장자리 점, 바깥 방향). 넝쿨을 늘어뜨릴 자리.</param>
-        public static GameObject Build(Transform parent, BoardCoordinates coordinates, BoardArt art, List<(Vector3 Point, Vector3 Normal)> cliffLip)
+        /// <summary>숲/산(실행 중에 만든 메시, 지울 때 메시도 함께 지운다).</summary>
+        public static GameObject Build(Transform parent, BoardCoordinates coordinates, BoardArt art)
         {
-            cliffLip?.Clear();
             if (art == null || art.BackdropMaterial == null)
                 return null;
 
             var frame = new Frame(coordinates);
             var root = new GameObject("Backdrop");
             root.transform.SetParent(parent, false);
-
-            if (art.MasonryMaterial != null)
-                CreatePart(root.transform, "Fortress", Fortress(frame, art, cliffLip), art.MasonryMaterial, ShadowCastingMode.Off, linearColors: true);
-            if (art.HasPavingMeshes && art.FloorMaterial != null)
-                CreatePart(root.transform, "Paving", Paving(frame, coordinates, art), art.FloorMaterial, ShadowCastingMode.Off, linearColors: false);
-            if (art.HasBorder)
-                CreatePart(root.transform, "Parapet", Parapet(frame, art), art.WallMaterial, ShadowCastingMode.On, linearColors: false);
-            CreatePart(root.transform, "Forest", Forest(frame, art), art.BackdropMaterial, ShadowCastingMode.Off, linearColors: true);
-            CreatePart(root.transform, "Mountains", Mountains(frame, art), art.BackdropMaterial, ShadowCastingMode.Off, linearColors: true);
+            CreatePart(root.transform, "Forest", Forest(frame, art), art.BackdropMaterial);
+            CreatePart(root.transform, "Mountains", Mountains(frame, art), art.BackdropMaterial);
             return root;
         }
 
-        /// <param name="linearColors">정점 색이 색(sRGB 기준 상수)이면 리니어로 바꿔 넣는다. 돌 메시처럼 정점 색이 데이터(닳음/때)면 그대로.</param>
-        private static void CreatePart(Transform parent, string name, Mesh mesh, Material material, ShadowCastingMode shadows, bool linearColors)
+        /// <summary>
+        /// 보드 전체를 띄우는 큰 섬 하나. 섬 프리팹(윗면 중앙이 원점)을 보드보다 사방 IslandMargin 칸 크게 늘려,
+        /// 보드 판석이 섬 윗면에 얹히고 남는 둘레는 석조물이 설 자리가 된다. 세로는 가로/세로 배율의 평균으로 늘린다.
+        /// 섬 윗면 바닥(테두리 안)은 보드 판석 윗면 바로 아래에 오게 맞춘다(판석이 바닥에 묻혀 보인다).
+        /// 섬은 프리팹 에셋의 메시를 그대로 쓰므로 지울 때 오브젝트만 지운다(실행 중에 만든 숲/산 메시와 따로 둔다).
+        /// 그림자는 드리우지 않는다(보드 아래라 티가 나지 않고, 그림자 패스 비용만 든다).
+        /// </summary>
+        public static GameObject BuildIsland(Transform parent, BoardCoordinates coordinates, BoardArt art)
         {
-            mesh.name = name;
-            if (linearColors)
+            if (art == null || art.IslandPrefab == null)
+                return null;
+
+            GameObject island = Object.Instantiate(art.IslandPrefab, parent);
+            island.name = "Island";
+            island.transform.localRotation = Quaternion.identity;
+            island.transform.localScale = Vector3.one;
+
+            // 프리팹 크기(윗면 한 변)를 재서 보드 + 둘레에 맞춘다
+            Bounds bounds = default;
+            bool first = true;
+            foreach (Renderer renderer in island.GetComponentsInChildren<Renderer>())
             {
-                Color[] colors = mesh.colors;
-                for (int i = 0; i < colors.Length; i++)
-                    colors[i] = colors[i].linear;
-                mesh.colors = colors;
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                if (first)
+                    bounds = renderer.bounds;
+                else
+                    bounds.Encapsulate(renderer.bounds);
+                first = false;
             }
 
+            float margin = art.IslandMargin * coordinates.CellSize * 2f;
+            float scaleX = (coordinates.Size.x + margin) / Mathf.Max(bounds.size.x, 0.01f);
+            float scaleZ = (coordinates.Size.y + margin) / Mathf.Max(bounds.size.z, 0.01f);
+            float scaleY = (scaleX + scaleZ) * 0.5f;
+            island.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
+            // 프리팹 윗면 바닥은 원점(테두리 꼭대기)보다 IslandFloorDepth 아래 → 늘린 뒤 그 바닥이 판석 윗면(0) 바로 아래(-0.01)에 오게
+            island.transform.localPosition = new Vector3(coordinates.Center.x, art.IslandFloorDepth * scaleY - 0.01f, coordinates.Center.z);
+            return island;
+        }
+
+        /// <summary>실행 중에 만든 숲/산 메시. 정점 색 상수(sRGB 기준)를 리니어로 바꿔 넣는다.</summary>
+        private static void CreatePart(Transform parent, string name, Mesh mesh, Material material)
+        {
+            mesh.name = name;
+            Color[] colors = mesh.colors;
+            for (int i = 0; i < colors.Length; i++)
+                colors[i] = colors[i].linear;
+            mesh.colors = colors;
             mesh.UploadMeshData(markNoLongerReadable: true); // 다시 고치지 않으므로 CPU 쪽 사본은 버린다
 
             var go = new GameObject(name);
@@ -83,132 +91,12 @@ namespace MiniChess.Client.Board
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = shadows;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.lightProbeUsage = LightProbeUsage.Off;
             renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
         }
 
-        /// <summary>
-        /// 성벽: 외곽 벽 바로 바깥(직사각형)에서 숲 바닥 아래까지 곧게 내려가는 벽. 층(CourseHeight)마다 바깥으로 턱(Ledge)이 진다.
-        /// 네 모서리 단도 같은 방식으로 내려간다. 꼭대기는 판석/외곽 벽 아래의 줄눈 바닥(무늬 없는 어두운 면).
-        /// 정점 색: RGB = 색조(아래로 갈수록 어둡게), A = 벽돌 무늬(1) / 줄눈 바닥(0).
-        /// </summary>
-        private static Mesh Fortress(Frame frame, BoardArt art, List<(Vector3 Point, Vector3 Normal)> cliffLip)
-        {
-            var builder = new BoxBuilder(art.CliffDepth);
-            float bottom = -art.CliffDepth - 1.5f;
-            float cell = frame.Cell;
-
-            builder.Top(frame.RimMin, frame.RimMax, WallTop, pattern: 0f);
-            builder.Tower(frame.RimMin, frame.RimMax, WallTop, bottom, CourseHeight, Ledge);
-
-            foreach ((Vector2 min, Vector2 max) in frame.Bastions())
-            {
-                builder.Top(min, max, WallTop, pattern: 0f);
-                builder.Tower(min, max, WallTop, bottom, CourseHeight, Ledge);
-            }
-
-            // 넝쿨 자리: 성벽 가장자리를 따라 0.75칸마다(모서리 단 구간 제외)
-            if (cliffLip != null)
-            {
-                float skip = (BastionSize - RimOffset + 0.4f) * cell;
-                foreach ((Vector3 from, Vector3 to, Vector3 normal) in frame.RimEdges())
-                {
-                    float length = Vector3.Distance(from, to);
-                    for (float d = skip; d < length - skip; d += 0.75f * cell)
-                        cliffLip.Add((Vector3.Lerp(from, to, d / length) + Vector3.up * WallTop, normal));
-                }
-            }
-
-            return builder.ToMesh();
-        }
-
-        /// <summary>
-        /// 모서리 단 판석: 보드 칸 격자를 이어 모서리 단 칸마다 저폴리 판석 한 장(칸 좌표로 변형/회전/흔들림을 정함).
-        /// 약 7% 는 빠져서 아래 줄눈 바닥이 보이고, 약 10% 는 살짝 내려앉는다. 보드와 같은 돌 머티리얼이라 색/질감이 이어진다.
-        /// </summary>
-        private static Mesh Paving(Frame frame, BoardCoordinates coordinates, BoardArt art)
-        {
-            var parts = new List<CombineInstance>();
-            float cell = frame.Cell;
-            for (int x = -BastionSize; x < coordinates.Width + BastionSize; x++)
-            {
-                for (int y = -BastionSize; y < coordinates.Height + BastionSize; y++)
-                {
-                    if (!frame.InBastion(new Vector2(x * cell, y * cell)))
-                        continue;
-
-                    var random = new System.Random(unchecked(x * 73856093 ^ y * 19349663 ^ 0x5f3759df));
-                    float Jitter(float amount) => ((float)random.NextDouble() * 2f - 1f) * amount;
-                    if (random.NextDouble() < 0.07)
-                        continue;
-
-                    bool sunk = random.NextDouble() < 0.1;
-                    float tilt = sunk ? 2f : 0.7f;
-                    var position = new Vector3(x * cell, GroundHeight + Jitter(0.01f) - (sunk ? 0.03f : 0f), y * cell);
-                    Quaternion rotation = Quaternion.Euler(Jitter(tilt), random.Next(4) * 90f, Jitter(tilt));
-                    parts.Add(new CombineInstance
-                    {
-                        mesh = art.GetPavingMesh(random.Next(1024)),
-                        transform = Matrix4x4.TRS(position, rotation, Vector3.one * cell),
-                    });
-                }
-            }
-
-            return Combine(parts);
-        }
-
-        /// <summary>모서리 단 흉벽: 바깥 두 변을 따라 외곽 벽 조각(약 35% 는 무너져 비어 있음)과 바깥 모서리 기둥.</summary>
-        private static Mesh Parapet(Frame frame, BoardArt art)
-        {
-            var parts = new List<CombineInstance>();
-            float cell = frame.Cell;
-            float inset = art.BorderOffset * cell;
-            var random = new System.Random(frame.Seed + 17);
-
-            void Add(Mesh mesh, Vector2 point, float yaw)
-            {
-                if (mesh != null)
-                    parts.Add(new CombineInstance { mesh = mesh, transform = Matrix4x4.TRS(new Vector3(point.x, GroundHeight, point.y), Quaternion.Euler(0f, yaw, 0f), Vector3.one * cell) });
-            }
-
-            foreach ((Vector2 min, Vector2 max) in frame.Bastions())
-            {
-                // 보드에서 먼 쪽 두 변
-                float sx = Mathf.Sign((min.x + max.x) * 0.5f - frame.Center.x);
-                float sz = Mathf.Sign((min.y + max.y) * 0.5f - frame.Center.z);
-                float outerX = sx > 0f ? max.x - inset : min.x + inset;
-                float outerZ = sz > 0f ? max.y - inset : min.y + inset;
-                Add(art.BorderCornerMesh, new Vector2(outerX, outerZ), 0f);
-
-                // 조각 메시는 x 방향 길이 1, 바깥 면이 -z(BoardView.CreateBorder 와 같은 규칙: 아래 변 0도, 오른쪽 변 -90도)
-                float yawZ = sz > 0f ? 180f : 0f;
-                float yawX = sx > 0f ? -90f : 90f;
-                for (int k = 0; k < BastionSize - 1; k++)
-                {
-                    float t = (k + 0.5f) * cell;
-                    if (random.NextDouble() >= 0.35)
-                        Add(art.GetBorderMesh(random.Next(1024)), new Vector2(outerX - sx * (t + 0.5f * cell), outerZ), yawZ);
-                    if (random.NextDouble() >= 0.35)
-                        Add(art.GetBorderMesh(random.Next(1024)), new Vector2(outerX, outerZ - sz * (t + 0.5f * cell)), yawX);
-                }
-            }
-
-            return Combine(parts);
-        }
-
-        private static Mesh Combine(List<CombineInstance> parts)
-        {
-            int vertexCount = 0;
-            foreach (CombineInstance part in parts)
-                vertexCount += part.mesh.vertexCount;
-
-            var mesh = new Mesh { indexFormat = IndexFormatFor(vertexCount) };
-            mesh.CombineMeshes(parts.ToArray(), mergeSubMeshes: true, useMatrices: true);
-            return mesh;
-        }
-
-        /// <summary>성벽 아래 숲: 넓은 숲 바닥과 원뿔을 겹친 침엽수(덤불처럼 몰려 있고 빈터도 있다).</summary>
+        /// <summary>섬 아래 멀리 숲: 넓은 숲 바닥과 원뿔을 겹친 침엽수(덤불처럼 몰려 있고 빈터도 있다).</summary>
         private static Mesh Forest(Frame frame, BoardArt art)
         {
             float floor = -art.CliffDepth;
@@ -217,7 +105,7 @@ namespace MiniChess.Client.Board
             var normals = new List<Vector3>();
             var triangles = new List<int>();
 
-            // 숲 바닥: 보드 중심을 둘러싼 원판(가운데는 성벽 속에 묻힘)
+            // 숲 바닥: 보드 중심을 둘러싼 원판
             float[] radii = { 0f, 20f, 40f, 70f, 110f, 170f, 260f, 400f };
             const int segments = 48;
             Vector3 center = frame.Center;
@@ -239,9 +127,9 @@ namespace MiniChess.Client.Board
             for (int r = 0; r < radii.Length - 1; r++)
                 AddStrip(triangles, r * segments, (r + 1) * segments, segments, loop: true);
 
-            // 나무: 성벽(망루, 층마다 턱 포함) 발치보다 조금 더 바깥부터, 덤불 노이즈가 높은 곳에 몰린다
+            // 나무: 보드 바로 아래는 비우고(위에서 내려다볼 때 섬 사이로 겹쳐 보이지 않게), 덤불 노이즈가 높은 곳에 몰린다
             var random = new System.Random(frame.Seed);
-            float footClearance = BastionSize * frame.Cell + art.CliffDepth / CourseHeight * Ledge + 4f;
+            float footClearance = 4f * frame.Cell;
             int placed = 0;
             for (int attempt = 0; attempt < art.TreeCount * 4 && placed < art.TreeCount; attempt++)
             {
@@ -413,16 +301,15 @@ namespace MiniChess.Client.Board
             return Noise(x, y, z) * 0.55f + Noise(x * 2.1f + 3.7f, y * 2.1f, z * 2.1f) * 0.3f + Noise(x * 4.3f, y * 4.3f + 7.1f, z * 4.3f) * 0.15f;
         }
 
-        /// <summary>성벽의 틀: 보드 중심, 성벽 가장자리(보드 가장자리에서 RimOffset 칸 바깥 직사각형), 네 모서리 단.</summary>
+
+        /// <summary>배경의 틀: 보드 중심과 보드 외곽 직사각형(숲 나무를 보드 아래에서 비켜 두는 데 쓴다).</summary>
         private sealed class Frame
         {
             public readonly Vector3 Center;
             public readonly float Cell;
             public readonly int Seed;
-            public readonly Vector2 BoardMin;
-            public readonly Vector2 BoardMax;
-            public readonly Vector2 RimMin;
-            public readonly Vector2 RimMax;
+            private readonly Vector2 _min;
+            private readonly Vector2 _max;
 
             public Frame(BoardCoordinates coordinates)
             {
@@ -431,156 +318,16 @@ namespace MiniChess.Client.Board
                 Seed = coordinates.Width * 7919 + coordinates.Height * 104729;
                 var half = new Vector2(coordinates.Size.x * 0.5f, coordinates.Size.y * 0.5f);
                 var center = new Vector2(Center.x, Center.z);
-                BoardMin = center - half;
-                BoardMax = center + half;
-                RimMin = BoardMin - Vector2.one * (RimOffset * Cell);
-                RimMax = BoardMax + Vector2.one * (RimOffset * Cell);
+                _min = center - half;
+                _max = center + half;
             }
 
-            /// <summary>테두리 네 변: (시작, 끝, 바깥 방향). 위에서 볼 때 반시계.</summary>
-            public IEnumerable<(Vector3 From, Vector3 To, Vector3 Normal)> RimEdges()
-            {
-                var c = new[] { new Vector2(RimMin.x, RimMin.y), new Vector2(RimMax.x, RimMin.y), new Vector2(RimMax.x, RimMax.y), new Vector2(RimMin.x, RimMax.y) };
-                for (int i = 0; i < 4; i++)
-                {
-                    var from = new Vector3(c[i].x, 0f, c[i].y);
-                    var to = new Vector3(c[(i + 1) % 4].x, 0f, c[(i + 1) % 4].y);
-                    Vector3 along = (to - from).normalized;
-                    yield return (from, to, new Vector3(along.z, 0f, -along.x));
-                }
-            }
-
-            /// <summary>네 모서리 단(min, max): 보드 모서리에서 바깥으로 BastionSize 칸 정사각형(칸 격자에 맞음).</summary>
-            public IEnumerable<(Vector2 Min, Vector2 Max)> Bastions()
-            {
-                float size = BastionSize * Cell;
-                foreach (Vector2 corner in new[] { BoardMin, new Vector2(BoardMax.x, BoardMin.y), BoardMax, new Vector2(BoardMin.x, BoardMax.y) })
-                {
-                    var outward = new Vector2(corner.x > Center.x ? 1f : -1f, corner.y > Center.z ? 1f : -1f);
-                    Vector2 far = corner + outward * size;
-                    yield return (Vector2.Min(corner, far), Vector2.Max(corner, far));
-                }
-            }
-
-            public bool InBastion(Vector2 point)
-            {
-                foreach ((Vector2 min, Vector2 max) in Bastions())
-                {
-                    if (point.x > min.x && point.x < max.x && point.y > min.y && point.y < max.y)
-                        return true;
-                }
-
-                return false;
-            }
-
-            /// <summary>성벽 가장자리 직사각형까지의 수평 거리(안쪽이면 0).</summary>
+            /// <summary>보드 외곽 직사각형까지의 수평 거리(안쪽이면 0).</summary>
             public float RimDistance(Vector3 p)
             {
-                float dx = Mathf.Max(RimMin.x - p.x, p.x - RimMax.x, 0f);
-                float dz = Mathf.Max(RimMin.y - p.z, p.z - RimMax.y, 0f);
+                float dx = Mathf.Max(_min.x - p.x, p.x - _max.x, 0f);
+                float dz = Mathf.Max(_min.y - p.z, p.z - _max.y, 0f);
                 return Mathf.Sqrt(dx * dx + dz * dz);
-            }
-        }
-
-        /// <summary>
-        /// 축에 나란한 상자 모양(성벽/망루)을 면마다 따로 만든다(모서리가 날카롭게, 면마다 노멀 하나).
-        /// 정점 색: 아래로 갈수록 어둡게, A = 벽돌 무늬 세기.
-        /// </summary>
-        private sealed class BoxBuilder
-        {
-            private readonly List<Vector3> _vertices = new List<Vector3>();
-            private readonly List<Vector3> _normals = new List<Vector3>();
-            private readonly List<Color> _colors = new List<Color>();
-            private readonly List<int> _triangles = new List<int>();
-            private readonly float _depth;
-
-            public BoxBuilder(float depth)
-            {
-                _depth = depth;
-            }
-
-            private Color Shade(float y, float pattern)
-            {
-                float t = Mathf.Clamp01(-y / _depth);
-                Color c = Color.white * Mathf.Lerp(1f, 0.6f, t);
-                c.a = pattern;
-                return c;
-            }
-
-            private void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal, float pattern)
-            {
-                // a-b-c-d: 바깥(노멀 쪽)에서 볼 때 시계 방향
-                int start = _vertices.Count;
-                foreach (Vector3 v in new[] { a, b, c, d })
-                {
-                    _vertices.Add(v);
-                    _normals.Add(normal);
-                    _colors.Add(Shade(v.y, pattern));
-                }
-
-                _triangles.AddRange(new[] { start, start + 1, start + 2, start, start + 2, start + 3 });
-            }
-
-            /// <summary>높이 y 의 평평한 윗면(min~max 직사각형).</summary>
-            public void Top(Vector2 min, Vector2 max, float y, float pattern)
-            {
-                Quad(new Vector3(min.x, y, min.y), new Vector3(min.x, y, max.y), new Vector3(max.x, y, max.y), new Vector3(max.x, y, min.y), Vector3.up, pattern);
-            }
-
-            /// <summary>
-            /// top 에서 bottom 까지 내려가는 네 옆면. course 높이마다 ledge 만큼 바깥으로 넓어지고, 그 턱의 윗면도 만든다.
-            /// </summary>
-            public void Tower(Vector2 min, Vector2 max, float top, float bottom, float course, float ledge)
-            {
-                float y = top;
-                float grow = 0f;
-                while (y > bottom)
-                {
-                    float next = Mathf.Max(bottom, y - course);
-                    Vector2 lo = min - Vector2.one * grow;
-                    Vector2 hi = max + Vector2.one * grow;
-                    Sides(lo, hi, y, next);
-
-                    if (next > bottom)
-                    {
-                        // 턱: 이번 층 바닥에서 바깥으로 ledge 만큼 나온 윗면(네 변 띠)
-                        Vector2 lo2 = lo - Vector2.one * ledge;
-                        Vector2 hi2 = hi + Vector2.one * ledge;
-                        Ring(lo, hi, lo2, hi2, next);
-                        grow += ledge;
-                    }
-
-                    y = next;
-                }
-            }
-
-            private void Sides(Vector2 lo, Vector2 hi, float y0, float y1)
-            {
-                // -z 면, +x 면, +z 면, -x 면(각 면을 바깥에서 볼 때 왼쪽 위 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래)
-                Quad(new Vector3(lo.x, y0, lo.y), new Vector3(hi.x, y0, lo.y), new Vector3(hi.x, y1, lo.y), new Vector3(lo.x, y1, lo.y), Vector3.back, 1f);
-                Quad(new Vector3(hi.x, y0, lo.y), new Vector3(hi.x, y0, hi.y), new Vector3(hi.x, y1, hi.y), new Vector3(hi.x, y1, lo.y), Vector3.right, 1f);
-                Quad(new Vector3(hi.x, y0, hi.y), new Vector3(lo.x, y0, hi.y), new Vector3(lo.x, y1, hi.y), new Vector3(hi.x, y1, hi.y), Vector3.forward, 1f);
-                Quad(new Vector3(lo.x, y0, hi.y), new Vector3(lo.x, y0, lo.y), new Vector3(lo.x, y1, lo.y), new Vector3(lo.x, y1, hi.y), Vector3.left, 1f);
-            }
-
-            /// <summary>안쪽 직사각형(lo~hi)과 바깥 직사각형(lo2~hi2) 사이의 윗면 띠.</summary>
-            private void Ring(Vector2 lo, Vector2 hi, Vector2 lo2, Vector2 hi2, float y)
-            {
-                Quad(new Vector3(lo2.x, y, lo2.y), new Vector3(lo.x, y, lo.y), new Vector3(hi.x, y, lo.y), new Vector3(hi2.x, y, lo2.y), Vector3.up, 1f);
-                Quad(new Vector3(hi2.x, y, lo2.y), new Vector3(hi.x, y, lo.y), new Vector3(hi.x, y, hi.y), new Vector3(hi2.x, y, hi2.y), Vector3.up, 1f);
-                Quad(new Vector3(hi2.x, y, hi2.y), new Vector3(hi.x, y, hi.y), new Vector3(lo.x, y, hi.y), new Vector3(lo2.x, y, hi2.y), Vector3.up, 1f);
-                Quad(new Vector3(lo2.x, y, hi2.y), new Vector3(lo.x, y, hi.y), new Vector3(lo.x, y, lo.y), new Vector3(lo2.x, y, lo2.y), Vector3.up, 1f);
-            }
-
-            public Mesh ToMesh()
-            {
-                var mesh = new Mesh { indexFormat = IndexFormatFor(_vertices.Count) };
-                mesh.SetVertices(_vertices);
-                mesh.SetNormals(_normals);
-                mesh.SetColors(_colors);
-                mesh.SetTriangles(_triangles, 0);
-                mesh.RecalculateBounds();
-                return mesh;
             }
         }
     }

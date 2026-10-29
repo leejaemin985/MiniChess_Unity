@@ -4,7 +4,7 @@ using UnityEngine;
 namespace MiniChess.Client.Board
 {
     /// <summary>
-    /// 보드 밖 석조물(아치, 석상 등)을 BoardArt 의 자리 목록대로 외곽 벽 바깥 땅에 세운다.
+    /// 보드 가장자리/모서리 석조물(아치, 석상 등)을 BoardArt 의 자리 목록대로 보드 바닥 높이에 세운다(보드 밖 둘레는 섬 윗면).
     /// 자리는 보드 외곽 직사각형 기준(모서리/변 + 칸 단위 거리)이라 맵 크기가 달라도 따라간다. 클릭 대상이 아니다.
     /// 프리팹을 그대로 만들 뿐이라 메시/머티리얼은 에셋을 공유한다(지울 때 오브젝트만 지운다).
     /// </summary>
@@ -28,7 +28,7 @@ namespace MiniChess.Client.Board
 
                 var position = new Vector3(
                     min.x + placement.anchor.x * coordinates.Size.x + placement.offset.x * cell,
-                    BoardBackdrop.GroundHeight,
+                    0f,
                     min.z + placement.anchor.y * coordinates.Size.y + placement.offset.y * cell);
 
                 GameObject prop = Object.Instantiate(placement.prefab, root.transform);

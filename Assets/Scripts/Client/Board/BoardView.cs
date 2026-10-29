@@ -80,13 +80,12 @@ namespace MiniChess.Client.Board
         private readonly List<(IReadOnlyList<Position> Cells, Team Team, float Until)> _revealedStrikes = new List<(IReadOnlyList<Position>, Team, float)>();
         private BoardCoordinates _coordinates;
         private GameObject _bed;
-        private readonly List<GameObject> _border = new List<GameObject>();
         private GameObject _decoration;
         private GameObject _backdrop;
+        private GameObject _island;
         private GameObject _props;
         private BoardCellTints _cellTints;
         private CoreBoard _builtBoard;
-        private readonly List<(Vector3 Point, Vector3 Normal)> _cliffLip = new List<(Vector3, Vector3)>();
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -314,8 +313,8 @@ namespace MiniChess.Client.Board
             if (art != null)
                 art.ApplyLighting();
             CreateBed(coordinates);
-            CreateBorder(coordinates);
-            _backdrop = BoardBackdrop.Build(transform, coordinates, art, _cliffLip);
+            _backdrop = BoardBackdrop.Build(transform, coordinates, art);
+            _island = BoardBackdrop.BuildIsland(transform, coordinates, art);
             _props = BoardProps.Build(transform, coordinates, art);
             _cellTints = new BoardCellTints(board.Width, board.Height);
             _builtBoard = board;
@@ -347,8 +346,6 @@ namespace MiniChess.Client.Board
                 WallOf = position => _cells.TryGetValue(position, out CellView cell) && cell != null
                     ? cell.transform.Find("Wall")?.GetComponent<MeshFilter>()
                     : null,
-                Border = _border,
-                CliffLip = _cliffLip,
             };
             _decoration = BoardDecorator.Build(transform, _builtBoard, _coordinates, art, surfaces);
         }
@@ -384,18 +381,13 @@ namespace MiniChess.Client.Board
                 Destroy(_bed);
             _bed = null;
 
-            foreach (GameObject piece in _border)
-            {
-                if (piece != null)
-                    Destroy(piece);
-            }
-
-            _border.Clear();
-
             DestroyGenerated(ref _decoration);
             DestroyGenerated(ref _backdrop);
 
-            // 석조물은 프리팹 에셋의 메시를 그대로 쓰므로 오브젝트만 지운다
+            // 섬/석조물은 프리팹 에셋의 메시를 그대로 쓰므로 오브젝트만 지운다
+            if (_island != null)
+                Destroy(_island);
+            _island = null;
             if (_props != null)
                 Destroy(_props);
             _props = null;
@@ -485,56 +477,6 @@ namespace MiniChess.Client.Board
             };
         }
 
-        /// <summary>
-        /// 보드 둘레의 낮은 외곽 벽: 가장자리 칸마다 성벽 조각(칸 좌표로 변형 선택), 네 모서리에 기둥. 클릭 대상 아님.
-        /// 조각 메시는 원점 중심, x 방향 길이 1 이므로 위/아래 변은 그대로(위 변은 180도), 왼쪽/오른쪽 변은 90도 돌려 놓는다.
-        /// </summary>
-        private void CreateBorder(BoardCoordinates coordinates)
-        {
-            if (art == null || !art.HasBorder)
-                return;
-
-            float cell = coordinates.CellSize;
-            float offset = 0.5f * cell + art.BorderOffset * cell;
-            float right = (coordinates.Width - 1) * cell;
-            float top = (coordinates.Height - 1) * cell;
-
-            for (int x = 0; x < coordinates.Width; x++)
-            {
-                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(x, -1), 2).Next(1024)), new Vector3(x * cell, 0f, -offset), 0f);
-                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(x, coordinates.Height), 2).Next(1024)), new Vector3(x * cell, 0f, top + offset), 180f);
-            }
-
-            for (int y = 0; y < coordinates.Height; y++)
-            {
-                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(-1, y), 2).Next(1024)), new Vector3(-offset, 0f, y * cell), 90f);
-                AddBorderPiece(art.GetBorderMesh(CellRandom(new Position(coordinates.Width, y), 2).Next(1024)), new Vector3(right + offset, 0f, y * cell), -90f);
-            }
-
-            if (art.BorderCornerMesh != null)
-            {
-                AddBorderPiece(art.BorderCornerMesh, new Vector3(-offset, 0f, -offset), 0f);
-                AddBorderPiece(art.BorderCornerMesh, new Vector3(right + offset, 0f, -offset), 90f);
-                AddBorderPiece(art.BorderCornerMesh, new Vector3(right + offset, 0f, top + offset), 180f);
-                AddBorderPiece(art.BorderCornerMesh, new Vector3(-offset, 0f, top + offset), 270f);
-            }
-        }
-
-        private void AddBorderPiece(Mesh mesh, Vector3 localPosition, float yaw)
-        {
-            if (mesh == null)
-                return;
-
-            var piece = new GameObject("Border");
-            piece.transform.SetParent(transform, false);
-            piece.transform.localPosition = localPosition;
-            piece.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
-            piece.transform.localScale = Vector3.one * _coordinates.CellSize;
-            piece.AddComponent<MeshFilter>().sharedMesh = mesh;
-            piece.AddComponent<MeshRenderer>().sharedMaterial = art.WallMaterial;
-            _border.Add(piece);
-        }
-
         /// <summary>판석 사이 줄눈으로 보이는 보드 아래 어두운 바닥(클릭/그림자 대상 아님).</summary>
         private void CreateBed(BoardCoordinates coordinates)
         {
@@ -549,7 +491,8 @@ namespace MiniChess.Client.Board
             Vector3 center = coordinates.Center;
             center.y = -BoardArt.SlabThickness * 0.6f - thickness * 0.5f;
             _bed.transform.localPosition = center;
-            _bed.transform.localScale = new Vector3(coordinates.Size.x + 0.2f, thickness, coordinates.Size.y + 0.2f);
+            // 보드 크기보다 조금 작게: 가장자리 섬 위로 삐져나와 검은 띠로 보이지 않게
+            _bed.transform.localScale = new Vector3(coordinates.Size.x - 0.04f, thickness, coordinates.Size.y - 0.04f);
             var bedRenderer = _bed.GetComponent<Renderer>();
             bedRenderer.sharedMaterial = art.BedMaterial;
             bedRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

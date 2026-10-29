@@ -6,20 +6,13 @@ namespace MiniChess.Client.Editor.Environment
     /// <summary>
     /// 돌을 쌓은 벽 메시를 만들어 에셋으로 저장한다(StoneSurface 셰이더용). 벽돌 하나하나가 StoneMeshKit 의 돌 조각이다.
     ///   - 벽 칸(칸 크기 1, 바닥 윗면 y = 0 위에 선다): 위가 무너진 벽돌 벽 / 기둥 / 반쯤 무너진 낮은 벽.
-    ///   - 외곽 벽(보드 둘레): 길이 1 의 낮은 성벽 조각(원점 중심, x 방향) 2종과 모서리 기둥. 바닥보다 아래(y = -0.22)부터 쌓는다.
     /// 벽돌은 아래에 놓인 것 위에 얹히므로(높이 지도), 빠진 벽돌 위의 벽돌은 내려앉아 무너진 모양이 된다.
     /// </summary>
     public static class StoneWallMeshBuilder
     {
         public const int WallVariantCount = 3;
-        public const int BorderVariantCount = 2;
 
         public static string WallPathOf(int variant) => $"{StoneSlabMeshBuilder.Folder}/SM_StoneWall_{variant}.asset";
-        public static string BorderPathOf(int variant) => $"{StoneSlabMeshBuilder.Folder}/SM_StoneBorder_{variant}.asset";
-        public static string BorderCornerPath => $"{StoneSlabMeshBuilder.Folder}/SM_StoneBorderCorner.asset";
-
-        /// <summary>외곽 벽이 시작하는 높이(바닥 판석 아래). BoardView 가 같은 기준으로 놓는다.</summary>
-        public const float BorderBase = -0.22f;
 
         [MenuItem("MiniChess/Environment/Build Stone Wall Meshes")]
         public static void BuildAll()
@@ -28,12 +21,9 @@ namespace MiniChess.Client.Editor.Environment
             StoneSlabMeshBuilder.Save(BrokenWall(new System.Random(301)), WallPathOf(0));
             StoneSlabMeshBuilder.Save(Pillar(new System.Random(302)), WallPathOf(1));
             StoneSlabMeshBuilder.Save(LowRuin(new System.Random(303)), WallPathOf(2));
-            for (int variant = 0; variant < BorderVariantCount; variant++)
-                StoneSlabMeshBuilder.Save(BorderSegment(new System.Random(311 + variant)), BorderPathOf(variant));
-            StoneSlabMeshBuilder.Save(BorderCorner(new System.Random(320)), BorderCornerPath);
 
             AssetDatabase.SaveAssets();
-            Debug.Log($"[StoneWallMeshBuilder] {StoneSlabMeshBuilder.Folder} 에 벽 {WallVariantCount}종, 외곽 벽 {BorderVariantCount}종 + 모서리를 만들었습니다");
+            Debug.Log($"[StoneWallMeshBuilder] {StoneSlabMeshBuilder.Folder} 에 벽 {WallVariantCount}종을 만들었습니다");
         }
 
         /// <summary>위쪽 두 단이 한쪽으로 무너져 내린 큰 돌 벽(칸 대부분을 채운다, 높이 약 0.8~1.0).</summary>
@@ -90,29 +80,6 @@ namespace MiniChess.Client.Editor.Environment
                 ruin.Rubble();
 
             return ruin.ToMesh("SM_StoneWall_2");
-        }
-
-        /// <summary>
-        /// 외곽 성벽 조각: 길이 1(x), 두께 0.4(z). 바닥 아래에서 두 단 + 길고 납작한 덮개돌 한 단(윗면 약 +0.24).
-        /// 덮개돌은 거의 이어져 있어 낮은 성벽으로 읽히고, 드물게 빠진 자리가 무너진 느낌을 준다.
-        /// </summary>
-        private static Mesh BorderSegment(System.Random random)
-        {
-            var wall = new Mason(random, new Rect(-0.5f, -0.23f, 1f, 0.46f), BorderBase);
-            for (int course = 0; course < 2; course++)
-                wall.Row(course, 0.18f, 0.28f, 0.42f, 0.4f, 0f);
-            wall.Row(2, 0.1f, 0.42f, 0.6f, 0.46f, 0.08f);
-            return wall.ToMesh("SM_StoneBorder");
-        }
-
-        /// <summary>외곽 모서리 기둥: 0.52 × 0.52, 바닥 아래에서 세 단 + 덮개돌(윗면 약 +0.5).</summary>
-        private static Mesh BorderCorner(System.Random random)
-        {
-            var post = new Mason(random, new Rect(-0.3f, -0.3f, 0.6f, 0.6f), BorderBase);
-            for (int course = 0; course < 3; course++)
-                post.Block(Vector2.zero, 0.52f, 0.52f, 0.2f, yawJitter: 1.5f);
-            post.Block(Vector2.zero, 0.6f, 0.6f, 0.11f, yawJitter: 0.5f);
-            return post.ToMesh("SM_StoneBorderCorner");
         }
 
         /// <summary>벽돌 쌓기. 바닥 영역을 작은 격자로 나눠 칸마다 지금 높이를 기억하고, 새 벽돌은 그 아래 가장 높은 곳에 얹는다.</summary>
@@ -182,24 +149,6 @@ namespace MiniChess.Client.Editor.Environment
 
                         position += brick;
                     }
-                }
-            }
-
-            /// <summary>x 방향 벽돌 한 줄(외곽 벽). 벽돌 깊이 depth, missing 확률로 빼낸다.</summary>
-            public void Row(int course, float height, float minLength, float maxLength, float depth, float missing)
-            {
-                const float gap = 0.008f;
-                float position = _area.xMin;
-                float end = _area.xMax;
-                bool isFirst = true;
-                while (position < end - 0.05f)
-                {
-                    float brick = isFirst && course % 2 == 1 ? Range(minLength * 0.4f, minLength * 0.8f) : Range(minLength, maxLength);
-                    brick = Mathf.Min(brick, end - position);
-                    isFirst = false;
-                    if (_random.NextDouble() >= missing)
-                        Block(new Vector2(position + brick * 0.5f, _area.center.y), brick - gap, depth, height * Range(0.95f, 1.05f), yawJitter: 0.6f);
-                    position += brick;
                 }
             }
 

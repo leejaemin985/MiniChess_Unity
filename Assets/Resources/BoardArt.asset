@@ -34,11 +34,9 @@ MonoBehaviour:
   - {fileID: 4300000, guid: 9962a7174bbbe7d42933124d7f0f5041, type: 2}
   - {fileID: 4300000, guid: 0f7dacfe5c32ef3469c6f6377d7b6aaa, type: 2}
   wallMaterial: {fileID: 2100000, guid: 6198ba283a906b6419d6f4ea5ffc05d7, type: 2}
-  borderMeshes:
-  - {fileID: 4300000, guid: a026db63fda5f6d409d5858aac07985e, type: 2}
-  - {fileID: 4300000, guid: d6590b063fd778f4981c932808efd529, type: 2}
-  borderCornerMesh: {fileID: 4300000, guid: 2697bee4581eac34ea162fbf1fe3d2eb, type: 2}
-  borderOffset: 0.23
+  islandPrefab: {fileID: 1127493861378907455, guid: 65ae23d3eed838d4789b436a731ce3ed, type: 3}
+  islandMargin: 1
+  islandFloorDepth: 0.022
   grassMeshes:
   - {fileID: 4300000, guid: e4672ec2542ec5d4687bd89734403867, type: 2}
   - {fileID: 4300000, guid: 9f2be7e6437107b4f8402d93327ed800, type: 2}
@@ -53,7 +51,6 @@ MonoBehaviour:
   grassCornerChance: 0.65
   grassEdgeChance: 0.3
   wallDecorChance: 0.9
-  borderDecorChance: 0.75
   hangingVineMeshes:
   - {fileID: 4300000, guid: 366f4846a59dab0488d37495830e2c9b, type: 2}
   - {fileID: 4300000, guid: a590f44ca6786fd4c9186a58f94de7ff, type: 2}
@@ -63,31 +60,22 @@ MonoBehaviour:
   - {fileID: 4300000, guid: 9e32a607aa787804d95c43df5d5bc55b, type: 2}
   - {fileID: 4300000, guid: 1eb9f3fd3340c4d44995527a498e2635, type: 2}
   vinesOnWalls: 1
-  vinesOnBorder: 1
-  vinesOnCliff: 1
   wallVineChance: 0.55
-  borderVineChance: 0.25
-  cliffVineChance: 0.4
   props:
   - prefab: {fileID: 3616788059821197207, guid: dd98a4adb05f5874189816f943e68369, type: 3}
     anchor: {x: 1, y: 1}
-    offset: {x: 0.85, y: 0.85}
+    offset: {x: 0.5, y: 0.5}
     yaw: -135
-    scale: 1.4
+    scale: 1.2
   - prefab: {fileID: 5167589693157691136, guid: 56eaf058da73f6942a13544e9a4ac50f, type: 3}
     anchor: {x: 0, y: 0.68}
-    offset: {x: 0.05, y: 0}
+    offset: {x: -0.5, y: 0}
     yaw: 90
-    scale: 1.1
+    scale: 1
   - prefab: {fileID: 949955039332644065, guid: 8e33567b21ba1ea489cdeb9eb5375e81, type: 3}
     anchor: {x: 0, y: 0}
-    offset: {x: -0.85, y: -0.85}
+    offset: {x: -0.5, y: -0.5}
     yaw: -135
-    scale: 1.3
-  - prefab: {fileID: 7333732393853259956, guid: 5403b1eaa40a46e46a0720e2d450ddfe, type: 3}
-    anchor: {x: 1, y: 0.32}
-    offset: {x: -0.05, y: 0}
-    yaw: 90
     scale: 1.1
   applyBackground: 1
   skyMaterial: {fileID: 2100000, guid: b5462624971a16b4b98df63799e7a360, type: 2}
@@ -96,12 +84,7 @@ MonoBehaviour:
   hazeColor: {r: 0.4, g: 0.34, b: 0.48, a: 1}
   hazeDistance: {x: 25, y: 320}
   lowMist: 0.4
-  pavingMeshes:
-  - {fileID: 4300000, guid: f530a620c6de4bb429dba790445fd1f3, type: 2}
-  - {fileID: 4300000, guid: 99990562f8da81f48bdd0ed081e0b018, type: 2}
-  - {fileID: 4300000, guid: 19c447c38b8a2194ba3a8699be551830, type: 2}
-  masonryMaterial: {fileID: 2100000, guid: 6fb2c06263fb2184e9cb30cfa152eca7, type: 2}
-  cliffDepth: 14
+  cliffDepth: 30
   treeCount: 500
   forestRadius: 90
   applyLighting: 1

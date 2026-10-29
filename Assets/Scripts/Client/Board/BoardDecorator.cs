@@ -11,10 +11,10 @@ namespace MiniChess.Client.Board
     /// <summary>
     /// 보드 장식(풀 덤불, 돌조각)을 흩뿌려 종류마다 메시 하나로 합친다(그리기 호출 2번).
     /// 칸 안쪽에는 두지 않는다. 유닛/하이라이트를 가리지 않게 줄눈과 가장자리에만 놓는다:
-    ///   - 풀: 네 칸이 만나는 줄눈 모서리, 두 칸 사이 줄눈, 벽 칸 둘레, 보드 가장자리(외곽 벽 밑).
-    ///   - 돌조각: 벽 칸 둘레(벽 칸 안쪽 가장자리), 보드 가장자리.
-    ///   - 넝쿨(풀 메시에 합침): 벽 칸/외곽 벽의 드러난 면에 늘어지는 넝쿨과 타고 오르는 담쟁이, 절벽 가장자리에서 늘어지는 넝쿨.
-    ///     위치마다 BoardArt 에서 켜고 끌 수 있다. 넝쿨은 풀/돌조각 다음에 놓아 켜고 꺼도 풀/돌조각 자리는 그대로다.
+    ///   - 풀: 네 칸이 만나는 줄눈 모서리, 두 칸 사이 줄눈, 벽 칸 둘레.
+    ///   - 돌조각: 벽 칸 둘레(벽 칸 안쪽 가장자리).
+    ///   - 넝쿨(풀 메시에 합침): 벽 칸의 드러난 면에 늘어지는 넝쿨과 타고 오르는 담쟁이.
+    ///     BoardArt 에서 켜고 끌 수 있다. 넝쿨은 풀/돌조각 다음에 놓아 켜고 꺼도 풀/돌조각 자리는 그대로다.
     /// 칸 좌표로 정하므로 같은 맵은 항상 같은 모습이다. 줄눈의 풀은 판석 틈(윗면 아래)에서 자라 나온다.
     /// </summary>
     internal static class BoardDecorator
@@ -26,12 +26,10 @@ namespace MiniChess.Client.Board
         private const float VineHangLength = 0.62f;
         private const float VineClimbHeight = 0.42f;
 
-        /// <summary>넝쿨을 붙일 표면: 벽 칸의 벽 메시, 외곽 벽 조각, 절벽 가장자리 자리(BoardBackdrop).</summary>
+        /// <summary>넝쿨을 붙일 표면: 벽 칸의 벽 메시.</summary>
         internal sealed class Surfaces
         {
             public Func<Position, MeshFilter> WallOf;
-            public IReadOnlyList<GameObject> Border;
-            public IReadOnlyList<(Vector3 Point, Vector3 Normal)> CliffLip;
         }
 
         public static GameObject Build(Transform parent, CoreBoard board, BoardCoordinates coordinates, BoardArt art, Surfaces surfaces)
@@ -68,7 +66,7 @@ namespace MiniChess.Client.Board
             float RubbleScale() => Mathf.Lerp(1.4f, 2.2f, (float)random.NextDouble());
             bool IsWall(int x, int y) => board.IsInBounds(new Position(x, y)) && board.GetCell(new Position(x, y)).IsWall;
 
-            // 줄눈 모서리(보드 안쪽 모서리만. 바깥 둘레는 가장자리 장식이 맡는다)
+            // 줄눈 모서리(보드 안쪽 모서리만)
             for (int x = 1; x < board.Width; x++)
             {
                 for (int y = 1; y < board.Height; y++)
@@ -113,32 +111,6 @@ namespace MiniChess.Client.Board
                             AddGrass(edge + offset * 0.4f + Vector3.up * 0.005f, Scale() * 1.1f);
                     }
                 }
-            }
-
-            // 보드 가장자리: 외곽 벽 밑 줄눈(보드 바깥 경계선)
-            for (int i = 0; i < board.Width; i++)
-            {
-                AddEdge(new Vector3(i * cell, 0f, -half), true);
-                AddEdge(new Vector3(i * cell, 0f, (board.Height - 1) * cell + half), true);
-            }
-
-            for (int i = 0; i < board.Height; i++)
-            {
-                AddEdge(new Vector3(-half, 0f, i * cell), false);
-                AddEdge(new Vector3((board.Width - 1) * cell + half, 0f, i * cell), false);
-            }
-
-            void AddEdge(Vector3 center, bool alongX)
-            {
-                if (random.NextDouble() >= art.BorderDecorChance)
-                    return;
-
-                float along = Jitter(0.4f) * cell;
-                Vector3 position = center + (alongX ? new Vector3(along, 0f, 0f) : new Vector3(0f, 0f, along));
-                if (random.NextDouble() < 0.45)
-                    AddRubble(position + Vector3.up * -0.02f, RubbleScale());
-                Vector3 beside = alongX ? new Vector3(Jitter(0.15f) * cell, 0f, 0f) : new Vector3(0f, 0f, Jitter(0.15f) * cell);
-                AddGrass(position + beside + Vector3.up * GroutDepth, Scale() * 1.4f);
             }
 
             // 넝쿨(풀과 같은 머티리얼이라 풀 메시에 합친다). 메시는 벽면 z = 0, 바깥 -z 기준이라 -z 가 면의 바깥 방향을 보게 돌린다.
@@ -196,39 +168,6 @@ namespace MiniChess.Client.Board
                                 AddFaceVines(vertices, new Vector3(x * cell, 0f, y * cell) + along * (Jitter(0.28f) * cell), normal, 0f, art.WallVineChance);
                             }
                         }
-                    }
-                }
-
-                // 외곽 벽: 조각마다 보드 쪽 면(바닥 높이 0)과 바깥 면(바깥 땅 높이). 모서리 기둥은 건너뛴다.
-                if (art.VinesOnBorder && surfaces.Border != null)
-                {
-                    Vector3 center = coordinates.Center;
-                    Vector2 halfSize = coordinates.Size * 0.5f;
-                    foreach (GameObject piece in surfaces.Border)
-                    {
-                        MeshFilter filter = piece != null ? piece.GetComponent<MeshFilter>() : null;
-                        if (filter == null || filter.sharedMesh == null || filter.sharedMesh == art.BorderCornerMesh)
-                            continue;
-
-                        Vector3 position = piece.transform.localPosition;
-                        Vector3 offset = position - center;
-                        Vector3 inward = Mathf.Abs(offset.x) / halfSize.x > Mathf.Abs(offset.z) / halfSize.y
-                            ? new Vector3(-Mathf.Sign(offset.x), 0f, 0f)
-                            : new Vector3(0f, 0f, -Mathf.Sign(offset.z));
-                        var along = new Vector3(-inward.z, 0f, inward.x);
-                        Vector3[] vertices = BoardSpaceVertices(filter, parent);
-                        AddFaceVines(vertices, position + along * (Jitter(0.35f) * cell), inward, 0f, art.BorderVineChance);
-                        AddFaceVines(vertices, position + along * (Jitter(0.35f) * cell), -inward, BoardBackdrop.GroundHeight, art.BorderVineChance);
-                    }
-                }
-
-                // 절벽 가장자리: 고지대 끝에서 절벽 아래로 길게 늘어진 넝쿨(멀리서 보이는 분위기용)
-                if (art.VinesOnCliff && surfaces.CliffLip != null && art.GetHangingVineMesh(0) != null)
-                {
-                    foreach ((Vector3 point, Vector3 normal) in surfaces.CliffLip)
-                    {
-                        if (random.NextDouble() < art.CliffVineChance)
-                            AddVine(true, point + normal * 0.06f, normal, Mathf.Lerp(2.5f, 4.5f, (float)random.NextDouble()) * cell);
                     }
                 }
             }
