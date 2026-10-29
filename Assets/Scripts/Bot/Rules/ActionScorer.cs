@@ -364,6 +364,9 @@ namespace MiniChess.Bot.Rules
                     return UnitsIn(g.Area, knockback.Filter, caster).Count(unit => unit.Team != caster.Team) * _w.Knockback
                         + knockback.AfterPush.Sum(nested => EffectValue(nested, g));
 
+                case PushInDirectionEffect push:
+                    return PushValue(push, g);
+
                 case CleanseEffect cleanse:
                     return UnitsIn(g.Area, cleanse.Filter, caster).Sum(unit => unit.Statuses
                         .Where(status => CleanseEffect.IsCleansable(unit, status))
@@ -402,6 +405,46 @@ namespace MiniChess.Bot.Rules
             bool self = unit == g.Caster;
             bool fights = self ? BoardAnalysis.CanFightAfter(g.Caster, g.Skill) : BoardAnalysis.CanStillFight(unit);
             return Relocation(unit, destination, g.ApAfter, fights, self ? g.Skill.Id : null) + PathHazard(new[] { destination });
+        }
+
+        /// <summary>
+        /// 고른 방향으로 적 밀기(자리 교정): 예상 도착 칸까지 실제로 밀리는 칸 수에 비례한 기본 가치
+        /// + 밀려 지나는 칸의 내 덫(발동하면 거기서 멈춘다) + 점령 칸에서 밀어내거나 올려놓는 가치.
+        /// 방향·거리 변형마다 도착 칸이 달라 점수가 갈린다(같은 점수의 변형이 탐색 후보를 모두 차지하지 않게).
+        /// </summary>
+        private double PushValue(PushInDirectionEffect push, SkillGuess g)
+        {
+            Unit target = _a.State.Board.GetLivingUnit(g.Action.Targets[0]);
+            if (target == null || target.Team == g.Caster.Team || g.Action.Targets.Count < 2)
+                return 0;
+
+            Position from = target.Position.Value;
+            Position? landed = push.Predict(_a.State, g.Caster, g.Action.Targets);
+            if (!landed.HasValue || landed.Value == from)
+                return 0;
+
+            IReadOnlyList<Position> path = _a.State.Board.GetStraightPath(from, landed.Value);
+            double value = _w.Knockback * path.Count / Math.Max(1, push.Cells ?? 1);
+
+            foreach (Position position in path)
+            {
+                if (_a.State.Board.GetCell(position).GetEffect(CellEffectLayer.Trap) is RootTrap trap && trap.Zone.OwnerTeam == _a.Team)
+                {
+                    value += trap.Damage + _w.Root;
+                    break;
+                }
+            }
+
+            if (_a.CaptureOpen)
+            {
+                Position tile = _a.State.Capture.Tile.Value;
+                if (from == tile)
+                    value += _w.Capture;
+                else if (landed.Value == tile)
+                    value -= _w.Capture;
+            }
+
+            return value;
         }
 
         /// <summary>두 칸의 유닛 자리를 맞바꿨을 때 두 유닛의 위치 가치 변화 합.</summary>

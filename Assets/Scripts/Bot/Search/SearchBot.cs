@@ -169,16 +169,30 @@ namespace MiniChess.Bot.Search
             return finished.OrderByDescending(line => line.Score).ToList();
         }
 
-        /// <summary>규칙 봇 점수가 높은 후보 CandidatesPerStep 개.</summary>
+        /// <summary>규칙 봇 점수가 높은 후보 CandidatesPerStep 개. 같은 유닛의 같은 스킬 변형은 MaxVariantsPerSkill 개까지만.</summary>
         private IEnumerable<BotAction> Candidates(GameController game, Team team, bool stalled)
         {
             var scorer = new ActionScorer(new BoardAnalysis(game, team, Weights, stalled));
+            var variants = new Dictionary<(int UnitId, string SkillId), int>();
+
             return BotActionGenerator.Generate(game, team)
                 .Select(action => (Action: action, Score: scorer.Score(action)))
                 .Where(pair => pair.Score > Settings.MinCandidateScore)
                 .OrderByDescending(pair => pair.Score)
+                .Where(pair => pair.Action.Kind != BotActionKind.UseSkill || TakeVariant(variants, (pair.Action.UnitId, pair.Action.SkillId)))
                 .Take(Settings.CandidatesPerStep)
-                .Select(pair => pair.Action);
+                .Select(pair => pair.Action)
+                .ToList();
+        }
+
+        private bool TakeVariant(Dictionary<(int UnitId, string SkillId), int> variants, (int UnitId, string SkillId) key)
+        {
+            variants.TryGetValue(key, out int taken);
+            if (taken >= Settings.MaxVariantsPerSkill)
+                return false;
+
+            variants[key] = taken + 1;
+            return true;
         }
 
         /// <summary>지금 턴을 끝냈을 때의 판 점수(턴 종료/상대 턴 시작 효과까지 실행해 본다).</summary>

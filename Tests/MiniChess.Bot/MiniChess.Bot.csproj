@@ -16,6 +16,11 @@
     <Compile Include="..\..\Assets\Scripts\Bot\**\*.cs" />
   </ItemGroup>
 
+  <!-- 점수 계산(ActionScorer, BoardAnalysis)을 직접 확인하는 테스트용 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="MiniChess.Bot.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\Assets\Scripts\Core\src\MiniChess.Core\MiniChess.Core.csproj" />
   </ItemGroup>

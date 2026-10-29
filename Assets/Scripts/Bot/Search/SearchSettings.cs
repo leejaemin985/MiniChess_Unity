@@ -16,6 +16,12 @@ namespace MiniChess.Bot.Search
         /// <summary>남겨 둔 순서마다 이어서 실행해 볼 후보 수(규칙 봇 점수가 높은 것부터).</summary>
         public int CandidatesPerStep { get; set; } = 6;
 
+        /// <summary>
+        /// 후보 중 같은 유닛의 같은 스킬(지정 칸만 다른 변형)이 차지할 수 있는 수.
+        /// 한 스킬의 비슷한 변형들이 후보를 모두 차지해 다른 행동을 읽지 못하는 것을 막는다.
+        /// </summary>
+        public int MaxVariantsPerSkill { get; set; } = 2;
+
         /// <summary>한 턴에 읽는 행동 수 상한.</summary>
         public int MaxActions { get; set; } = 10;
 

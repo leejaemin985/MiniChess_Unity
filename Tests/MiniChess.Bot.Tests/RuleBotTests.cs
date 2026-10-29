@@ -1,4 +1,5 @@
 using MiniChess.Bot.Rules;
+using MiniChess.Core.Actions;
 using MiniChess.Core.Characters.Pieces;
 using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
@@ -100,6 +101,38 @@ namespace MiniChess.Bot.Tests
 
             var warrior = game.State.GetPlayer(Team.Player1).Units[0];
             Assert.True(warrior.Position.Value.Y < 5, $"전사가 다가가지 않음: {warrior.Position}");
+        }
+
+        // 자리 교정(고른 방향으로 밀기)은 도착 칸마다 점수가 갈리고, 내 덫 쪽으로 미는 수가 가장 높다.
+        [Fact]
+        public void Correction_scores_by_landing_cell_and_prefers_pushing_into_my_trap()
+        {
+            GameController game = CreateSmallBattle(
+                new[]
+                {
+                    "2....",
+                    ".....",
+                    "..2..",
+                    ".....",
+                    ".11..",
+                },
+                new[] { SculptorPiece.PieceId, ChemistPiece.PieceId },
+                new[] { WarriorPiece.PieceId, GardenerPiece.PieceId });
+            Position enemy = game.State.GetPlayer(Team.Player2).Units.Single(unit => unit.Position.Value.Y == 2).Position.Value;
+            int chemist = game.State.GetPlayer(Team.Player1).Units.Single(unit => unit.Stats.Base.Id == ChemistPiece.PieceId).Id;
+            Position trap = enemy.Offset(1, 0);
+            Assert.True(game.UseSkill(new UseSkillRequest(Team.Player1, chemist, ChemistPiece.RootTrapId, trap)).Success);
+
+            var scorer = new ActionScorer(new BoardAnalysis(game, Team.Player1, new BotWeights()));
+            List<(BotAction Action, double Score)> corrections = BotActionGenerator.Generate(game, Team.Player1)
+                .Where(action => action.Kind == BotActionKind.UseSkill && action.SkillId == SculptorPiece.CorrectionId)
+                .Select(action => (action, scorer.Score(action)))
+                .OrderByDescending(pair => pair.Item2)
+                .ToList();
+
+            Assert.True(corrections.Select(pair => pair.Score).Distinct().Count() > 1, "모든 밀기 변형의 점수가 같음");
+            Position best = corrections[0].Action.Targets[1];
+            Assert.True(best.Y == enemy.Y && best.X > enemy.X, $"덫 쪽이 아닌 {best} 로 밈");
         }
 
         [Theory]
