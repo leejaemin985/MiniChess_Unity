@@ -1006,6 +1006,8 @@ namespace MiniChess.Client.Bootstrap
             {
                 if (ended.Reason == GameEndReason.Disconnect && ended.Winner == LocalTeam)
                     ReportFailure("상대의 연결이 끊겼습니다");
+                else if (ended.Reason == GameEndReason.Disconnect && ended.Winner == null)
+                    ReportFailure("전투 시작 전에 상대의 연결이 끊겨 승패 없이 끝났습니다");
                 else if (ended.Reason == GameEndReason.Aborted)
                     ReportFailure("서버 오류로 경기가 무효 처리되었습니다");
             }
