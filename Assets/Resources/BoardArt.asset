@@ -62,21 +62,86 @@ MonoBehaviour:
   vinesOnWalls: 1
   wallVineChance: 0.55
   props:
+  - prefab: {fileID: 361209280382998743, guid: 7206f8ab46896864286115688a42d3c8, type: 3}
+    anchor: {x: 0, y: 0}
+    offset: {x: -0.5, y: -0.5}
+    yaw: 0
+    scale: 1
+  - prefab: {fileID: 361209280382998743, guid: 7206f8ab46896864286115688a42d3c8, type: 3}
+    anchor: {x: 1, y: 0}
+    offset: {x: 0.5, y: -0.5}
+    yaw: 90
+    scale: 1
+  - prefab: {fileID: 361209280382998743, guid: 7206f8ab46896864286115688a42d3c8, type: 3}
+    anchor: {x: 0, y: 1}
+    offset: {x: -0.5, y: 0.5}
+    yaw: 180
+    scale: 1.1
   - prefab: {fileID: 3616788059821197207, guid: dd98a4adb05f5874189816f943e68369, type: 3}
     anchor: {x: 1, y: 1}
     offset: {x: 0.5, y: 0.5}
     yaw: -135
-    scale: 1.2
+    scale: 1.5
+  - prefab: {fileID: 4095776785941740209, guid: 5cf313a75778be74fb027af8ae7a1410, type: 3}
+    anchor: {x: 0, y: 0}
+    offset: {x: 1.5, y: -0.5}
+    yaw: 0
+    scale: 1.08
+  - prefab: {fileID: 7333732393853259956, guid: 5403b1eaa40a46e46a0720e2d450ddfe, type: 3}
+    anchor: {x: 0.5, y: 0}
+    offset: {x: 0, y: -0.5}
+    yaw: 0
+    scale: 1.08
+  - prefab: {fileID: 4095776785941740209, guid: 5cf313a75778be74fb027af8ae7a1410, type: 3}
+    anchor: {x: 1, y: 0}
+    offset: {x: -1.5, y: -0.5}
+    yaw: 0
+    scale: 1.08
+  - prefab: {fileID: 7333732393853259956, guid: 5403b1eaa40a46e46a0720e2d450ddfe, type: 3}
+    anchor: {x: 0, y: 1}
+    offset: {x: 1.5, y: 0.5}
+    yaw: 180
+    scale: 1.08
   - prefab: {fileID: 5167589693157691136, guid: 56eaf058da73f6942a13544e9a4ac50f, type: 3}
-    anchor: {x: 0, y: 0.68}
-    offset: {x: -0.5, y: 0}
+    anchor: {x: 0.5, y: 1}
+    offset: {x: 0, y: 0.5}
+    yaw: 0
+    scale: 1.3
+  - prefab: {fileID: 4095776785941740209, guid: 5cf313a75778be74fb027af8ae7a1410, type: 3}
+    anchor: {x: 1, y: 1}
+    offset: {x: -1.5, y: 0.5}
+    yaw: 180
+    scale: 1.08
+  - prefab: {fileID: 7333732393853259956, guid: 5403b1eaa40a46e46a0720e2d450ddfe, type: 3}
+    anchor: {x: 0, y: 0}
+    offset: {x: -0.5, y: 1.5}
+    yaw: 90
+    scale: 1.08
+  - prefab: {fileID: 949955039332644065, guid: 8e33567b21ba1ea489cdeb9eb5375e81, type: 3}
+    anchor: {x: 0, y: 0.5}
+    offset: {x: -0.5, y: 0.20000005}
     yaw: 90
     scale: 1
-  - prefab: {fileID: 949955039332644065, guid: 8e33567b21ba1ea489cdeb9eb5375e81, type: 3}
-    anchor: {x: 0, y: 0}
-    offset: {x: -0.5, y: -0.5}
-    yaw: -135
-    scale: 1.1
+  - prefab: {fileID: 4095776785941740209, guid: 5cf313a75778be74fb027af8ae7a1410, type: 3}
+    anchor: {x: 0, y: 1}
+    offset: {x: -0.5, y: -1.3000002}
+    yaw: 90
+    scale: 1.08
+  - prefab: {fileID: 4095776785941740209, guid: 5cf313a75778be74fb027af8ae7a1410, type: 3}
+    anchor: {x: 1, y: 0}
+    offset: {x: 0.5, y: 1.5}
+    yaw: -90
+    scale: 1.08
+  - prefab: {fileID: 361209280382998743, guid: 7206f8ab46896864286115688a42d3c8, type: 3}
+    anchor: {x: 1, y: 0.5}
+    offset: {x: 0.5, y: 0}
+    yaw: 0
+    scale: 0.8
+  - prefab: {fileID: 7333732393853259956, guid: 5403b1eaa40a46e46a0720e2d450ddfe, type: 3}
+    anchor: {x: 1, y: 1}
+    offset: {x: 0.5, y: -1.5}
+    yaw: -90
+    scale: 1.08
   applyBackground: 1
   skyMaterial: {fileID: 2100000, guid: b5462624971a16b4b98df63799e7a360, type: 2}
   backgroundColor: {r: 0.38, g: 0.31, b: 0.45, a: 1}
