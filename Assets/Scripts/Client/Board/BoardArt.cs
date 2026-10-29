@@ -49,17 +49,18 @@ namespace MiniChess.Client.Board
 
         [Header("Background")]
         [SerializeField] private bool applyBackground = true;
-        [SerializeField] private Color backgroundColor = new Color(0.30f, 0.26f, 0.38f);
+        [SerializeField] private Color backgroundColor = new Color(0.38f, 0.31f, 0.45f);
 
         [Header("Lighting")]
+        [Tooltip("돌 색은 거의 중립이고, 분위기는 여기서 정한다: 햇빛 = 밝은 면의 따뜻함, 주변광 = 그늘의 보랏빛.")]
         [SerializeField] private bool applyLighting = true;
-        [SerializeField] private Color sunColor = new Color(1f, 0.87f, 0.72f);
-        [SerializeField] private float sunIntensity = 1.9f;
+        [SerializeField] private Color sunColor = new Color(1f, 0.88f, 0.74f);
+        [SerializeField] private float sunIntensity = 2.3f;
         [Tooltip("기본은 앞 왼쪽에서 비추는 빛(그림자가 뒤 오른쪽으로). 카메라 쪽 벽면이 밝게 보인다.")]
         [SerializeField] private Vector3 sunRotation = new Vector3(38f, 40f, 0f);
-        [SerializeField] private Color ambientSky = new Color(0.40f, 0.38f, 0.52f);
-        [SerializeField] private Color ambientEquator = new Color(0.38f, 0.35f, 0.40f);
-        [SerializeField] private Color ambientGround = new Color(0.10f, 0.09f, 0.09f);
+        [SerializeField] private Color ambientSky = new Color(0.50f, 0.42f, 0.62f);
+        [SerializeField] private Color ambientEquator = new Color(0.44f, 0.37f, 0.47f);
+        [SerializeField] private Color ambientGround = new Color(0.14f, 0.11f, 0.13f);
 
         public Material FloorMaterial => floorMaterial;
         public Material BedMaterial => bedMaterial;

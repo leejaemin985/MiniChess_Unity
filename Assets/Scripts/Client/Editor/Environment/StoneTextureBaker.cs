@@ -19,10 +19,11 @@ namespace MiniChess.Client.Editor.Environment
         private const int Size = 512;
         private const int Seed = 7;
 
-        // 시안의 판석 색: 따뜻한 베이지, 차가운 회색, 살짝 보랏빛
-        private static readonly Color Warm = new Color(0.62f, 0.57f, 0.51f);
-        private static readonly Color Cool = new Color(0.55f, 0.55f, 0.55f);
-        private static readonly Color Mauve = new Color(0.57f, 0.53f, 0.56f);
+        // 돌 자체 색은 거의 중립인 밝은 회베이지로 둔다. 따뜻함은 햇빛(주광), 보랏빛 그늘은 주변광이 만든다(BoardArt).
+        // 그래서 맵마다 햇빛 색/방향을 바꿔도 돌 색은 그대로 쓸 수 있다.
+        private static readonly Color Warm = new Color(0.68f, 0.64f, 0.59f);
+        private static readonly Color Cool = new Color(0.63f, 0.62f, 0.61f);
+        private static readonly Color Mauve = new Color(0.65f, 0.61f, 0.63f);
 
         [MenuItem("MiniChess/Environment/Bake Stone Textures")]
         public static void Bake()
@@ -87,7 +88,7 @@ namespace MiniChess.Client.Editor.Environment
                 {
                     int i = y * Size + x;
                     float cavity = Mathf.Clamp01((blurred[i] - height[i]) * 7f);
-                    Color a = albedo[i] * (1f - cavity * 0.35f);
+                    Color a = albedo[i] * (1f - cavity * 0.45f);
                     a.a = 1f;
                     albedoPixels[i] = a;
                     maskPixels[i] = new Color(crack[i], cavity, smooth[i], 1f);

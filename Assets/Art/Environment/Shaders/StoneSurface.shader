@@ -18,8 +18,8 @@ Shader "MiniChess/StoneSurface"
 
         [Header(Per Cell Variation)]
         _CellSize ("Cell Size", Float) = 1
-        _TintA ("Variation Tint A", Color) = (1.08, 1.0, 0.9, 1)
-        _TintB ("Variation Tint B", Color) = (0.9, 0.92, 1.02, 1)
+        _TintA ("Variation Tint A", Color) = (1.04, 0.99, 0.94, 1)
+        _TintB ("Variation Tint B", Color) = (0.95, 0.95, 1.0, 1)
         _TintStrength ("Tint Strength", Range(0, 1)) = 0.8
         _BrightnessVariation ("Brightness Variation", Range(0, 0.5)) = 0.18
 
@@ -27,14 +27,14 @@ Shader "MiniChess/StoneSurface"
         _EdgeColor ("Edge Wear Color", Color) = (1.12, 1.07, 1.0, 1)
         _EdgeWear ("Edge Wear", Range(0, 1)) = 0.45
         _ChipColor ("Chip Color", Color) = (0.66, 0.62, 0.58, 1)
-        _DirtColor ("Dirt Color", Color) = (0.42, 0.37, 0.35, 1)
+        _DirtColor ("Dirt Color", Color) = (0.45, 0.43, 0.43, 1)
         _Dirt ("Dirt", Range(0, 1)) = 0.6
         _CrackDarkness ("Crack Darkness", Range(0, 1)) = 0.55
         _CrackAmount ("Crack Amount (share of cells)", Range(0, 1)) = 0.4
 
         [Header(Surface)]
         _Smoothness ("Smoothness", Range(0, 1)) = 0.22
-        _Occlusion ("Cavity Occlusion", Range(0, 1)) = 0.6
+        _Occlusion ("Cavity Occlusion", Range(0, 1)) = 0.75
 
         [Header(Overlay)]
         _OverlayColor ("Overlay (a = strength)", Color) = (0, 0, 0, 0)
