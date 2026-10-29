@@ -84,6 +84,8 @@ namespace MiniChess.Client.Board
         private GameObject _decoration;
         private GameObject _backdrop;
         private BoardCellTints _cellTints;
+        private CoreBoard _builtBoard;
+        private readonly List<(Vector3 Point, Vector3 Normal)> _cliffLip = new List<(Vector3, Vector3)>();
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -312,8 +314,9 @@ namespace MiniChess.Client.Board
                 art.ApplyLighting();
             CreateBed(coordinates);
             CreateBorder(coordinates);
-            _backdrop = BoardBackdrop.Build(transform, coordinates, art);
+            _backdrop = BoardBackdrop.Build(transform, coordinates, art, _cliffLip);
             _cellTints = new BoardCellTints(board.Width, board.Height);
+            _builtBoard = board;
 
             _spawnTints.Clear();
             foreach (Position p in board.GetSpawnPositions(Team.Player1)) _spawnTints[p] = spawnPlayer1Tint;
@@ -332,7 +335,31 @@ namespace MiniChess.Client.Board
                 }
             }
 
-            _decoration = BoardDecorator.Build(transform, board, coordinates, art);
+            BuildDecoration();
+        }
+
+        private void BuildDecoration()
+        {
+            var surfaces = new BoardDecorator.Surfaces
+            {
+                WallOf = position => _cells.TryGetValue(position, out CellView cell) && cell != null
+                    ? cell.transform.Find("Wall")?.GetComponent<MeshFilter>()
+                    : null,
+                Border = _border,
+                CliffLip = _cliffLip,
+            };
+            _decoration = BoardDecorator.Build(transform, _builtBoard, _coordinates, art, surfaces);
+        }
+
+        /// <summary>BoardArt 의 장식/넝쿨 설정을 바꾼 뒤 플레이 중에 장식만 다시 만든다(분위기 조정용).</summary>
+        [ContextMenu("Rebuild Decoration")]
+        private void RebuildDecoration()
+        {
+            if (_builtBoard == null || _coordinates == null)
+                return;
+
+            DestroyGenerated(ref _decoration);
+            BuildDecoration();
         }
 
         public void Clear()
@@ -368,6 +395,7 @@ namespace MiniChess.Client.Board
 
             _cellTints?.Dispose();
             _cellTints = null;
+            _builtBoard = null;
         }
 
         /// <summary>실행 중에 만든 메시(장식/배경)를 오브젝트와 함께 지운다.</summary>

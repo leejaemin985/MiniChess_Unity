@@ -35,15 +35,20 @@ namespace MiniChess.Client.Board
         /// <summary>보드 가장자리에서 절벽 끝(땅이 꺾이는 곳)까지의 거리.</summary>
         private static float LipOffset(BoardArt art, float cell) => 0.5f * cell + art.PlateauWidth * cell;
 
-        public static GameObject Build(Transform parent, BoardCoordinates coordinates, BoardArt art)
+        /// <summary>외곽 벽 바깥 땅의 높이(보드 기준). 넝쿨/장식이 이 높이에 뿌리를 둔다.</summary>
+        internal const float GroundHeight = -0.12f;
+
+        /// <param name="cliffLip">채워 줄 목록: 절벽 가장자리를 따라 일정 간격의 (가장자리 점, 바깥 방향). 넝쿨을 늘어뜨릴 자리.</param>
+        public static GameObject Build(Transform parent, BoardCoordinates coordinates, BoardArt art, List<(Vector3 Point, Vector3 Normal)> cliffLip)
         {
+            cliffLip?.Clear();
             if (art == null || art.BackdropMaterial == null)
                 return null;
 
             var outline = new Outline(coordinates, step: 0.25f * coordinates.CellSize);
             var root = new GameObject("Backdrop");
             root.transform.SetParent(parent, false);
-            CreatePart(root.transform, "Cliff", Cliff(outline, art, coordinates.CellSize), art.BackdropMaterial);
+            CreatePart(root.transform, "Cliff", Cliff(outline, art, coordinates.CellSize, cliffLip), art.BackdropMaterial);
             CreatePart(root.transform, "Forest", Forest(outline, art), art.BackdropMaterial);
             CreatePart(root.transform, "Mountains", Mountains(outline, art), art.BackdropMaterial);
             return root;
@@ -75,7 +80,7 @@ namespace MiniChess.Client.Board
         /// 위쪽 고리는 외곽 벽 밑에서 벽 바깥 땅을 지나 가장자리에서 꺾이고, 아래로 갈수록 바깥으로 비탈지며
         /// 지층마다 턱이 져(위를 향한 턱에는 이끼) 숲 바닥 아래까지 내려간다.
         /// </summary>
-        private static Mesh Cliff(Outline outline, BoardArt art, float cell)
+        private static Mesh Cliff(Outline outline, BoardArt art, float cell, List<(Vector3 Point, Vector3 Normal)> cliffLip)
         {
             float depth = art.CliffDepth;
             float lip = LipOffset(art, cell);
@@ -84,7 +89,7 @@ namespace MiniChess.Client.Board
             var rings = new List<Vector3>
             {
                 new Vector3(0.02f * cell, -0.16f, 0f),
-                new Vector3(0.5f * cell, -0.12f, 0f),
+                new Vector3(0.5f * cell, GroundHeight, 0f),
                 new Vector3(lip - 0.3f * cell, -0.13f, 0.1f),
                 new Vector3(lip - 0.08f * cell, -0.17f, 0.25f),
                 new Vector3(lip + 0.05f * cell, -0.45f, 0.35f),
@@ -126,6 +131,13 @@ namespace MiniChess.Client.Board
 
                     vertices[j * n + i] = basePoint + normal * offset + Vector3.up * y;
                 }
+            }
+
+            // 넝쿨 자리: 땅이 꺾이기 직전 고리(가장자리 앞), 세 점마다 하나
+            if (cliffLip != null)
+            {
+                for (int i = 0; i < n; i += 3)
+                    cliffLip.Add((vertices[(plateauRings - 1) * n + i], outline.Normals[i]));
             }
 
             var triangles = new List<int>();

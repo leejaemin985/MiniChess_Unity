@@ -65,6 +65,21 @@ namespace MiniChess.Client.Board
         [Tooltip("보드 가장자리(외곽 벽 밑) 칸마다 풀/돌조각이 붙을 확률.")]
         [SerializeField, Range(0f, 1f)] private float borderDecorChance = 0.75f;
 
+        [Header("Vines (넝쿨, BoardDecorator)")]
+        [Tooltip("벽 꼭대기에서 늘어지는 넝쿨 메시 변형들(원점 = 꼭대기 모서리, 벽면 z = 0, 바깥 -z). 풀 머티리얼로 그린다.")]
+        [SerializeField] private Mesh[] hangingVineMeshes;
+        [Tooltip("벽 밑동에서 타고 오르는 담쟁이 메시 변형들(원점 = 밑동, 벽면 z = 0, 바깥 -z).")]
+        [SerializeField] private Mesh[] climbingVineMeshes;
+        [SerializeField] private bool vinesOnWalls = true;
+        [SerializeField] private bool vinesOnBorder = true;
+        [SerializeField] private bool vinesOnCliff = true;
+        [Tooltip("벽 칸의 드러난 면마다 늘어지는 넝쿨 / 담쟁이가 각각 붙을 확률.")]
+        [SerializeField, Range(0f, 1f)] private float wallVineChance = 0.55f;
+        [Tooltip("외곽 벽 조각의 안/바깥 면마다 늘어지는 넝쿨 / 담쟁이가 각각 붙을 확률.")]
+        [SerializeField, Range(0f, 1f)] private float borderVineChance = 0.25f;
+        [Tooltip("절벽 가장자리를 따라 일정 간격마다 넝쿨이 늘어질 확률.")]
+        [SerializeField, Range(0f, 1f)] private float cliffVineChance = 0.4f;
+
         [Header("Background (하늘/절벽/숲/산, BoardBackdrop)")]
         [SerializeField] private bool applyBackground = true;
         [Tooltip("하늘 스카이박스 머티리얼. 비우면 카메라 배경을 backgroundColor 단색으로 칠한다.")]
@@ -120,6 +135,17 @@ namespace MiniChess.Client.Board
         public float BorderDecorChance => borderDecorChance;
         public Mesh GetGrassMesh(int index) => Pick(grassMeshes, index);
         public Mesh GetRubbleMesh(int index) => Pick(rubbleMeshes, index);
+
+        public bool HasVines => grassMaterial != null && (HasMeshes(hangingVineMeshes) || HasMeshes(climbingVineMeshes));
+        public bool VinesOnWalls => vinesOnWalls;
+        public bool VinesOnBorder => vinesOnBorder;
+        public bool VinesOnCliff => vinesOnCliff;
+        public float WallVineChance => wallVineChance;
+        public float BorderVineChance => borderVineChance;
+        public float CliffVineChance => cliffVineChance;
+        public Mesh GetHangingVineMesh(int index) => Pick(hangingVineMeshes, index);
+        public Mesh GetClimbingVineMesh(int index) => Pick(climbingVineMeshes, index);
+        private static bool HasMeshes(Mesh[] meshes) => meshes != null && meshes.Length > 0;
 
         public Material BackdropMaterial => applyBackground ? backdropMaterial : null;
         public float PlateauWidth => plateauWidth;

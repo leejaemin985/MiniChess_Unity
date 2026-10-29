@@ -54,6 +54,20 @@ MonoBehaviour:
   grassEdgeChance: 0.3
   wallDecorChance: 0.9
   borderDecorChance: 0.75
+  hangingVineMeshes:
+  - {fileID: 4300000, guid: 366f4846a59dab0488d37495830e2c9b, type: 2}
+  - {fileID: 4300000, guid: a590f44ca6786fd4c9186a58f94de7ff, type: 2}
+  - {fileID: 4300000, guid: 2f2b8276c0e3b964fbc056e7a919b5b2, type: 2}
+  climbingVineMeshes:
+  - {fileID: 4300000, guid: 551dc06f8b0e44649aab85573df70c8f, type: 2}
+  - {fileID: 4300000, guid: 9e32a607aa787804d95c43df5d5bc55b, type: 2}
+  - {fileID: 4300000, guid: 1eb9f3fd3340c4d44995527a498e2635, type: 2}
+  vinesOnWalls: 1
+  vinesOnBorder: 1
+  vinesOnCliff: 1
+  wallVineChance: 0.55
+  borderVineChance: 0.25
+  cliffVineChance: 0.4
   applyBackground: 1
   skyMaterial: {fileID: 2100000, guid: b5462624971a16b4b98df63799e7a360, type: 2}
   backgroundColor: {r: 0.38, g: 0.31, b: 0.45, a: 1}
