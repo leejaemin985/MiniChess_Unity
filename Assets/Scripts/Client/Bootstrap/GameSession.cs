@@ -604,7 +604,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 소환: 소환자 → 소환 칸 소환 이펙트(분신: 그림자가 미끄러져 감), 새 소환물 뷰는 바닥에서 솟아오른다. 소환물 사망: 그 자리에서 소멸 이펙트.
         ///   - 상태가 새로 걸리거나 풀림: 그 유닛 자리에서 걸림/풀림 이펙트(봉인 → 마법석 문양/파편). 몸체가 굳고 깨지는 연출은 UnitView 가 상태대로 맞춘다.
         ///   - 호위자가 피해를 대신 받음: 보호 대상 → 호위자로 호위 반응 이펙트.
-        ///   - 덫 발동, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
+        ///   - 덫 발동/해체, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
         private void PlayEvents(IEnumerable<GameEvent> events)
         {
@@ -642,6 +642,9 @@ namespace MiniChess.Client.Bootstrap
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
                         fieldEffectsView.PlayTrigger(triggered.Kind, triggered.Position, triggered.OwnerTeam);
+                        break;
+                    case CellEffectRemovedEvent removed when removed.Reason == CellEffectRemoveReason.Disarmed && removed.OwnerTeam.HasValue:
+                        boardView.RevealTrap(removed.Position, removed.OwnerTeam.Value);
                         break;
                     case StatusAppliedEvent applied when !applied.Refreshed:
                         statusEffectsView.PlayApplied(applied.Status.StatusId, applied.TargetId);
