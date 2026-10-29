@@ -83,6 +83,7 @@ namespace MiniChess.Client.Board
         private readonly List<GameObject> _border = new List<GameObject>();
         private GameObject _decoration;
         private GameObject _backdrop;
+        private GameObject _props;
         private BoardCellTints _cellTints;
         private CoreBoard _builtBoard;
         private readonly List<(Vector3 Point, Vector3 Normal)> _cliffLip = new List<(Vector3, Vector3)>();
@@ -315,6 +316,7 @@ namespace MiniChess.Client.Board
             CreateBed(coordinates);
             CreateBorder(coordinates);
             _backdrop = BoardBackdrop.Build(transform, coordinates, art, _cliffLip);
+            _props = BoardProps.Build(transform, coordinates, art);
             _cellTints = new BoardCellTints(board.Width, board.Height);
             _builtBoard = board;
 
@@ -392,6 +394,11 @@ namespace MiniChess.Client.Board
 
             DestroyGenerated(ref _decoration);
             DestroyGenerated(ref _backdrop);
+
+            // 석조물은 프리팹 에셋의 메시를 그대로 쓰므로 오브젝트만 지운다
+            if (_props != null)
+                Destroy(_props);
+            _props = null;
 
             _cellTints?.Dispose();
             _cellTints = null;

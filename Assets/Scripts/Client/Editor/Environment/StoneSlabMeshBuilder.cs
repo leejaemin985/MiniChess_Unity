@@ -30,13 +30,23 @@ namespace MiniChess.Client.Editor.Environment
 
         public static string PathOf(int variant) => $"{Folder}/SM_StoneSlab_{variant}.asset";
         public static string BrokenPathOf(int variant) => $"{Folder}/SM_StoneSlabBroken_{variant}.asset";
+        public static string LowPathOf(int variant) => $"{Folder}/SM_StoneSlabLow_{variant}.asset";
+
+        /// <summary>보드 칸 판석: 베벨 4단 + 안쪽 7칸(깨진 자리 표현).</summary>
+        private static readonly float[] DetailEdge = { 0f, 0.25f, 0.6f, 1f };
+
+        /// <summary>보드 밖 바닥(성소 돌바닥)용 저폴리 판석: 베벨 한 단, 안쪽 나눔 없음, 깨진 자리 없음(판석 하나 약 40 삼각형).</summary>
+        private static readonly float[] LowEdge = { 0f, 1f };
 
         [MenuItem("MiniChess/Environment/Build Stone Slab Meshes")]
         public static void BuildAll()
         {
             EnvironmentAssetUtil.EnsureFolder(Folder);
             for (int variant = 0; variant < VariantCount; variant++)
-                Save(Build(variant), PathOf(variant));
+            {
+                Save(Build(variant, DetailEdge, InteriorSteps, chips: true), PathOf(variant));
+                Save(Build(variant, LowEdge, 1, chips: false), LowPathOf(variant));
+            }
             for (int variant = 0; variant < BrokenVariantCount; variant++)
                 Save(BuildBroken(variant), BrokenPathOf(variant));
 
@@ -239,14 +249,16 @@ namespace MiniChess.Client.Editor.Environment
             public float Depth;
         }
 
-        private static Mesh Build(int variant)
+        private static Mesh Build(int variant, float[] edgeSteps, int interiorSteps, bool chips)
         {
             var random = new System.Random(100 + variant);
             float half = Footprint * 0.5f;
-            List<Chip> chips = MakeChips(random, half, 1 + variant % 3);
+            List<Chip> chipList = MakeChips(random, half, 1 + variant % 3);
+            if (!chips)
+                chipList.Clear();
             var phases = new Vector3((float)random.NextDouble() * 6.3f, (float)random.NextDouble() * 6.3f, (float)random.NextDouble() * 6.3f);
 
-            float[] coords = Coords(half);
+            float[] coords = Coords(half, edgeSteps, interiorSteps);
             int n = coords.Length;
             var vertices = new List<Vector3>();
             var colors = new List<Color>();
@@ -265,7 +277,7 @@ namespace MiniChess.Client.Editor.Environment
                         * Mathf.Clamp01(d / Bevel);
 
                     float chip = 0;
-                    foreach (Chip c in chips)
+                    foreach (Chip c in chipList)
                     {
                         float distance = Vector2.Distance(new Vector2(x, z), c.Center);
                         float amount = SmoothStep(c.Radius, c.Radius * 0.35f, distance);
@@ -376,15 +388,14 @@ namespace MiniChess.Client.Editor.Environment
             return chips;
         }
 
-        /// <summary>한 축의 정점 좌표: 베벨 구간은 촘촘하게, 안쪽은 고르게.</summary>
-        private static float[] Coords(float half)
+        /// <summary>한 축의 정점 좌표: 베벨 구간(edge 비율)은 촘촘하게, 안쪽은 interiorSteps 칸으로 고르게.</summary>
+        private static float[] Coords(float half, float[] edge, int interiorSteps)
         {
-            var edge = new[] { 0f, 0.25f, 0.6f, 1f };
             var coords = new List<float>();
             foreach (float e in edge)
                 coords.Add(-half + e * Bevel);
-            for (int i = 1; i < InteriorSteps; i++)
-                coords.Add(-half + Bevel + (2f * half - 2f * Bevel) * i / InteriorSteps);
+            for (int i = 1; i < interiorSteps; i++)
+                coords.Add(-half + Bevel + (2f * half - 2f * Bevel) * i / interiorSteps);
             for (int k = edge.Length - 1; k >= 0; k--)
                 coords.Add(half - edge[k] * Bevel);
             return coords.ToArray();

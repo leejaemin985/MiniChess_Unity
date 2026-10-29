@@ -68,6 +68,27 @@ MonoBehaviour:
   wallVineChance: 0.55
   borderVineChance: 0.25
   cliffVineChance: 0.4
+  props:
+  - prefab: {fileID: 3616788059821197207, guid: dd98a4adb05f5874189816f943e68369, type: 3}
+    anchor: {x: 1, y: 1}
+    offset: {x: 0.85, y: 0.85}
+    yaw: -135
+    scale: 1.4
+  - prefab: {fileID: 5167589693157691136, guid: 56eaf058da73f6942a13544e9a4ac50f, type: 3}
+    anchor: {x: 0, y: 0.68}
+    offset: {x: 0.05, y: 0}
+    yaw: 90
+    scale: 1.1
+  - prefab: {fileID: 949955039332644065, guid: 8e33567b21ba1ea489cdeb9eb5375e81, type: 3}
+    anchor: {x: 0, y: 0}
+    offset: {x: -0.85, y: -0.85}
+    yaw: -135
+    scale: 1.3
+  - prefab: {fileID: 7333732393853259956, guid: 5403b1eaa40a46e46a0720e2d450ddfe, type: 3}
+    anchor: {x: 1, y: 0.32}
+    offset: {x: -0.05, y: 0}
+    yaw: 90
+    scale: 1.1
   applyBackground: 1
   skyMaterial: {fileID: 2100000, guid: b5462624971a16b4b98df63799e7a360, type: 2}
   backgroundColor: {r: 0.38, g: 0.31, b: 0.45, a: 1}
@@ -75,7 +96,11 @@ MonoBehaviour:
   hazeColor: {r: 0.4, g: 0.34, b: 0.48, a: 1}
   hazeDistance: {x: 25, y: 320}
   lowMist: 0.4
-  plateauWidth: 0.7
+  pavingMeshes:
+  - {fileID: 4300000, guid: f530a620c6de4bb429dba790445fd1f3, type: 2}
+  - {fileID: 4300000, guid: 99990562f8da81f48bdd0ed081e0b018, type: 2}
+  - {fileID: 4300000, guid: 19c447c38b8a2194ba3a8699be551830, type: 2}
+  masonryMaterial: {fileID: 2100000, guid: 6fb2c06263fb2184e9cb30cfa152eca7, type: 2}
   cliffDepth: 14
   treeCount: 500
   forestRadius: 90

@@ -80,6 +80,10 @@ namespace MiniChess.Client.Board
         [Tooltip("절벽 가장자리를 따라 일정 간격마다 넝쿨이 늘어질 확률.")]
         [SerializeField, Range(0f, 1f)] private float cliffVineChance = 0.4f;
 
+        [Header("Props (보드 밖 석조물, BoardProps)")]
+        [Tooltip("외곽 벽 바깥 땅에 세우는 석조물. 보드 안 벽 칸에는 쓰지 않는다(유닛/하이라이트를 가리지 않게).")]
+        [SerializeField] private PropPlacement[] props;
+
         [Header("Background (하늘/절벽/숲/산, BoardBackdrop)")]
         [SerializeField] private bool applyBackground = true;
         [Tooltip("하늘 스카이박스 머티리얼. 비우면 카메라 배경을 backgroundColor 단색으로 칠한다.")]
@@ -93,9 +97,11 @@ namespace MiniChess.Client.Board
         [SerializeField] private Vector2 hazeDistance = new Vector2(25f, 320f);
         [Tooltip("절벽 아래 낮게 깔린 안개의 진하기(보드 높이에서 0, 숲 바닥에서 이 값).")]
         [SerializeField, Range(0f, 1f)] private float lowMist = 0.4f;
-        [Tooltip("외곽 벽 바깥 땅의 폭(칸 단위, 보드 가장자리에서 절벽 끝까지).")]
-        [SerializeField, Min(0.2f)] private float plateauWidth = 0.7f;
-        [Tooltip("보드에서 숲 바닥까지 절벽 높이(월드 단위).")]
+        [Tooltip("모서리 단 판석 메시(저폴리). 보드 판석과 같은 돌 머티리얼로 그린다.")]
+        [SerializeField] private Mesh[] pavingMeshes;
+        [Tooltip("성벽(벽돌 무늬를 그리는 Masonry 셰이더).")]
+        [SerializeField] private Material masonryMaterial;
+        [Tooltip("보드에서 숲 바닥까지 성벽 높이(월드 단위).")]
         [SerializeField, Min(1f)] private float cliffDepth = 14f;
         [SerializeField, Min(0)] private int treeCount = 500;
         [Tooltip("나무가 자라는 범위(보드 중심에서의 거리).")]
@@ -147,8 +153,30 @@ namespace MiniChess.Client.Board
         public Mesh GetClimbingVineMesh(int index) => Pick(climbingVineMeshes, index);
         private static bool HasMeshes(Mesh[] meshes) => meshes != null && meshes.Length > 0;
 
+        public PropPlacement[] Props => props;
+
+        /// <summary>
+        /// 석조물 하나의 자리. 맵 크기가 달라도 따라가도록 보드 외곽 직사각형 기준으로 정한다.
+        /// 위치 = 기준점(anchor, 0~1) + 바깥으로 떨어진 거리(offset, 칸 단위). 높이는 외곽 벽 바깥 땅.
+        /// </summary>
+        [System.Serializable]
+        public struct PropPlacement
+        {
+            public GameObject prefab;
+            [Tooltip("보드 외곽 직사각형 위 기준점. (0,0) = 왼쪽-가까운(Player1 쪽) 모서리, (1,1) = 오른쪽-먼 모서리.")]
+            public Vector2 anchor;
+            [Tooltip("기준점에서 떨어진 거리(칸 단위, x/z). 바깥쪽이 되게 부호를 준다.")]
+            public Vector2 offset;
+            [Tooltip("y 회전(도).")]
+            public float yaw;
+            [Tooltip("크기 배율(0 이면 1).")]
+            public float scale;
+        }
+
         public Material BackdropMaterial => applyBackground ? backdropMaterial : null;
-        public float PlateauWidth => plateauWidth;
+        public Material MasonryMaterial => masonryMaterial;
+        public bool HasPavingMeshes => HasMeshes(pavingMeshes);
+        public Mesh GetPavingMesh(int index) => Pick(pavingMeshes, index);
         public float CliffDepth => cliffDepth;
         public int TreeCount => treeCount;
         public float ForestRadius => forestRadius;
