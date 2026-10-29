@@ -43,6 +43,10 @@ Material:
     - _CrackDarkness: 1
     - _Dirt: 0.5
     - _EdgeWear: 0.5
+    - _Moss: 0.72
+    - _MossBottom: 0.8
+    - _MossEdge: 0.35
+    - _MossTop: 0.75
     - _NormalStrength: 2
     - _Occlusion: 0.75
     - _OverlayGlow: 0.35
@@ -54,6 +58,8 @@ Material:
     - _ChipColor: {r: 0.65999997, g: 0.62, b: 0.58, a: 1}
     - _DirtColor: {r: 0.45, g: 0.43, b: 0.43, a: 1}
     - _EdgeColor: {r: 1.12, g: 1.07, b: 1, a: 1}
+    - _MossColor: {r: 0.22, g: 0.28, b: 0.12, a: 1}
+    - _MossColor2: {r: 0.34, g: 0.38, b: 0.17, a: 1}
     - _OverlayColor: {r: 0, g: 0, b: 0, a: 0}
     - _TintA: {r: 1.04, g: 0.99, b: 0.94, a: 1}
     - _TintB: {r: 0.95, g: 0.95, b: 1, a: 1}

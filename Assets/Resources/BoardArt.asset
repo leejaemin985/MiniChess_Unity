@@ -39,6 +39,21 @@ MonoBehaviour:
   - {fileID: 4300000, guid: d6590b063fd778f4981c932808efd529, type: 2}
   borderCornerMesh: {fileID: 4300000, guid: 2697bee4581eac34ea162fbf1fe3d2eb, type: 2}
   borderOffset: 0.23
+  grassMeshes:
+  - {fileID: 4300000, guid: e4672ec2542ec5d4687bd89734403867, type: 2}
+  - {fileID: 4300000, guid: 9f2be7e6437107b4f8402d93327ed800, type: 2}
+  - {fileID: 4300000, guid: c9f1276006832f840a749915e57add4b, type: 2}
+  - {fileID: 4300000, guid: 0368baeb061dc5d4691bb226638a4e41, type: 2}
+  grassMaterial: {fileID: 2100000, guid: 3e6e4a9bfab2ad74b8fa333c5285f98c, type: 2}
+  rubbleMeshes:
+  - {fileID: 4300000, guid: b7f3385fc02e1bc478fcc8af41e1045d, type: 2}
+  - {fileID: 4300000, guid: c42030cbd3ff119499a027f699108d68, type: 2}
+  - {fileID: 4300000, guid: d2a7b6b6a2f0c8e4e81ee814ea2785c1, type: 2}
+  - {fileID: 4300000, guid: 1c34ecbf0370e0f4db6d7cd8a0c95576, type: 2}
+  grassCornerChance: 0.65
+  grassEdgeChance: 0.3
+  wallDecorChance: 0.9
+  borderDecorChance: 0.75
   applyBackground: 1
   backgroundColor: {r: 0.38, g: 0.31, b: 0.45, a: 1}
   applyLighting: 1

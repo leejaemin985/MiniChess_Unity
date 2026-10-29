@@ -81,6 +81,7 @@ namespace MiniChess.Client.Board
         private BoardCoordinates _coordinates;
         private GameObject _bed;
         private readonly List<GameObject> _border = new List<GameObject>();
+        private GameObject _decoration;
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -324,6 +325,8 @@ namespace MiniChess.Client.Board
                         : CreateGround(position, cell, coordinates);
                 }
             }
+
+            _decoration = BoardDecorator.Build(transform, board, coordinates, art);
         }
 
         public void Clear()
@@ -353,6 +356,16 @@ namespace MiniChess.Client.Board
             }
 
             _border.Clear();
+
+            if (_decoration != null)
+            {
+                // 장식은 실행 중에 합친 메시라 오브젝트와 함께 지운다.
+                foreach (MeshFilter filter in _decoration.GetComponentsInChildren<MeshFilter>())
+                    Destroy(filter.sharedMesh);
+                Destroy(_decoration);
+            }
+
+            _decoration = null;
         }
 
         private CellView CreateGround(Position position, BoardCell cell, BoardCoordinates coordinates)

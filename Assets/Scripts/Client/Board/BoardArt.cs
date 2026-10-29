@@ -47,6 +47,21 @@ namespace MiniChess.Client.Board
         [Tooltip("외곽 벽 조각 중심이 보드 가장자리에서 떨어진 거리.")]
         [SerializeField] private float borderOffset = 0.23f;
 
+        [Header("Decoration (풀/돌조각, BoardDecorator)")]
+        [Tooltip("풀 덤불 메시 변형들(뿌리 y = 0).")]
+        [SerializeField] private Mesh[] grassMeshes;
+        [SerializeField] private Material grassMaterial;
+        [Tooltip("돌조각 무더기 메시 변형들(돌 머티리얼 = 벽 머티리얼로 그린다).")]
+        [SerializeField] private Mesh[] rubbleMeshes;
+        [Tooltip("네 칸이 만나는 줄눈 모서리마다 풀이 날 확률.")]
+        [SerializeField, Range(0f, 1f)] private float grassCornerChance = 0.65f;
+        [Tooltip("두 칸 사이 줄눈마다 풀이 날 확률.")]
+        [SerializeField, Range(0f, 1f)] private float grassEdgeChance = 0.3f;
+        [Tooltip("벽 칸의 변마다 풀/돌조각이 붙을 확률.")]
+        [SerializeField, Range(0f, 1f)] private float wallDecorChance = 0.9f;
+        [Tooltip("보드 가장자리(외곽 벽 밑) 칸마다 풀/돌조각이 붙을 확률.")]
+        [SerializeField, Range(0f, 1f)] private float borderDecorChance = 0.75f;
+
         [Header("Background")]
         [SerializeField] private bool applyBackground = true;
         [SerializeField] private Color backgroundColor = new Color(0.38f, 0.31f, 0.45f);
@@ -75,6 +90,16 @@ namespace MiniChess.Client.Board
         public Mesh BorderCornerMesh => borderCornerMesh;
         public bool HasBorder => borderMeshes != null && borderMeshes.Length > 0;
         public float BorderOffset => borderOffset;
+
+        public Material GrassMaterial => grassMaterial;
+        public bool HasGrass => grassMaterial != null && grassMeshes != null && grassMeshes.Length > 0;
+        public bool HasRubble => rubbleMeshes != null && rubbleMeshes.Length > 0;
+        public float GrassCornerChance => grassCornerChance;
+        public float GrassEdgeChance => grassEdgeChance;
+        public float WallDecorChance => wallDecorChance;
+        public float BorderDecorChance => borderDecorChance;
+        public Mesh GetGrassMesh(int index) => Pick(grassMeshes, index);
+        public Mesh GetRubbleMesh(int index) => Pick(rubbleMeshes, index);
 
         public Mesh GetSlabMesh(int index) => Pick(slabMeshes, index);
         public Mesh GetBrokenSlabMesh(int index) => Pick(brokenSlabMeshes, index);

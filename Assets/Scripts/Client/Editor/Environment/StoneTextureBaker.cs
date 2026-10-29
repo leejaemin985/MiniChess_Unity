@@ -6,7 +6,7 @@ namespace MiniChess.Client.Editor.Environment
 {
     /// <summary>
     /// 돌 표면 텍스처 3장(색, 노멀, 마스크)을 노이즈로 구워 PNG 로 저장한다(StoneSurface 셰이더용). 상하좌우로 이어 붙여도 이음새가 없다.
-    /// 마스크: R = 금, G = 움푹한 곳, B = 매끈함 변화.
+    /// 마스크: R = 금, G = 움푹한 곳, B = 매끈함 변화, A = 이끼 얼룩(셰이더가 윗면/아랫단/가장자리에서 이 얼룩만큼 이끼를 덮는다).
     /// 화풍을 바꾸려면 아래 수치(색, 노이즈 주기/세기)를 고치고 메뉴를 다시 실행한다. 같은 시드면 같은 결과가 나온다.
     /// </summary>
     public static class StoneTextureBaker
@@ -34,6 +34,7 @@ namespace MiniChess.Client.Editor.Environment
             var crack = new float[Size * Size];
             var albedo = new Color[Size * Size];
             var smooth = new float[Size * Size];
+            var moss = new float[Size * Size];
 
             for (int y = 0; y < Size; y++)
             {
@@ -74,6 +75,10 @@ namespace MiniChess.Client.Editor.Environment
                     float shade = 1f + blotch * 0.16f + speck * 0.05f - stain * 0.12f;
                     albedo[i] = color * shade;
                     smooth[i] = Mathf.Clamp01(0.5f + stain * 0.4f - fine * 0.4f);
+
+                    // 이끼 얼룩: 큰 덩어리 + 가장자리를 갉아먹는 잔 얼룩(0~1)
+                    float patch = Noise.Fbm(u, v, 3, 3, Seed + 20) + Noise.Fbm(u, v, 12, 2, Seed + 21) * 0.45f;
+                    moss[i] = Smooth(-0.15f, 0.3f, patch);
                 }
             }
 
@@ -91,7 +96,7 @@ namespace MiniChess.Client.Editor.Environment
                     Color a = albedo[i] * (1f - cavity * 0.45f);
                     a.a = 1f;
                     albedoPixels[i] = a;
-                    maskPixels[i] = new Color(crack[i], cavity, smooth[i], 1f);
+                    maskPixels[i] = new Color(crack[i], cavity, smooth[i], moss[i]);
 
                     // 높이 기울기로 노멀(접선 공간). 가장자리는 반대편과 이어진다.
                     float dx = height[Index(x + 1, y)] - height[Index(x - 1, y)];

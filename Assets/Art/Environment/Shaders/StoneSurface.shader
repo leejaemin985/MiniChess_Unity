@@ -1,5 +1,6 @@
 // 돌 표면(바닥 판석, 이후 벽/장애물). URP 의 PBR 조명(주광, 그림자, 주변광, 보조광, 안개)을 그대로 쓰고, 표면만 직접 만든다.
-//   - 텍스처 3장(색, 노멀, 마스크)을 메시 UV 로 읽는다. 마스크: R = 금, G = 움푹한 곳, B = 매끈함 변화.
+//   - 텍스처 3장(색, 노멀, 마스크)을 메시 UV 로 읽는다. 마스크: R = 금, G = 움푹한 곳, B = 매끈함 변화, A = 이끼 얼룩.
+//   - 이끼: 마스크 A 얼룩이 윗면/아랫단(정점 B)/모서리(정점 R) 중 머티리얼이 정한 자리에서 문턱을 넘으면 이끼 색으로 덮는다.
 //   - 칸마다 다르게: 월드 위치가 속한 칸(_CellSize)으로 난수를 만들어 텍스처 위치/90도 회전, 색조, 밝기, 금 유무를 흔든다.
 //     칸 중심이 (X * _CellSize, Y * _CellSize) 라는 보드 좌표 규칙(BoardCoordinates)을 따른다.
 //   - 모서리: 메시의 정점 색을 쓴다(StoneSlabMeshBuilder, StoneMeshKit). R = 모서리 닳음, G = 깨진 자리/갈라진 면, B = 아래쪽 때, A = 조각 밝기.
@@ -12,7 +13,7 @@ Shader "MiniChess/StoneSurface"
         _BaseColor ("Tint", Color) = (1, 1, 1, 1)
         [NoScaleOffset] _BaseMap ("Albedo", 2D) = "white" {}
         [NoScaleOffset][Normal] _NormalMap ("Normal", 2D) = "bump" {}
-        [NoScaleOffset] _MaskMap ("Mask (R crack, G cavity, B smooth)", 2D) = "black" {}
+        [NoScaleOffset] _MaskMap ("Mask (R crack, G cavity, B smooth, A moss)", 2D) = "black" {}
         _Tiling ("Texture Tiling", Float) = 0.7
         _NormalStrength ("Normal Strength", Range(0, 2)) = 1
 
@@ -35,6 +36,14 @@ Shader "MiniChess/StoneSurface"
         [Header(Surface)]
         _Smoothness ("Smoothness", Range(0, 1)) = 0.22
         _Occlusion ("Cavity Occlusion", Range(0, 1)) = 0.75
+
+        [Header(Moss)]
+        _MossColor ("Moss Color", Color) = (0.22, 0.28, 0.12, 1)
+        _MossColor2 ("Moss Color 2", Color) = (0.34, 0.38, 0.17, 1)
+        _Moss ("Moss Amount", Range(0, 1)) = 0.3
+        _MossTop ("Moss On Top Faces", Range(0, 1)) = 0.1
+        _MossBottom ("Moss At Bottom (vertex B)", Range(0, 1)) = 0.6
+        _MossEdge ("Moss On Edges (vertex R)", Range(0, 1)) = 0.6
 
         [Header(Overlay)]
         _OverlayColor ("Overlay (a = strength)", Color) = (0, 0, 0, 0)
@@ -66,6 +75,12 @@ Shader "MiniChess/StoneSurface"
             half _CrackAmount;
             half _Smoothness;
             half _Occlusion;
+            half4 _MossColor;
+            half4 _MossColor2;
+            half _Moss;
+            half _MossTop;
+            half _MossBottom;
+            half _MossEdge;
             half4 _OverlayColor;
             half _OverlayGlow;
         CBUFFER_END
@@ -191,6 +206,16 @@ Shader "MiniChess/StoneSurface"
                 albedo *= 0.75 + 0.25 * input.color.a; // 조각(벽돌)마다 밝기. 1 = 그대로
                 albedo *= _BaseColor.rgb;
 
+                // 이끼: 마스크 A(얼룩) × 자랄 자리(윗면 / 아랫단 때 / 모서리)가 문턱(1 - _Moss)을 넘는 곳. 칸마다 양을 조금씩 흔든다.
+                // 바닥은 윗면 세기를 낮게 두어 판석 가장자리에만, 벽은 윗면과 아랫단에 많이 낀다(머티리얼 값).
+                half up = saturate((input.normalWS.y - 0.55) * 3.0);
+                half grow = up * _MossTop + input.color.b * _MossBottom + edge * _MossEdge;
+                half mossMask = mask.a * saturate(grow) + (hash2.z - 0.5) * 0.25;
+                half moss = smoothstep(1.0 - _Moss, 1.0 - _Moss + 0.35, mossMask);
+                half3 mossColor = lerp(_MossColor.rgb, _MossColor2.rgb, mask.b) * (0.8 + 0.4 * mask.a);
+                albedo = lerp(albedo, mossColor, moss);
+                normalTS.xy *= 1.0 - moss * 0.6; // 이끼는 돌 결을 덮어 덜 울퉁불퉁하게
+
                 // 덧칠(칸 하이라이트/장판): 돌 색을 덧칠 색 쪽으로 섞고, 그림자 안에서도 보이게 약하게 빛나게 한다.
                 albedo = lerp(albedo, _OverlayColor.rgb, _OverlayColor.a);
                 half3 emission = _OverlayColor.rgb * (_OverlayColor.a * _OverlayGlow);
@@ -216,7 +241,7 @@ Shader "MiniChess/StoneSurface"
                 surface.albedo = albedo;
                 surface.metallic = 0;
                 surface.specular = half3(0, 0, 0);
-                surface.smoothness = saturate(_Smoothness * (0.6 + 0.8 * mask.b) * (1.0 - dirt * 0.5) * (1.0 - chip * 0.5));
+                surface.smoothness = saturate(_Smoothness * (0.6 + 0.8 * mask.b) * (1.0 - dirt * 0.5) * (1.0 - chip * 0.5) * (1.0 - moss * 0.7));
                 surface.normalTS = normalTS;
                 surface.occlusion = 1.0 - saturate(mask.g + crack) * _Occlusion;
                 surface.emission = emission;
