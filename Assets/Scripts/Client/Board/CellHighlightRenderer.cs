@@ -56,9 +56,9 @@ namespace MiniChess.Client.Board
             _curtain = CreateQuad("CellHighlightCurtain", horizontal: false);
         }
 
-        /// <param name="cells">하이라이트된 칸과 그 모양.</param>
+        /// <param name="cells">하이라이트된 칸과 그 모양. 매 프레임 도는 foreach 가 열거자를 박싱하지 않도록 Dictionary 로 받는다.</param>
         /// <param name="top">칸 윗면 중심(월드).</param>
-        public void Draw(IReadOnlyDictionary<Position, Style> cells, Func<Position, Vector3> top, float cellSize, Quaternion boardRotation, int layer)
+        public void Draw(Dictionary<Position, Style> cells, Func<Position, Vector3> top, float cellSize, Quaternion boardRotation, int layer)
         {
             if (_material == null || cells.Count == 0)
                 return;
