@@ -3,7 +3,9 @@
     "rootNamespace": "MiniChess.Client.Editor",
     "references": [
         "MiniChess.Client",
-        "MiniChess.Core"
+        "MiniChess.Core",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [
         "Editor"

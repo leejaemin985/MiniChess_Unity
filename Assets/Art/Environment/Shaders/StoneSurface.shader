@@ -1,0 +1,351 @@
+// 돌 표면(바닥 판석, 이후 벽/장애물). URP 의 PBR 조명(주광, 그림자, 주변광, 보조광, 안개)을 그대로 쓰고, 표면만 직접 만든다.
+//   - 텍스처 3장(색, 노멀, 마스크)을 메시 UV 로 읽는다. 마스크: R = 금, G = 움푹한 곳, B = 매끈함 변화.
+//   - 칸마다 다르게: 월드 위치가 속한 칸(_CellSize)으로 난수를 만들어 텍스처 위치/90도 회전, 색조, 밝기, 금 유무를 흔든다.
+//     칸 중심이 (X * _CellSize, Y * _CellSize) 라는 보드 좌표 규칙(BoardCoordinates)을 따른다.
+//   - 모서리: 판석 메시의 정점 색을 쓴다(StoneSlabMeshBuilder). R = 모서리 닳음, G = 깨진 자리, B = 아래쪽 때.
+//   - _BaseColor 는 전체 색 곱(칸 하이라이트/장판 색조를 입히는 데 쓴다).
+// 모바일 기준: 텍스처 샘플 3번, 노이즈 계산 없음(텍스처는 StoneTextureBaker 로 미리 굽는다).
+Shader "MiniChess/StoneSurface"
+{
+    Properties
+    {
+        _BaseColor ("Tint", Color) = (1, 1, 1, 1)
+        [NoScaleOffset] _BaseMap ("Albedo", 2D) = "white" {}
+        [NoScaleOffset][Normal] _NormalMap ("Normal", 2D) = "bump" {}
+        [NoScaleOffset] _MaskMap ("Mask (R crack, G cavity, B smooth)", 2D) = "black" {}
+        _Tiling ("Texture Tiling", Float) = 0.7
+        _NormalStrength ("Normal Strength", Range(0, 2)) = 1
+
+        [Header(Per Cell Variation)]
+        _CellSize ("Cell Size", Float) = 1
+        _TintA ("Variation Tint A", Color) = (1.08, 1.0, 0.9, 1)
+        _TintB ("Variation Tint B", Color) = (0.9, 0.92, 1.02, 1)
+        _TintStrength ("Tint Strength", Range(0, 1)) = 0.8
+        _BrightnessVariation ("Brightness Variation", Range(0, 0.5)) = 0.18
+
+        [Header(Wear)]
+        _EdgeColor ("Edge Wear Color", Color) = (1.12, 1.07, 1.0, 1)
+        _EdgeWear ("Edge Wear", Range(0, 1)) = 0.45
+        _ChipColor ("Chip Color", Color) = (0.66, 0.62, 0.58, 1)
+        _DirtColor ("Dirt Color", Color) = (0.42, 0.37, 0.35, 1)
+        _Dirt ("Dirt", Range(0, 1)) = 0.6
+        _CrackDarkness ("Crack Darkness", Range(0, 1)) = 0.55
+        _CrackAmount ("Crack Amount (share of cells)", Range(0, 1)) = 0.4
+
+        [Header(Surface)]
+        _Smoothness ("Smoothness", Range(0, 1)) = 0.22
+        _Occlusion ("Cavity Occlusion", Range(0, 1)) = 0.6
+    }
+
+    SubShader
+    {
+        Tags { "RenderType" = "Opaque" "Queue" = "Geometry" "RenderPipeline" = "UniversalPipeline" }
+
+        HLSLINCLUDE
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+        CBUFFER_START(UnityPerMaterial)
+            half4 _BaseColor;
+            float _Tiling;
+            half _NormalStrength;
+            float _CellSize;
+            half4 _TintA;
+            half4 _TintB;
+            half _TintStrength;
+            half _BrightnessVariation;
+            half4 _EdgeColor;
+            half _EdgeWear;
+            half4 _ChipColor;
+            half4 _DirtColor;
+            half _Dirt;
+            half _CrackDarkness;
+            half _CrackAmount;
+            half _Smoothness;
+            half _Occlusion;
+        CBUFFER_END
+        ENDHLSL
+
+        Pass
+        {
+            Name "ForwardLit"
+            Tags { "LightMode" = "UniversalForward" }
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
+            #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
+            #pragma multi_compile_fog
+            #pragma multi_compile_instancing
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+
+            TEXTURE2D(_BaseMap);    SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_NormalMap);  SAMPLER(sampler_NormalMap);
+            TEXTURE2D(_MaskMap);    SAMPLER(sampler_MaskMap);
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                float4 tangentOS : TANGENT;
+                float2 uv : TEXCOORD0;
+                half4 color : COLOR;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
+                half3 normalWS : TEXCOORD2;
+                half4 tangentWS : TEXCOORD3;
+                half4 color : TEXCOORD4;
+                half4 fogAndVertexLight : TEXCOORD5; // x = 안개, yzw = 정점 보조광
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            // 칸 좌표 → 0~1 난수 4개(Dave Hoskins hash).
+            float4 CellHash(float2 cell)
+            {
+                float4 p4 = frac(cell.xyxy * float4(0.1031, 0.1030, 0.0973, 0.1099));
+                p4 += dot(p4, p4.wzxy + 33.33);
+                return frac((p4.xxyz + p4.yzzw) * p4.zywx);
+            }
+
+            // 90도 단위 회전(k = 0~3). uv 와 노멀 xy 를 같은 회전으로 돌린다.
+            float2 Rotate90(float2 v, float k)
+            {
+                float2 r = v;
+                if (k >= 1) r = float2(-r.y, r.x);
+                if (k >= 2) r = float2(-r.y, r.x);
+                if (k >= 3) r = float2(-r.y, r.x);
+                return r;
+            }
+
+            Varyings vert(Attributes input)
+            {
+                Varyings output = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, output);
+
+                VertexPositionInputs position = GetVertexPositionInputs(input.positionOS.xyz);
+                VertexNormalInputs normal = GetVertexNormalInputs(input.normalOS, input.tangentOS);
+
+                output.positionCS = position.positionCS;
+                output.positionWS = position.positionWS;
+                output.normalWS = normal.normalWS;
+                output.tangentWS = half4(normal.tangentWS, input.tangentOS.w * GetOddNegativeScale());
+                output.uv = input.uv;
+                output.color = input.color;
+                output.fogAndVertexLight.x = ComputeFogFactor(position.positionCS.z);
+                #ifdef _ADDITIONAL_LIGHTS_VERTEX
+                    output.fogAndVertexLight.yzw = VertexLighting(position.positionWS, normal.normalWS);
+                #endif
+                return output;
+            }
+
+            half4 frag(Varyings input) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+
+                // 칸마다 다른 난수: x = 회전, y = 색조, z = 밝기, w = 금 유무. 텍스처 위치는 두 번째 난수(hash2)로 정한다.
+                float2 cell = floor(input.positionWS.xz / _CellSize + 0.5);
+                float4 hash = CellHash(cell);
+                float4 hash2 = CellHash(cell + 17.0);
+                float rotation = floor(hash.x * 4.0);
+
+                float2 uv = Rotate90(input.uv - 0.5, rotation) * _Tiling + hash2.xy * 8.0;
+                half3 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv).rgb;
+                half4 mask = SAMPLE_TEXTURE2D(_MaskMap, sampler_MaskMap, uv);
+                half3 normalTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv), _NormalStrength);
+                // uv 를 돌렸으니 노멀의 방향도 원래 uv 축으로 되돌린다(역회전 = 4 - k 번 회전).
+                normalTS.xy = Rotate90(normalTS.xy, fmod(4.0 - rotation, 4.0));
+
+                // 판석마다 색조/밝기
+                half3 tint = lerp(_TintA.rgb, _TintB.rgb, hash.y);
+                albedo *= lerp(half3(1, 1, 1), tint, _TintStrength);
+                albedo *= 1.0 + (hash.z - 0.5) * 2.0 * _BrightnessVariation;
+
+                // 금: 일부 칸에만
+                half crack = mask.r * saturate((_CrackAmount - hash.w) * 6.0);
+                albedo *= 1.0 - crack * _CrackDarkness;
+
+                // 모서리 닳음(밝게), 깨진 자리(새 돌 색), 움푹한 곳/아래쪽 때(어둡게)
+                half edge = input.color.r;
+                half chip = input.color.g;
+                half dirt = saturate(mask.g * 0.7 + input.color.b);
+                albedo = lerp(albedo, albedo * _EdgeColor.rgb, edge * _EdgeWear);
+                albedo = lerp(albedo, _ChipColor.rgb * (0.85 + 0.3 * mask.b), chip);
+                albedo = lerp(albedo, albedo * _DirtColor.rgb, dirt * _Dirt);
+                albedo *= _BaseColor.rgb;
+
+                float sgn = input.tangentWS.w;
+                half3 bitangentWS = sgn * cross(input.normalWS, input.tangentWS.xyz);
+                half3 normalWS = TransformTangentToWorld(normalTS, half3x3(input.tangentWS.xyz, bitangentWS, input.normalWS));
+                normalWS = NormalizeNormalPerPixel(normalWS);
+
+                InputData inputData = (InputData)0;
+                inputData.positionWS = input.positionWS;
+                inputData.positionCS = input.positionCS;
+                inputData.normalWS = normalWS;
+                inputData.viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
+                inputData.shadowCoord = TransformWorldToShadowCoord(input.positionWS);
+                inputData.fogCoord = input.fogAndVertexLight.x;
+                inputData.vertexLighting = input.fogAndVertexLight.yzw;
+                inputData.bakedGI = SampleSH(normalWS);
+                inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(input.positionCS);
+                inputData.shadowMask = half4(1, 1, 1, 1);
+
+                SurfaceData surface = (SurfaceData)0;
+                surface.albedo = albedo;
+                surface.metallic = 0;
+                surface.specular = half3(0, 0, 0);
+                surface.smoothness = saturate(_Smoothness * (0.6 + 0.8 * mask.b) * (1.0 - dirt * 0.5) * (1.0 - chip * 0.5));
+                surface.normalTS = normalTS;
+                surface.occlusion = 1.0 - saturate(mask.g + crack) * _Occlusion;
+                surface.alpha = 1;
+
+                half4 color = UniversalFragmentPBR(inputData, surface);
+                color.rgb = MixFog(color.rgb, inputData.fogCoord);
+                return half4(color.rgb, 1);
+            }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/CommonMaterial.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+
+            float3 _LightDirection;
+            float3 _LightPosition;
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            float4 vert(Attributes input) : SV_POSITION
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+                #if _CASTING_PUNCTUAL_LIGHT_SHADOW
+                    float3 lightDirectionWS = normalize(_LightPosition - positionWS);
+                #else
+                    float3 lightDirectionWS = _LightDirection;
+                #endif
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+                #if UNITY_REVERSED_Z
+                    positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+                #else
+                    positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+                #endif
+                return positionCS;
+            }
+
+            half4 frag() : SV_Target { return 0; }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+            ZWrite On
+            ColorMask R
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            float4 vert(Attributes input) : SV_POSITION
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+                return TransformObjectToHClip(input.positionOS.xyz);
+            }
+
+            half frag() : SV_Target { return 0; }
+            ENDHLSL
+        }
+
+        // SSAO 등 화면 공간 효과용. 판석 굴곡만 쓰고 노멀 맵은 쓰지 않는다(가볍게).
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode" = "DepthNormals" }
+            ZWrite On
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
+
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                half3 normalWS : TEXCOORD0;
+            };
+
+            Varyings vert(Attributes input)
+            {
+                Varyings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                return output;
+            }
+
+            half4 frag(Varyings input) : SV_Target
+            {
+                float3 normalWS = normalize(input.normalWS);
+                #if defined(_GBUFFER_NORMALS_OCT)
+                    float2 octNormalWS = PackNormalOctQuadEncode(normalWS);
+                    float2 remapped = saturate(octNormalWS * 0.5 + 0.5);
+                    return half4(PackFloat2To888(remapped), 0);
+                #else
+                    return half4(normalWS, 0);
+                #endif
+            }
+            ENDHLSL
+        }
+    }
+
+    FallBack "Hidden/Universal Render Pipeline/FallbackError"
+}
