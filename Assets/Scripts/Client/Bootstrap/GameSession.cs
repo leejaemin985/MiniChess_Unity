@@ -185,7 +185,9 @@ namespace MiniChess.Client.Bootstrap
         /// </summary>
         public int MatchId { get; private set; }
 
-        /// <summary>현재 턴의 남은 시간(초, 온라인 전용). 시간이 다 되면 서버가 턴을 끝낸다. 턴 제한이 없으면 null.</summary>
+        /// <summary>
+        /// 현재 턴(배치 단계면 배치)의 남은 시간(초, 온라인 전용). 시간이 다 되면 서버가 턴을 끝낸다(배치 단계면 무작위 배치). 제한이 없으면 null.
+        /// </summary>
         public float? TurnTimeLeft => _turnDeadline.HasValue ? Mathf.Max(0f, _turnDeadline.Value - Time.realtimeSinceStartup) : (float?)null;
 
         /// <summary>서버가 알려 준 턴 마감 시각(Time.realtimeSinceStartup 기준). 없으면 null.</summary>
@@ -946,7 +948,7 @@ namespace MiniChess.Client.Bootstrap
             if (game == null)
                 return;
 
-            _turnDeadline = null;
+            _turnDeadline = started.TurnTimeLeftMs.HasValue ? Time.realtimeSinceStartup + started.TurnTimeLeftMs.Value / 1000f : (float?)null;
             LocalTeam = started.YourTeam;
             BeginGame(game);
             ReportFailure($"경기 시작: {(started.YourTeam == Team.Player1 ? "PLAYER 1" : "PLAYER 2")}");

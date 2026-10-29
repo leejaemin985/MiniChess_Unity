@@ -103,7 +103,7 @@ namespace MiniChess.Client.UI
                 // 온라인은 각자 동시에 배치하므로, 내 배치를 마치면 상대를 기다린다.
                 Team? placing = _session.GetPlacingTeam(state);
                 roundText.text = "SETUP";
-                turnText.text = placing.HasValue ? $"{WhoseName(placing.Value)} 배치" : _session.IsOnline ? "상대 배치 대기" : "배치";
+                turnText.text = (placing.HasValue ? $"{WhoseName(placing.Value)} 배치" : _session.IsOnline ? "상대 배치 대기" : "배치") + FormatTimeLeft();
                 return;
             }
 
@@ -113,7 +113,7 @@ namespace MiniChess.Client.UI
 
         private int _shownSeconds = -1;
 
-        /// <summary>온라인 턴 제한 시간이 1초 줄 때마다 턴 표시를 다시 쓴다.</summary>
+        /// <summary>온라인 턴(배치) 제한 시간이 1초 줄 때마다 턴 표시를 다시 쓴다.</summary>
         private void Update()
         {
             float? left = _session?.TurnTimeLeft;
@@ -126,7 +126,7 @@ namespace MiniChess.Client.UI
                 RefreshCenter(_session.State);
         }
 
-        /// <summary>턴 남은 시간(온라인, 예: "  1:42"). 제한이 없으면 빈 문자열.</summary>
+        /// <summary>턴(배치) 남은 시간(온라인, 예: "  1:42"). 제한이 없으면 빈 문자열.</summary>
         private string FormatTimeLeft()
         {
             float? left = _session.TurnTimeLeft;
