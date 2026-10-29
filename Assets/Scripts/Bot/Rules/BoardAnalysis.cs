@@ -38,7 +38,11 @@ namespace MiniChess.Bot.Rules
         public List<Unit> Enemies { get; }
 
         /// <param name="stalled">교착 상태면 형세와 무관하게 신중함을 CautionStalled 이하로 낮춘다.</param>
-        public BoardAnalysis(GameController game, Team team, BotWeights weights, bool stalled = false)
+        /// <param name="caution">
+        /// 정해 둔 신중함. 탐색 봇이 여러 판을 비교할 때 판마다 형세가 달라 배수가 바뀌면 점수를 비교할 수 없으므로,
+        /// 탐색을 시작한 판의 값을 넘긴다. null 이면 이 판의 형세로 정한다.
+        /// </param>
+        public BoardAnalysis(GameController game, Team team, BotWeights weights, bool stalled = false, double? caution = null)
         {
             Game = game;
             State = game.State;
@@ -52,7 +56,7 @@ namespace MiniChess.Bot.Rules
                 _threat[unit.Id] = ComputeThreat(unit);
 
             _danger = ComputeDanger();
-            Caution = stalled ? Math.Min(ComputeCaution(), weights.CautionStalled) : ComputeCaution();
+            Caution = caution ?? (stalled ? Math.Min(ComputeCaution(), weights.CautionStalled) : ComputeCaution());
         }
 
         /// <summary>

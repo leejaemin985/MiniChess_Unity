@@ -23,13 +23,14 @@ namespace MiniChess.Bot.Search
         /// <summary>승패가 난 판의 점수(어떤 판 점수보다 크게).</summary>
         public const double WinScore = 100000;
 
-        public static double Evaluate(GameController game, Team team, BotWeights weights, bool stalled)
+        /// <param name="caution">위협도 감점 배수. 탐색 봇은 탐색을 시작한 판의 값으로 고정해 넘긴다(판마다 바뀌면 비교가 어긋난다).</param>
+        public static double Evaluate(GameController game, Team team, BotWeights weights, bool stalled, double? caution = null)
         {
             GameState state = game.State;
             if (state.IsGameOver)
                 return state.Winner == team ? WinScore - state.TurnNumber : state.Winner.HasValue ? -WinScore + state.TurnNumber : 0;
 
-            var a = new BoardAnalysis(game, team, weights, stalled);
+            var a = new BoardAnalysis(game, team, weights, stalled, caution);
             double value = 0;
 
             foreach (Unit unit in a.Allies)

@@ -95,7 +95,12 @@ namespace MiniChess.Bot.Search
             _nodes = 0;
             _deadline = Stopwatch.StartNew();
 
-            List<Line> finished = BeamSearch(game.Fork(team), team, stalled);
+            // 신중함(위협도 감점 배수)은 탐색을 시작한 판의 형세로 고정한다. 읽은 판마다 다시 정하면
+            // 공격으로 형세가 뒤집힌 판만 감점이 커져, 앞서게 만드는 수가 손해로 보인다.
+            GameController start = game.Fork(team);
+            _caution = new BoardAnalysis(start, team, Weights, stalled).Caution;
+
+            List<Line> finished = BeamSearch(start, team, stalled);
             Line best = finished[0];
             LastPlanScore = best.Score;
 
@@ -127,6 +132,9 @@ namespace MiniChess.Bot.Search
 
         private int _nodes;
         private Stopwatch _deadline;
+
+        /// <summary>이번 탐색에서 쓰는 신중함(탐색을 시작한 판의 값).</summary>
+        private double _caution;
 
         /// <summary>시간이 다 되었거나 판단이 취소되었다. 그때까지 읽은 것 중에서 고른다.</summary>
         private bool TimeUp => Cancellation.IsCancellationRequested
@@ -174,7 +182,7 @@ namespace MiniChess.Bot.Search
         /// <summary>규칙 봇 점수가 높은 후보 CandidatesPerStep 개. 같은 유닛의 같은 스킬 변형은 MaxVariantsPerSkill 개까지만.</summary>
         private IEnumerable<BotAction> Candidates(GameController game, Team team, bool stalled)
         {
-            var scorer = new ActionScorer(new BoardAnalysis(game, team, Weights, stalled));
+            var scorer = new ActionScorer(new BoardAnalysis(game, team, Weights, stalled, _caution));
             var variants = new Dictionary<(int UnitId, string SkillId), int>();
 
             return BotActionGenerator.Generate(game, team)
@@ -201,7 +209,7 @@ namespace MiniChess.Bot.Search
         private double ScoreEndingTurn(GameController game, Team team, bool stalled)
         {
             GameController ended = EndTurn(game, team);
-            return PositionEvaluator.Evaluate(ended, team, Weights, stalled);
+            return PositionEvaluator.Evaluate(ended, team, Weights, stalled, _caution);
         }
 
         /// <summary>
@@ -218,7 +226,7 @@ namespace MiniChess.Bot.Search
             if (Settings.Depth >= 3 && !reply.State.IsGameOver && reply.State.CurrentTeam == team)
                 return BeamSearch(reply, team, stalled)[0].Score;
 
-            return PositionEvaluator.Evaluate(reply, team, Weights, stalled);
+            return PositionEvaluator.Evaluate(reply, team, Weights, stalled, _caution);
         }
 
         private static GameController EndTurn(GameController game, Team team)

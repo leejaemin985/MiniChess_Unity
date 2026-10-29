@@ -7,6 +7,7 @@ using MiniChess.Core.Data;
 using MiniChess.Core.Events;
 using MiniChess.Core.Presets;
 using MiniChess.Core.Setup;
+using MiniChess.Core.State;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -133,6 +134,34 @@ namespace MiniChess.Bot.Tests
             Assert.True(corrections.Select(pair => pair.Score).Distinct().Count() > 1, "모든 밀기 변형의 점수가 같음");
             Position best = corrections[0].Action.Targets[1];
             Assert.True(best.Y == enemy.Y && best.X > enemy.X, $"덫 쪽이 아닌 {best} 로 밈");
+        }
+
+        // 형세를 뒤집는 공격(비김 → 앞섬)도 판 점수를 올려야 한다. 신중함 배수를 판마다 다시 정하면 앞선 판만 위협도 감점이 커져 손해로 보인다.
+        [Fact]
+        public void Evaluation_with_the_search_start_caution_rewards_an_attack_that_takes_the_lead()
+        {
+            GameController game = CreateSmallBattle(
+                new[]
+                {
+                    "22.",
+                    "11.",
+                    "...",
+                },
+                new[] { WarriorPiece.PieceId, ArcherPiece.PieceId },
+                new[] { WarriorPiece.PieceId, ArcherPiece.PieceId });
+            var weights = new BotWeights();
+            Unit attacker = game.State.GetPlayer(Team.Player1).Units.Single(unit => unit.Stats.Base.Id == WarriorPiece.PieceId);
+            Unit target = game.GetAttackTargets(attacker.Id).First();
+            double caution = new BoardAnalysis(game, Team.Player1, weights).Caution;
+            double before = Search.PositionEvaluator.Evaluate(game, Team.Player1, weights, stalled: false, caution);
+
+            Assert.True(game.Attack(new AttackRequest(Team.Player1, attacker.Id, target.Id)).Success);
+
+            double after = Search.PositionEvaluator.Evaluate(game, Team.Player1, weights, stalled: false, caution);
+            double afterRecomputed = Search.PositionEvaluator.Evaluate(game, Team.Player1, weights, stalled: false);
+            _output.WriteLine($"공격 전 {before:F2}, 공격 후(고정) {after:F2}, 공격 후(판마다 다시 정함) {afterRecomputed:F2}");
+            Assert.Equal(1, new BoardAnalysis(game, Team.Player1, weights).Caution);
+            Assert.True(after > before);
         }
 
         [Theory]
