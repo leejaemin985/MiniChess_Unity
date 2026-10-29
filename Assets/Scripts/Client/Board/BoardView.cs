@@ -33,17 +33,18 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color spawnPlayer2Tint = new Color(0.95f, 0.6f, 0.55f);
         [SerializeField, Range(0f, 1f)] private float spawnTintStrength = 0.35f;
 
-        [Header("Highlight")]
-        [SerializeField] private Color selectedColor = new Color(1f, 0.9f, 0.2f);
-        [SerializeField] private Color moveColor = new Color(0.3f, 0.85f, 0.4f);
-        [SerializeField] private Color attackColor = new Color(0.95f, 0.2f, 0.2f);
+        [Header("Highlight (빛나는 테두리 + 영역 경계의 막, CellHighlightRenderer)")]
+        [SerializeField] private Color selectedColor = new Color(0.35f, 0.68f, 1f);
+        [SerializeField] private Color moveColor = new Color(0.3f, 0.95f, 0.85f);
+        [SerializeField] private Color attackColor = new Color(1f, 0.38f, 0.22f);
         [Tooltip("스킬 사거리 미리보기(스킬 버튼에 마우스를 올렸을 때, 대상 유무와 무관).")]
         [SerializeField] private Color skillRangeColor = new Color(0.72f, 0.55f, 0.98f);
         [SerializeField] private Color skillTargetColor = new Color(0.2f, 0.8f, 0.95f);
         [SerializeField] private Color skillAreaColor = new Color(1f, 0.55f, 0.1f);
         [SerializeField] private Color skillChosenColor = new Color(0.75f, 0.35f, 0.95f);
         [SerializeField] private Color pushDestinationColor = new Color(1f, 0.25f, 0.6f);
-        [SerializeField, Range(0f, 1f)] private float highlightStrength = 0.65f;
+        [Tooltip("영역 경계에 세우는 막의 높이(칸 크기 대비).")]
+        [SerializeField, Min(0f)] private float curtainHeight = 0.62f;
 
         [Header("Cell Effects")]
         [SerializeField] private Color healFieldColor = new Color(0.35f, 0.9f, 0.45f);
@@ -71,7 +72,9 @@ namespace MiniChess.Client.Board
         [SerializeField, Min(0f)] private float revealDuration = 1.5f;
 
         private readonly Dictionary<Position, CellView> _cells = new Dictionary<Position, CellView>();
-        private readonly List<CellView> _highlighted = new List<CellView>();
+        private readonly Dictionary<Position, CellHighlightRenderer.Style> _highlights = new Dictionary<Position, CellHighlightRenderer.Style>();
+        private CellHighlightRenderer _highlightRenderer;
+        private System.Func<Position, Vector3> _cellTop;
         private readonly Dictionary<Position, Color> _spawnTints = new Dictionary<Position, Color>();
         private readonly List<(Position Cell, Team Team, float Until)> _revealedTraps = new List<(Position, Team, float)>();
         private readonly List<(IReadOnlyList<Position> Cells, Team Team, float Until)> _revealedStrikes = new List<(IReadOnlyList<Position>, Team, float)>();
@@ -232,40 +235,65 @@ namespace MiniChess.Client.Board
             return otherFieldColor;
         }
 
+        /// <summary>칸을 하이라이트한다. 같은 칸을 여러 번 하이라이트하면 마지막 종류가 남는다.</summary>
         public void Highlight(Position position, CellHighlight kind)
         {
-            if (!_cells.TryGetValue(position, out CellView cell))
+            if (!_cells.ContainsKey(position))
                 return;
 
-            cell.SetHighlight(GetHighlightColor(kind), highlightStrength);
-            _highlighted.Add(cell);
+            _highlights[position] = GetHighlightStyle(kind);
         }
 
         public void ClearHighlights()
         {
-            foreach (CellView cell in _highlighted)
-            {
-                if (cell != null)
-                    cell.ClearHighlight();
-            }
-
-            _highlighted.Clear();
+            _highlights.Clear();
         }
 
-        private Color GetHighlightColor(CellHighlight kind)
+        private void LateUpdate()
+        {
+            if (_highlights.Count == 0 || _coordinates == null)
+                return;
+
+            if (_highlightRenderer == null)
+            {
+                var material = Resources.Load<Material>(CellHighlightRenderer.MaterialPath);
+                if (material == null)
+                {
+                    Debug.LogError($"[BoardView] Resources/{CellHighlightRenderer.MaterialPath} 머티리얼이 없어 하이라이트를 그릴 수 없습니다");
+                    enabled = false;
+                    return;
+                }
+
+                _highlightRenderer = new CellHighlightRenderer(material) { CurtainHeight = curtainHeight };
+                _cellTop = position => _cells[position].Top;
+            }
+
+            _highlightRenderer.Draw(_highlights, _cellTop, _coordinates.CellSize, transform.rotation, gameObject.layer);
+        }
+
+        /// <summary>
+        /// 하이라이트 종류별 모양: 테두리 밝기, 안쪽 채움, 경계 막 여부.
+        /// 선택 칸은 테두리가 더 밝고 안이 채워지며, 스킬 사거리 미리보기(잠깐 보임)는 막 없이 테두리만.
+        /// </summary>
+        private CellHighlightRenderer.Style GetHighlightStyle(CellHighlight kind)
         {
             switch (kind)
             {
-                case CellHighlight.Selected: return selectedColor;
-                case CellHighlight.Move: return moveColor;
-                case CellHighlight.Attack: return attackColor;
-                case CellHighlight.SkillRange: return skillRangeColor;
-                case CellHighlight.SkillTarget: return skillTargetColor;
-                case CellHighlight.SkillArea: return skillAreaColor;
-                case CellHighlight.SkillChosen: return skillChosenColor;
-                case CellHighlight.PushDestination: return pushDestinationColor;
-                default: return Color.white;
+                case CellHighlight.Selected: return Style(selectedColor, 1.6f, 0.38f, true);
+                case CellHighlight.Move: return Style(moveColor, 1f, 0.18f, true);
+                case CellHighlight.Attack: return Style(attackColor, 1.2f, 0.2f, true);
+                case CellHighlight.SkillRange: return Style(skillRangeColor, 0.75f, 0.08f, false);
+                case CellHighlight.SkillTarget: return Style(skillTargetColor, 1f, 0.16f, true);
+                case CellHighlight.SkillArea: return Style(skillAreaColor, 1.1f, 0.22f, true);
+                case CellHighlight.SkillChosen: return Style(skillChosenColor, 1.5f, 0.35f, true);
+                case CellHighlight.PushDestination: return Style(pushDestinationColor, 1.3f, 0.28f, true);
+                default: return Style(Color.white, 1f, 0.1f, false);
             }
+        }
+
+        private static CellHighlightRenderer.Style Style(Color color, float border, float fill, bool curtain)
+        {
+            return new CellHighlightRenderer.Style { Color = color, Border = border, Fill = fill, Curtain = curtain };
         }
 
         public void Build(CoreBoard board, BoardCoordinates coordinates)
@@ -300,7 +328,7 @@ namespace MiniChess.Client.Board
 
         public void Clear()
         {
-            _highlighted.Clear();
+            _highlights.Clear();
             _revealedTraps.Clear();
             _revealedStrikes.Clear();
             _syncedBoard = null;

@@ -7,7 +7,7 @@ namespace MiniChess.Client.Board
 {
     /// <summary>
     /// 보드 한 칸의 표시. 칸 오브젝트는 칸 바닥면 중심(윗면 높이 0)에 놓이고 크기를 늘리지 않는다. 그림은 자식 판석(돌 셰이더)이다.
-    /// 색: 지형 색조(시작 위치/점령 칸/벽)는 판석 색에 곱하고(_BaseColor), 장판 → 하이라이트는 판석 위에 덧칠한다(_OverlayColor).
+    /// 색: 지형 색조(시작 위치/점령 칸/벽)는 판석 색에 곱하고(_BaseColor), 장판 색조는 판석 위에 덧칠한다(_OverlayColor). 하이라이트는 BoardView 가 칸 위에 따로 그린다.
     /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자, 예약 포격은 칸 바닥의 조준점으로 그린다. 게임 상태는 갖지 않는다.
     /// 클릭 판정 상자는 칸 전체 크기라 판석 사이 줄눈을 눌러도 그 칸이 잡힌다.
     /// </summary>
@@ -23,8 +23,6 @@ namespace MiniChess.Client.Board
 
         private Color? _effectTint;
         private float _effectStrength;
-        private Color? _highlight;
-        private float _highlightStrength;
 
         private GameObject _trapMarker;
         private Renderer _trapRenderer;
@@ -134,19 +132,6 @@ namespace MiniChess.Client.Board
         {
             _effectTint = tint;
             _effectStrength = strength;
-            Refresh();
-        }
-
-        public void SetHighlight(Color highlight, float strength)
-        {
-            _highlight = highlight;
-            _highlightStrength = strength;
-            Refresh();
-        }
-
-        public void ClearHighlight()
-        {
-            _highlight = null;
             Refresh();
         }
 
@@ -284,15 +269,10 @@ namespace MiniChess.Client.Board
 
         private void Refresh()
         {
-            // 덧칠: 장판 위에 하이라이트를 섞는다. a = 판석 색을 덧칠 색으로 바꾸는 정도.
+            // 덧칠: 장판 색조. a = 판석 색을 덧칠 색으로 바꾸는 정도. 하이라이트는 BoardView 가 따로 그린다(CellHighlightRenderer).
             var overlay = new Color(0f, 0f, 0f, 0f);
             if (_effectTint.HasValue)
                 overlay = new Color(_effectTint.Value.r, _effectTint.Value.g, _effectTint.Value.b, _effectStrength);
-            if (_highlight.HasValue)
-            {
-                Color rgb = _effectTint.HasValue ? Color.Lerp(overlay, _highlight.Value, _highlightStrength) : _highlight.Value;
-                overlay = new Color(rgb.r, rgb.g, rgb.b, Mathf.Max(overlay.a, _highlightStrength));
-            }
 
             foreach (Renderer renderer in _renderers)
             {
