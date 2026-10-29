@@ -58,6 +58,7 @@ namespace MiniChess.Client.Board
             for (int i = 0; i < colors.Length; i++)
                 colors[i] = colors[i].linear;
             mesh.colors = colors;
+            mesh.UploadMeshData(markNoLongerReadable: true); // 다시 고치지 않으므로 CPU 쪽 사본은 버린다
 
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -131,7 +132,7 @@ namespace MiniChess.Client.Board
             for (int j = 0; j < rings.Count - 1; j++)
                 AddStrip(triangles, j * n, (j + 1) * n, n, loop: true);
 
-            var mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            var mesh = new Mesh { indexFormat = IndexFormatFor(vertices.Length) };
             mesh.vertices = vertices;
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
@@ -221,7 +222,7 @@ namespace MiniChess.Client.Board
                 placed++;
             }
 
-            var mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            var mesh = new Mesh { indexFormat = IndexFormatFor(vertices.Count) };
             mesh.SetVertices(vertices);
             mesh.SetNormals(normals);
             mesh.SetColors(colors);
@@ -316,7 +317,7 @@ namespace MiniChess.Client.Board
                     AddStrip(triangles, start + row * segments, start + (row + 1) * segments, segments, loop: true);
             }
 
-            var mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            var mesh = new Mesh { indexFormat = IndexFormatFor(vertices.Count) };
             mesh.SetVertices(vertices);
             mesh.SetColors(colors);
             mesh.SetTriangles(triangles, 0);
@@ -339,6 +340,9 @@ namespace MiniChess.Client.Board
                 triangles.AddRange(new[] { a, b, d, a, d, c });
             }
         }
+
+        /// <summary>정점 수가 16비트 인덱스 범위 안이면 UInt16(메모리 절반, 구형 GPU 호환), 넘으면 UInt32.</summary>
+        internal static IndexFormat IndexFormatFor(int vertexCount) => vertexCount > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16;
 
         private static float Smooth(float from, float to, float value)
         {

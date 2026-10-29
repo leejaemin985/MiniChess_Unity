@@ -137,8 +137,13 @@ namespace MiniChess.Client.Board
 
         private static void CreatePart(Transform parent, string name, List<CombineInstance> parts, Material material, ShadowCastingMode shadows)
         {
-            var mesh = new Mesh { name = name, indexFormat = IndexFormat.UInt32 };
+            int vertexCount = 0;
+            foreach (CombineInstance part in parts)
+                vertexCount += part.mesh.vertexCount;
+
+            var mesh = new Mesh { name = name, indexFormat = BoardBackdrop.IndexFormatFor(vertexCount) };
             mesh.CombineMeshes(parts.ToArray(), mergeSubMeshes: true, useMatrices: true);
+            mesh.UploadMeshData(markNoLongerReadable: true); // 다시 고치지 않으므로 CPU 쪽 사본은 버린다
 
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
