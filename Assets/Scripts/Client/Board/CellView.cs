@@ -7,7 +7,8 @@ namespace MiniChess.Client.Board
 {
     /// <summary>
     /// 보드 한 칸의 표시. 칸 오브젝트는 칸 바닥면 중심(윗면 높이 0)에 놓이고 크기를 늘리지 않는다. 그림은 자식 판석(돌 셰이더)이다.
-    /// 색: 지형 색조(시작 위치/점령 칸/벽)는 판석 색에 곱하고(_BaseColor), 장판 색조는 판석 위에 덧칠한다(_OverlayColor). 하이라이트는 BoardView 가 칸 위에 따로 그린다.
+    /// 색: 지형 색조(시작 위치/점령 칸/벽)는 판석 색에 곱하고, 장판 색조는 판석 위에 덧칠한다. 돌 셰이더는 보드 칸 색 텍스처(BoardCellTints)로,
+    /// 기본 상자는 MaterialPropertyBlock 으로 칠한다. 하이라이트는 BoardView 가 칸 위에 따로 그린다.
     /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자, 예약 포격은 칸 바닥의 조준점으로 그린다. 게임 상태는 갖지 않는다.
     /// 클릭 판정 상자는 칸 전체 크기라 판석 사이 줄눈을 눌러도 그 칸이 잡힌다.
     /// </summary>
@@ -18,6 +19,7 @@ namespace MiniChess.Client.Board
 
         private Renderer[] _renderers;
         private MaterialPropertyBlock _block;
+        private BoardCellTints _tints;
         private Color _terrainColor;
         private float _height;
 
@@ -46,7 +48,8 @@ namespace MiniChess.Client.Board
         /// <param name="height">윗면 높이(벽 꼭대기, 표식/클릭 판정 기준). 바닥 칸은 0.</param>
         /// <param name="slab">바닥 판석 그림. 메시가 없으면 기본 상자로 그린다.</param>
         /// <param name="wall">벽 칸이면 판석 위에 세울 벽 그림(메시가 없으면 벽 없이 판석만, 높이가 있으면 판석을 세로로 늘린다).</param>
-        public static CellView Create(Transform parent, Position position, Vector3 floorCenter, float cellSize, float height, SlabLook slab, SlabLook wall, Color color)
+        /// <param name="tints">돌 셰이더 판석/벽의 칸 색을 기록할 곳(보드 공용). 기본 상자는 쓰지 않는다.</param>
+        internal static CellView Create(Transform parent, Position position, Vector3 floorCenter, float cellSize, float height, SlabLook slab, SlabLook wall, Color color, BoardCellTints tints)
         {
             var go = new GameObject($"Cell {position}");
             go.transform.SetParent(parent, false);
@@ -66,6 +69,7 @@ namespace MiniChess.Client.Board
                 ? new[] { slabRenderer, CreatePart(go.transform, "Wall", cellSize, wall) }
                 : new[] { slabRenderer };
             view._block = new MaterialPropertyBlock();
+            view._tints = tints;
             view._terrainColor = color;
             view.Refresh();
 
@@ -97,6 +101,9 @@ namespace MiniChess.Client.Board
             }
 
             Renderer renderer = CreatePart(cell, "Slab", cellSize, slab);
+            // 판석은 거의 평평해 서로에게 드리우는 그림자가 눈에 띄지 않으므로 그림자 패스에서 뺀다(받기는 그대로).
+            if (height <= 0f)
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             Transform t = renderer.transform;
             t.localPosition += Vector3.up * height;
             // 판석은 윗면 y = 0, 두께 thickness. 임시 벽은 바닥면 아래까지 이어지도록 세로로 늘린다.
@@ -274,19 +281,21 @@ namespace MiniChess.Client.Board
             if (_effectTint.HasValue)
                 overlay = new Color(_effectTint.Value.r, _effectTint.Value.g, _effectTint.Value.b, _effectStrength);
 
+            bool written = false;
             foreach (Renderer renderer in _renderers)
             {
+                if (_tints != null && renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty(OverlayId))
+                {
+                    // 돌 셰이더: 칸 색 텍스처에 기록(셰이더가 칸 좌표로 읽는다). 렌더러는 SRP Batcher 로 묶인 채 둔다.
+                    if (!written)
+                        _tints.Set(Position, _terrainColor, overlay);
+                    written = true;
+                    continue;
+                }
+
+                // 돌 셰이더가 아닌 기본 상자(BoardArt 없음): 덧칠을 색에 섞는다.
                 renderer.GetPropertyBlock(_block);
-                if (renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty(OverlayId))
-                {
-                    _block.SetColor(ColorId, _terrainColor);
-                    _block.SetColor(OverlayId, overlay);
-                }
-                else
-                {
-                    // 돌 셰이더가 아닌 기본 상자(BoardArt 없음): 덧칠을 색에 섞는다.
-                    _block.SetColor(ColorId, Color.Lerp(_terrainColor, overlay, overlay.a));
-                }
+                _block.SetColor(ColorId, Color.Lerp(_terrainColor, overlay, overlay.a));
                 renderer.SetPropertyBlock(_block);
             }
         }

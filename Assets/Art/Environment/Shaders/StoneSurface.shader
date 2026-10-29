@@ -4,8 +4,9 @@
 //   - 칸마다 다르게: 월드 위치가 속한 칸(_CellSize)으로 난수를 만들어 텍스처 위치/90도 회전, 색조, 밝기, 금 유무를 흔든다.
 //     칸 중심이 (X * _CellSize, Y * _CellSize) 라는 보드 좌표 규칙(BoardCoordinates)을 따른다.
 //   - 모서리: 메시의 정점 색을 쓴다(StoneSlabMeshBuilder, StoneMeshKit). R = 모서리 닳음, G = 깨진 자리/갈라진 면, B = 아래쪽 때, A = 조각 밝기.
-//   - _BaseColor 는 전체 색 곱(지형 색조: 시작 위치, 점령 칸, 벽). _OverlayColor 는 덧칠(칸 하이라이트/장판, a = 세기).
-// 모바일 기준: 텍스처 샘플 3번, 노이즈 계산 없음(텍스처는 StoneTextureBaker 로 미리 굽는다).
+//   - 칸별 색: 보드 칸 색 텍스처(BoardCellTints, 칸 좌표로 읽음)의 지형 색조(시작 위치, 점령 칸, 벽)를 곱하고 장판 덧칠(a = 세기)을 섞는다.
+//     렌더러마다 MaterialPropertyBlock 을 걸지 않아 SRP Batcher 로 묶인다. _BaseColor / _OverlayColor 는 머티리얼 전체 값.
+// 모바일 기준: 텍스처 샘플 3번 + 칸 색 텍셀 읽기 2번, 노이즈 계산 없음(텍스처는 StoneTextureBaker 로 미리 굽는다).
 Shader "MiniChess/StoneSurface"
 {
     Properties
@@ -108,6 +109,22 @@ Shader "MiniChess/StoneSurface"
             TEXTURE2D(_NormalMap);  SAMPLER(sampler_NormalMap);
             TEXTURE2D(_MaskMap);    SAMPLER(sampler_MaskMap);
 
+            // 칸별 색(BoardCellTints 가 전역으로 넣음). W × 2H: 아래 절반 = 지형 색조, 위 절반 = 덧칠. _BoardCellCount = (W, H), 0 이면 보드 없음.
+            TEXTURE2D(_BoardCellData);
+            float4 _BoardCellCount;
+
+            void BoardCellColors(float2 cell, out half3 terrain, out half4 overlay)
+            {
+                terrain = half3(1, 1, 1);
+                overlay = half4(0, 0, 0, 0);
+                if (all(cell >= 0.0) && all(cell < _BoardCellCount.xy))
+                {
+                    uint2 texel = (uint2)cell;
+                    terrain = LOAD_TEXTURE2D(_BoardCellData, texel).rgb;
+                    overlay = LOAD_TEXTURE2D(_BoardCellData, texel + uint2(0, (uint)_BoardCellCount.y));
+                }
+            }
+
             struct Attributes
             {
                 float4 positionOS : POSITION;
@@ -204,7 +221,10 @@ Shader "MiniChess/StoneSurface"
                 albedo = lerp(albedo, _ChipColor.rgb * (0.85 + 0.3 * mask.b), chip);
                 albedo = lerp(albedo, albedo * _DirtColor.rgb, dirt * _Dirt);
                 albedo *= 0.75 + 0.25 * input.color.a; // 조각(벽돌)마다 밝기. 1 = 그대로
-                albedo *= _BaseColor.rgb;
+                half3 cellTerrain;
+                half4 cellOverlay;
+                BoardCellColors(cell, cellTerrain, cellOverlay);
+                albedo *= _BaseColor.rgb * cellTerrain;
 
                 // 이끼: 마스크 A(얼룩) × 자랄 자리(윗면 / 아랫단 때 / 모서리)가 문턱(1 - _Moss)을 넘는 곳. 칸마다 양을 조금씩 흔든다.
                 // 바닥은 윗면 세기를 낮게 두어 판석 가장자리에만, 벽은 윗면과 아랫단에 많이 낀다(머티리얼 값).
@@ -217,8 +237,9 @@ Shader "MiniChess/StoneSurface"
                 normalTS.xy *= 1.0 - moss * 0.6; // 이끼는 돌 결을 덮어 덜 울퉁불퉁하게
 
                 // 덧칠(칸 하이라이트/장판): 돌 색을 덧칠 색 쪽으로 섞고, 그림자 안에서도 보이게 약하게 빛나게 한다.
-                albedo = lerp(albedo, _OverlayColor.rgb, _OverlayColor.a);
-                half3 emission = _OverlayColor.rgb * (_OverlayColor.a * _OverlayGlow);
+                half4 overlay = cellOverlay.a >= _OverlayColor.a ? cellOverlay : _OverlayColor;
+                albedo = lerp(albedo, overlay.rgb, overlay.a);
+                half3 emission = overlay.rgb * (overlay.a * _OverlayGlow);
 
                 float sgn = input.tangentWS.w;
                 half3 bitangentWS = sgn * cross(input.normalWS, input.tangentWS.xyz);

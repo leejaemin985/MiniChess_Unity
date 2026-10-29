@@ -83,6 +83,7 @@ namespace MiniChess.Client.Board
         private readonly List<GameObject> _border = new List<GameObject>();
         private GameObject _decoration;
         private GameObject _backdrop;
+        private BoardCellTints _cellTints;
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -253,6 +254,8 @@ namespace MiniChess.Client.Board
 
         private void LateUpdate()
         {
+            _cellTints?.Apply();
+
             if (_highlights.Count == 0 || _coordinates == null)
                 return;
 
@@ -310,6 +313,7 @@ namespace MiniChess.Client.Board
             CreateBed(coordinates);
             CreateBorder(coordinates);
             _backdrop = BoardBackdrop.Build(transform, coordinates, art);
+            _cellTints = new BoardCellTints(board.Width, board.Height);
 
             _spawnTints.Clear();
             foreach (Position p in board.GetSpawnPositions(Team.Player1)) _spawnTints[p] = spawnPlayer1Tint;
@@ -361,6 +365,9 @@ namespace MiniChess.Client.Board
 
             DestroyGenerated(ref _decoration);
             DestroyGenerated(ref _backdrop);
+
+            _cellTints?.Dispose();
+            _cellTints = null;
         }
 
         /// <summary>실행 중에 만든 메시(장식/배경)를 오브젝트와 함께 지운다.</summary>
@@ -381,7 +388,7 @@ namespace MiniChess.Client.Board
             // 시작 구역/점령 칸은 깨지거나 꺼지지 않은 판석(배치/점령이 잘 읽히게)
             bool plain = cell.IsCaptureTile || _spawnTints.ContainsKey(position);
             CellView.SlabLook slab = GetSlabLook(position, plain);
-            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, 0f, slab, default, GetTerrainColor(position, cell));
+            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, 0f, slab, default, GetTerrainColor(position, cell), _cellTints);
         }
 
         private CellView CreateWall(Position position, BoardCoordinates coordinates)
@@ -399,7 +406,7 @@ namespace MiniChess.Client.Board
                 };
             }
 
-            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, wallHeight, slab, wall, wallColor);
+            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, wallHeight, slab, wall, wallColor, _cellTints);
         }
 
         /// <summary>칸 좌표로 정하는 난수(같은 칸은 항상 같은 값). salt 로 용도마다 다른 수열을 쓴다.</summary>
