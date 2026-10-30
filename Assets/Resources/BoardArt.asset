@@ -35,7 +35,8 @@ MonoBehaviour:
   - {fileID: 4300000, guid: 0f7dacfe5c32ef3469c6f6377d7b6aaa, type: 2}
   wallMaterial: {fileID: 2100000, guid: 6198ba283a906b6419d6f4ea5ffc05d7, type: 2}
   islandPrefab: {fileID: 1127493861378907455, guid: 65ae23d3eed838d4789b436a731ce3ed, type: 3}
-  islandMargin: 1
+  islandMargin: 1.45
+  islandHeightScale: 0.9090909
   islandFloorDepth: 0.022
   grassMeshes:
   - {fileID: 4300000, guid: e4672ec2542ec5d4687bd89734403867, type: 2}

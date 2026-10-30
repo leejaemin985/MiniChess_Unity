@@ -38,7 +38,7 @@ namespace MiniChess.Client.Board
 
         /// <summary>
         /// 보드 전체를 띄우는 큰 섬 하나. 섬 프리팹(윗면 중앙이 원점)을 보드보다 사방 IslandMargin 칸 크게 늘려,
-        /// 보드 판석이 섬 윗면에 얹히고 남는 둘레는 석조물이 설 자리가 된다. 세로는 가로/세로 배율의 평균으로 늘린다.
+        /// 보드 판석이 섬 윗면에 얹히고 남는 둘레는 석조물이 설 자리가 된다. 세로는 가로/세로 배율의 평균에 IslandHeightScale 을 곱해 늘린다.
         /// 섬 윗면 바닥(테두리 안)은 보드 판석 윗면 바로 아래에 오게 맞춘다(판석이 바닥에 묻혀 보인다).
         /// 섬은 프리팹 에셋의 메시를 그대로 쓰므로 지울 때 오브젝트만 지운다(실행 중에 만든 숲/산 메시와 따로 둔다).
         /// 그림자는 드리우지 않는다(보드 아래라 티가 나지 않고, 그림자 패스 비용만 든다).
@@ -69,7 +69,7 @@ namespace MiniChess.Client.Board
             float margin = art.IslandMargin * coordinates.CellSize * 2f;
             float scaleX = (coordinates.Size.x + margin) / Mathf.Max(bounds.size.x, 0.01f);
             float scaleZ = (coordinates.Size.y + margin) / Mathf.Max(bounds.size.z, 0.01f);
-            float scaleY = (scaleX + scaleZ) * 0.5f;
+            float scaleY = (scaleX + scaleZ) * 0.5f * art.IslandHeightScale;
             island.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
             // 프리팹 윗면 바닥은 원점(테두리 꼭대기)보다 IslandFloorDepth 아래 → 늘린 뒤 그 바닥이 판석 윗면(0) 바로 아래(-0.01)에 오게
             island.transform.localPosition = new Vector3(coordinates.Center.x, art.IslandFloorDepth * scaleY - 0.01f, coordinates.Center.z);

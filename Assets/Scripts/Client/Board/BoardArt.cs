@@ -50,6 +50,8 @@ namespace MiniChess.Client.Board
         [SerializeField] private GameObject islandPrefab;
         [Tooltip("섬이 보드 밖으로 넓은 폭(칸 단위). 이 둘레에 석조물이 선다.")]
         [SerializeField, Min(0f)] private float islandMargin = 1f;
+        [Tooltip("섬 두께 배율. 두께는 가로/세로로 늘린 배율의 평균에 이 값을 곱한다(가로만 넓히고 두께는 두려면 1 보다 작게).")]
+        [SerializeField, Min(0.01f)] private float islandHeightScale = 1f;
         [Tooltip("프리팹 기준 윗면 바닥(테두리 안쪽 판석)이 원점(테두리 꼭대기)보다 낮은 정도. 이 바닥을 보드 판석 윗면에 맞춘다.")]
         [SerializeField, Min(0f)] private float islandFloorDepth = 0.022f;
 
@@ -121,6 +123,7 @@ namespace MiniChess.Client.Board
         public bool HasBrokenSlabs => brokenSlabMeshes != null && brokenSlabMeshes.Length > 0;
         public GameObject IslandPrefab => islandPrefab;
         public float IslandMargin => islandMargin;
+        public float IslandHeightScale => islandHeightScale;
         public float IslandFloorDepth => islandFloorDepth;
 
         public Material GrassMaterial => grassMaterial;
