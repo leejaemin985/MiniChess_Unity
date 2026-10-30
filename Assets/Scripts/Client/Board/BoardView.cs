@@ -11,17 +11,15 @@ using CoreBoard = MiniChess.Core.State.Board;
 namespace MiniChess.Client.Board
 {
     /// <summary>
-    /// 코어 Board 의 칸 구성(바닥/벽/점령 칸/시작 위치)을 판석으로 그린다(BoardArt). 점령 칸이 소멸하면 SyncEffects 에서 바닥색으로 바뀐다.
-    /// 판석 모양(변형/회전/높이/기울기)은 칸 좌표로 정하므로 같은 맵은 항상 같아 보인다. 보드를 만들 때 BoardArt 의 조명을 씬에 적용한다.
+    /// 코어 Board 의 칸 상태를 맵 씬의 칸 위에 그린다. 판/섬/석조물/하늘/조명은 맵 씬에 손으로 배치되어 있고(MapSceneSettings),
+    /// 이 뷰는 그 칸들에 칸 색(바닥/벽/점령 칸/시작 위치), 장판/덫/장애물/포격 표식, 하이라이트만 입힌다. 점령 칸이 소멸하면 SyncEffects 에서 바닥색으로 바뀐다.
     /// </summary>
     public class BoardView : MonoBehaviour
     {
         public const string StrikeReticlePath = "Materials/StrikeReticle";
 
-        [Tooltip("판석 메시/머티리얼/조명. 비우면 Resources/BoardArt 를 불러온다(없으면 기본 상자로 그린다).")]
-        [SerializeField] private BoardArt art;
-
         [Header("Shape")]
+        [Tooltip("벽 칸 꼭대기 높이(표식/하이라이트를 올리는 높이).")]
         [SerializeField] private float wallHeight = 0.8f;
 
         [Header("Colors")]
@@ -79,13 +77,7 @@ namespace MiniChess.Client.Board
         private readonly List<(Position Cell, Team Team, float Until)> _revealedTraps = new List<(Position, Team, float)>();
         private readonly List<(IReadOnlyList<Position> Cells, Team Team, float Until)> _revealedStrikes = new List<(IReadOnlyList<Position>, Team, float)>();
         private BoardCoordinates _coordinates;
-        private GameObject _bed;
-        private GameObject _decoration;
-        private GameObject _backdrop;
-        private GameObject _island;
-        private GameObject _props;
         private BoardCellTints _cellTints;
-        private CoreBoard _builtBoard;
         private CoreBoard _syncedBoard;
         private GameState _syncedState;
 
@@ -303,64 +295,32 @@ namespace MiniChess.Client.Board
             return new CellHighlightRenderer.Style { Color = color, Border = border, Fill = fill, Curtain = curtain };
         }
 
-        public void Build(CoreBoard board, BoardCoordinates coordinates)
+
+        /// <summary>
+        /// 맵 씬의 칸 오브젝트들을 코어 보드의 칸과 잇는다(칸을 새로 만들지 않는다). 맵 씬은 MapLoader 가 불러와 코어 보드와 검사해 둔 것이다.
+        /// 칸 색(지형/시작 위치/점령 칸)을 칠하고, 이후 SyncEffects/SyncStrikes/Highlight 가 이 칸들에 그린다.
+        /// </summary>
+        public void Build(CoreBoard board, BoardCoordinates coordinates, MapSceneSettings map)
         {
             Clear();
             _coordinates = coordinates;
-
-            if (art == null)
-                art = Resources.Load<BoardArt>(BoardArt.ResourcePath);
-            if (art != null)
-                art.ApplyLighting();
-            CreateBed(coordinates);
-            _backdrop = BoardBackdrop.Build(transform, coordinates, art);
-            _island = BoardBackdrop.BuildIsland(transform, coordinates, art);
-            _props = BoardProps.Build(transform, coordinates, art);
             _cellTints = new BoardCellTints(board.Width, board.Height);
-            _builtBoard = board;
 
             _spawnTints.Clear();
             foreach (Position p in board.GetSpawnPositions(Team.Player1)) _spawnTints[p] = spawnPlayer1Tint;
             foreach (Position p in board.GetSpawnPositions(Team.Player2)) _spawnTints[p] = spawnPlayer2Tint;
 
-            for (int x = 0; x < board.Width; x++)
+            foreach (MapSceneSettings.CellEntry entry in map.Cells)
             {
-                for (int y = 0; y < board.Height; y++)
-                {
-                    var position = new Position(x, y);
-                    BoardCell cell = board.GetCell(position);
-
-                    _cells[position] = cell.IsWall
-                        ? CreateWall(position, coordinates)
-                        : CreateGround(position, cell, coordinates);
-                }
+                var position = new Position(entry.position.x, entry.position.y);
+                BoardCell cell = board.GetCell(position);
+                _cells[position] = cell.IsWall
+                    ? CellView.Attach(entry.cell.gameObject, position, wallHeight, wallColor, _cellTints)
+                    : CellView.Attach(entry.cell.gameObject, position, 0f, GetTerrainColor(position, cell), _cellTints);
             }
-
-            BuildDecoration();
         }
 
-        private void BuildDecoration()
-        {
-            var surfaces = new BoardDecorator.Surfaces
-            {
-                WallOf = position => _cells.TryGetValue(position, out CellView cell) && cell != null
-                    ? cell.transform.Find("Wall")?.GetComponent<MeshFilter>()
-                    : null,
-            };
-            _decoration = BoardDecorator.Build(transform, _builtBoard, _coordinates, art, surfaces);
-        }
-
-        /// <summary>BoardArt 의 장식/넝쿨 설정을 바꾼 뒤 플레이 중에 장식만 다시 만든다(분위기 조정용).</summary>
-        [ContextMenu("Rebuild Decoration")]
-        private void RebuildDecoration()
-        {
-            if (_builtBoard == null || _coordinates == null)
-                return;
-
-            DestroyGenerated(ref _decoration);
-            BuildDecoration();
-        }
-
+        /// <summary>칸과의 연결을 끊는다(맵 씬의 칸 오브젝트는 그대로 두고, 경기 중에 붙인 컴포넌트/표식만 지운다).</summary>
         public void Clear()
         {
             _highlights.Clear();
@@ -372,130 +332,17 @@ namespace MiniChess.Client.Board
             foreach (CellView cell in _cells.Values)
             {
                 if (cell != null)
-                    Destroy(cell.gameObject);
+                    cell.Detach();
             }
 
             _cells.Clear();
-
-            if (_bed != null)
-                Destroy(_bed);
-            _bed = null;
-
-            DestroyGenerated(ref _decoration);
-            DestroyGenerated(ref _backdrop);
-
-            // 섬/석조물은 프리팹 에셋의 메시를 그대로 쓰므로 오브젝트만 지운다
-            if (_island != null)
-                Destroy(_island);
-            _island = null;
-            if (_props != null)
-                Destroy(_props);
-            _props = null;
-
             _cellTints?.Dispose();
             _cellTints = null;
-            _builtBoard = null;
         }
 
-        /// <summary>실행 중에 만든 메시(장식/배경)를 오브젝트와 함께 지운다.</summary>
-        private void DestroyGenerated(ref GameObject root)
+        private void OnDestroy()
         {
-            if (root != null)
-            {
-                foreach (MeshFilter filter in root.GetComponentsInChildren<MeshFilter>())
-                    Destroy(filter.sharedMesh);
-                Destroy(root);
-            }
-
-            root = null;
-        }
-
-        private CellView CreateGround(Position position, BoardCell cell, BoardCoordinates coordinates)
-        {
-            // 시작 구역/점령 칸은 깨지거나 꺼지지 않은 판석(배치/점령이 잘 읽히게)
-            bool plain = cell.IsCaptureTile || _spawnTints.ContainsKey(position);
-            CellView.SlabLook slab = GetSlabLook(position, plain);
-            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, 0f, slab, default, GetTerrainColor(position, cell), _cellTints);
-        }
-
-        private CellView CreateWall(Position position, BoardCoordinates coordinates)
-        {
-            CellView.SlabLook slab = GetSlabLook(position, plain: true);
-            CellView.SlabLook wall = default;
-            if (art != null)
-            {
-                var random = CellRandom(position, 1);
-                wall = new CellView.SlabLook
-                {
-                    Mesh = art.GetWallMesh(random.Next(1024)),
-                    Material = art.WallMaterial,
-                    Rotation = Quaternion.Euler(0f, random.Next(4) * 90f, 0f),
-                };
-            }
-
-            return CellView.Create(transform, position, coordinates.ToWorld(position), coordinates.CellSize, wallHeight, slab, wall, wallColor, _cellTints);
-        }
-
-        /// <summary>칸 좌표로 정하는 난수(같은 칸은 항상 같은 값). salt 로 용도마다 다른 수열을 쓴다.</summary>
-        private static System.Random CellRandom(Position position, int salt)
-        {
-            // 이웃한 칸의 시드가 비슷하면 System.Random 의 첫 값들이 서로 닮으므로, 시드를 한 번 섞어서 쓴다.
-            unchecked
-            {
-                uint h = (uint)(position.X * 374761393 + position.Y * 668265263 + salt * 1442695041);
-                h = (h ^ (h >> 13)) * 1274126177u;
-                h ^= h >> 16;
-                return new System.Random((int)(h & 0x7fffffff));
-            }
-        }
-
-        /// <summary>
-        /// 칸 좌표로 정한 바닥 판석 모양: 변형(일부는 깨진 판석), 90도 회전, 높이/기울기 흔들림(일부는 통째로 내려앉음).
-        /// plain 이면 온전한 판석에 흔들림만.
-        /// </summary>
-        private CellView.SlabLook GetSlabLook(Position position, bool plain)
-        {
-            if (art == null)
-                return default;
-
-            System.Random random = CellRandom(position, 0);
-            float Jitter(float amount) => ((float)random.NextDouble() * 2f - 1f) * amount;
-
-            bool broken = !plain && art.HasBrokenSlabs && random.NextDouble() < art.BrokenChance;
-            bool sunk = !plain && !broken && random.NextDouble() < art.SinkChance;
-            Mesh mesh = broken ? art.GetBrokenSlabMesh(random.Next(1024)) : art.GetSlabMesh(random.Next(1024));
-            float yaw = random.Next(4) * 90f;
-            float tilt = sunk ? art.SinkTilt : art.TiltJitter;
-            float heightOffset = Jitter(art.HeightJitter) - (sunk ? art.SinkDepth : 0f);
-
-            return new CellView.SlabLook
-            {
-                Mesh = mesh,
-                Material = art.FloorMaterial,
-                Rotation = Quaternion.Euler(Jitter(tilt), yaw, Jitter(tilt)),
-                HeightOffset = heightOffset,
-            };
-        }
-
-        /// <summary>판석 사이 줄눈으로 보이는 보드 아래 어두운 바닥(클릭/그림자 대상 아님).</summary>
-        private void CreateBed(BoardCoordinates coordinates)
-        {
-            if (art == null || art.BedMaterial == null)
-                return;
-
-            _bed = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            _bed.name = "Floor Bed";
-            Destroy(_bed.GetComponent<Collider>());
-            _bed.transform.SetParent(transform, false);
-            const float thickness = 0.1f;
-            Vector3 center = coordinates.Center;
-            center.y = -BoardArt.SlabThickness * 0.6f - thickness * 0.5f;
-            _bed.transform.localPosition = center;
-            // 보드 크기보다 조금 작게: 가장자리 섬 위로 삐져나와 검은 띠로 보이지 않게
-            _bed.transform.localScale = new Vector3(coordinates.Size.x - 0.04f, thickness, coordinates.Size.y - 0.04f);
-            var bedRenderer = _bed.GetComponent<Renderer>();
-            bedRenderer.sharedMaterial = art.BedMaterial;
-            bedRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            Clear();
         }
 
         /// <summary>바닥 칸의 기본 색(점령 칸 / 체크 무늬 + 시작 위치 색조).</summary>

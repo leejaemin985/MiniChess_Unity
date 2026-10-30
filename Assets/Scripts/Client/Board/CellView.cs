@@ -6,11 +6,13 @@ using UnityEngine;
 namespace MiniChess.Client.Board
 {
     /// <summary>
-    /// 보드 한 칸의 표시. 칸 오브젝트는 칸 바닥면 중심(윗면 높이 0)에 놓이고 크기를 늘리지 않는다. 그림은 자식 판석(돌 셰이더)이다.
+    /// 보드 한 칸의 표시. 칸 오브젝트는 맵 씬에 미리 놓여 있고(MapSceneSettings 에 등록), 경기를 시작할 때 BoardView 가 이 컴포넌트를 붙여 코어 칸과 잇는다(Attach).
+    /// 칸 오브젝트는 칸 바닥면 중심(윗면 높이 0)에 놓이고 크기를 늘리지 않는다. 그림은 자식 판석/벽(돌 셰이더)이다.
     /// 색: 지형 색조(시작 위치/점령 칸/벽)는 판석 색에 곱하고, 장판 색조는 판석 위에 덧칠한다. 돌 셰이더는 보드 칸 색 텍스처(BoardCellTints)로,
-    /// 기본 상자는 MaterialPropertyBlock 으로 칠한다. 하이라이트는 BoardView 가 칸 위에 따로 그린다.
+    /// 그 밖의 머티리얼은 MaterialPropertyBlock 으로 칠한다. 하이라이트는 BoardView 가 칸 위에 따로 그린다.
     /// 덫은 칸 위의 작은 표식, 장애물은 칸 위의 상자, 예약 포격은 칸 바닥의 조준점으로 그린다. 게임 상태는 갖지 않는다.
-    /// 클릭 판정 상자는 칸 전체 크기라 판석 사이 줄눈을 눌러도 그 칸이 잡힌다.
+    /// 클릭 판정 상자(맵 씬의 칸에 있음)는 칸 전체 크기라 판석 사이 줄눈을 눌러도 그 칸이 잡힌다.
+    /// 경기가 끝나면 Detach 로 이 컴포넌트와 경기 중에 만든 표식을 지운다(맵 씬의 칸 오브젝트는 그대로 둔다).
     /// </summary>
     public class CellView : MonoBehaviour
     {
@@ -44,30 +46,17 @@ namespace MiniChess.Client.Board
         /// <summary>칸 윗면 중심(월드). 덫/장애물/조준점을 이 위에 놓는다. 벽은 벽 꼭대기.</summary>
         public Vector3 Top => transform.position + Vector3.up * _height;
 
-        /// <param name="floorCenter">칸 바닥면 중심(보드 기준 로컬 좌표, 윗면 높이 0).</param>
-        /// <param name="height">윗면 높이(벽 꼭대기, 표식/클릭 판정 기준). 바닥 칸은 0.</param>
-        /// <param name="slab">바닥 판석 그림. 메시가 없으면 기본 상자로 그린다.</param>
-        /// <param name="wall">벽 칸이면 판석 위에 세울 벽 그림(메시가 없으면 벽 없이 판석만, 높이가 있으면 판석을 세로로 늘린다).</param>
-        /// <param name="tints">돌 셰이더 판석/벽의 칸 색을 기록할 곳(보드 공용). 기본 상자는 쓰지 않는다.</param>
-        internal static CellView Create(Transform parent, Position position, Vector3 floorCenter, float cellSize, float height, SlabLook slab, SlabLook wall, Color color, BoardCellTints tints)
+        /// <summary>
+        /// 맵 씬의 칸 오브젝트에 이 컴포넌트를 붙여 코어 칸과 잇는다. 칸 그림은 칸 오브젝트 아래의 렌더러(판석/벽)다.
+        /// </summary>
+        /// <param name="height">윗면 높이(벽 꼭대기, 표식 기준). 바닥 칸은 0.</param>
+        /// <param name="tints">돌 셰이더 판석/벽의 칸 색을 기록할 곳(보드 공용).</param>
+        internal static CellView Attach(GameObject cell, Position position, float height, Color color, BoardCellTints tints)
         {
-            var go = new GameObject($"Cell {position}");
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = floorCenter;
-
-            float thickness = BoardArt.SlabThickness;
-            var collider = go.AddComponent<BoxCollider>();
-            collider.center = new Vector3(0f, (height - thickness) * 0.5f, 0f);
-            collider.size = new Vector3(cellSize, height + thickness, cellSize);
-
-            var view = go.AddComponent<CellView>();
+            var view = cell.AddComponent<CellView>();
             view.Position = position;
             view._height = height;
-            bool stretch = height > 0f && wall.Mesh == null;
-            Renderer slabRenderer = CreateSlab(go.transform, cellSize, stretch ? height : 0f, slab);
-            view._renderers = wall.Mesh != null
-                ? new[] { slabRenderer, CreatePart(go.transform, "Wall", cellSize, wall) }
-                : new[] { slabRenderer };
+            view._renderers = cell.GetComponentsInChildren<Renderer>(true);
             view._block = new MaterialPropertyBlock();
             view._tints = tints;
             view._terrainColor = color;
@@ -76,52 +65,22 @@ namespace MiniChess.Client.Board
             return view;
         }
 
-        /// <summary>판석/벽 한 장의 모양. BoardView 가 칸 좌표로 정한다(같은 칸은 항상 같은 모양).</summary>
-        public struct SlabLook
+        /// <summary>경기 중에 만든 표식(덫/조준점/장애물)과 이 컴포넌트를 지운다. 칸 오브젝트와 그림은 맵 씬에 그대로 남는다.</summary>
+        internal void Detach()
         {
-            public Mesh Mesh;
-            public Material Material;
-            public Quaternion Rotation;
-            public float HeightOffset;
-        }
+            if (_trapMarker != null)
+                Destroy(_trapMarker);
+            if (_obstacle != null)
+                Destroy(_obstacle);
 
-        /// <param name="height">0 보다 크면 판석을 그 높이까지 세로로 늘린다(벽 메시가 없을 때의 임시 벽).</param>
-        private static Renderer CreateSlab(Transform cell, float cellSize, float height, SlabLook slab)
-        {
-            float thickness = BoardArt.SlabThickness;
-            if (slab.Mesh == null)
+            // 칸 색 덮어쓰기(기본 머티리얼)를 지워 맵 씬의 원래 모습으로 돌린다
+            foreach (Renderer renderer in _renderers)
             {
-                GameObject box = RuntimePrimitive.Create(PrimitiveType.Cube);
-                Destroy(box.GetComponent<Collider>());
-                box.name = "Slab";
-                box.transform.SetParent(cell, false);
-                box.transform.localPosition = Vector3.up * ((height - thickness) * 0.5f);
-                box.transform.localScale = new Vector3(cellSize * 0.94f, height + thickness, cellSize * 0.94f);
-                return box.GetComponent<Renderer>();
+                if (renderer != null)
+                    renderer.SetPropertyBlock(null);
             }
 
-            Renderer renderer = CreatePart(cell, "Slab", cellSize, slab);
-            // 판석은 거의 평평해 서로에게 드리우는 그림자가 눈에 띄지 않으므로 그림자 패스에서 뺀다(받기는 그대로).
-            if (height <= 0f)
-                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            Transform t = renderer.transform;
-            t.localPosition += Vector3.up * height;
-            // 판석은 윗면 y = 0, 두께 thickness. 임시 벽은 바닥면 아래까지 이어지도록 세로로 늘린다.
-            t.localScale = new Vector3(cellSize, (height + thickness) / thickness, cellSize);
-            return renderer;
-        }
-
-        private static Renderer CreatePart(Transform cell, string name, float cellSize, SlabLook look)
-        {
-            var go = new GameObject(name);
-            go.AddComponent<MeshFilter>().sharedMesh = look.Mesh;
-            var renderer = go.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = look.Material;
-            go.transform.SetParent(cell, false);
-            go.transform.localPosition = Vector3.up * look.HeightOffset;
-            go.transform.localRotation = look.Rotation;
-            go.transform.localScale = new Vector3(cellSize, cellSize, cellSize);
-            return renderer;
+            Destroy(this); // OnDestroy 가 칸 밖에 둔 표식(조준점, 장애물 숫자)을 지운다
         }
 
         /// <summary>지형 기본 색(점령 칸 소멸 등으로 바뀔 때).</summary>
@@ -293,7 +252,7 @@ namespace MiniChess.Client.Board
                     continue;
                 }
 
-                // 돌 셰이더가 아닌 기본 상자(BoardArt 없음): 덧칠을 색에 섞는다.
+                // 돌 셰이더가 아닌 머티리얼: 덧칠을 색에 섞는다.
                 renderer.GetPropertyBlock(_block);
                 _block.SetColor(ColorId, Color.Lerp(_terrainColor, overlay, overlay.a));
                 renderer.SetPropertyBlock(_block);

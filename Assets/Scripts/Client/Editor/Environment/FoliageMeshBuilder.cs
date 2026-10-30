@@ -8,7 +8,7 @@ namespace MiniChess.Client.Editor.Environment
     /// 보드 장식 메시를 만들어 에셋으로 저장한다. 모두 원점(뿌리/바닥)이 y = 0 이고 크기는 칸 크기 1 기준이다.
     ///   - 풀 덤불(Foliage 셰이더): 가늘고 끝이 뾰족한 잎 여러 장. 정점 색 RGB = 잎 색(뿌리 어둡게 → 끝 밝게), A = 뿌리 0 → 끝 1(바람).
     ///   - 돌조각 무더기(StoneSurface 셰이더): 불규칙한 작은 돌 몇 개(StoneMeshKit). 일부는 비스듬히 박혀 있다.
-    /// BoardDecorator 가 줄눈/벽 둘레에 흩뿌린 뒤 한 메시로 합쳐 그린다.
+    /// 맵 씬에서 줄눈/벽 둘레에 배치해 쓴다.
     /// </summary>
     public static class FoliageMeshBuilder
     {
@@ -33,7 +33,7 @@ namespace MiniChess.Client.Editor.Environment
         private static readonly Color LeafLight = new Color(0.24f, 0.36f, 0.10f);
         private static readonly Color LeafDry = new Color(0.38f, 0.36f, 0.14f);
 
-        /// <summary>늘어지는 넝쿨의 최대 길이, 타고 오르는 담쟁이의 최대 높이(칸 크기 1 기준). BoardDecorator 가 벽 높이에 맞춰 줄일 때 쓴다.</summary>
+        /// <summary>늘어지는 넝쿨의 최대 길이, 타고 오르는 담쟁이의 최대 높이(칸 크기 1 기준).</summary>
         public const float HangingVineLength = 0.62f;
         public const float ClimbingVineHeight = 0.42f;
 

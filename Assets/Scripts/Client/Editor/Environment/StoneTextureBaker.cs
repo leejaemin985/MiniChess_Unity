@@ -19,7 +19,7 @@ namespace MiniChess.Client.Editor.Environment
         private const int Size = 512;
         private const int Seed = 7;
 
-        // 돌 자체 색은 거의 중립인 밝은 회베이지로 둔다. 따뜻함은 햇빛(주광), 보랏빛 그늘은 주변광이 만든다(BoardArt).
+        // 돌 자체 색은 거의 중립인 밝은 회베이지로 둔다. 따뜻함은 햇빛(주광), 보랏빛 그늘은 주변광이 만든다(맵 씬의 조명).
         // 그래서 맵마다 햇빛 색/방향을 바꿔도 돌 색은 그대로 쓸 수 있다.
         private static readonly Color Warm = new Color(0.68f, 0.64f, 0.59f);
         private static readonly Color Cool = new Color(0.63f, 0.62f, 0.61f);

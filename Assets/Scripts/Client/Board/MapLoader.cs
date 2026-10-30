@@ -11,6 +11,7 @@ namespace MiniChess.Client.Board
     /// <summary>
     /// 맵 씬을 불러와 경기에 쓸 판 정보를 꺼낸다(GameSession 에서 맵 준비를 떼어 낸 것).
     ///   1. Load: 맵 씬을 지금 씬 위에 덧붙여(Additive) 불러오고, 그 씬의 MapSceneSettings 를 찾는다. 이미 불러온 맵이 있으면 먼저 내린다.
+    ///      맵 씬을 활성 씬으로 해 그 맵의 하늘/주변광을 쓴다(햇빛/볼륨/배경 안개도 맵 씬에 있다). 불러오는 쪽 씬은 환경 설정을 갖지 않는다.
     ///   2. Prepare: 코어 보드와 맵 씬이 맞는지 검사하고(MapSceneSettings.Validate), 맵의 칸 크기로 좌표 변환(BoardCoordinates)을 만든다.
     /// 맵 씬은 Build Settings 의 씬 목록에 들어 있어야 불러올 수 있다.
     /// 규칙/판정은 코어가 하므로, 검사에 실패한 맵으로는 경기를 시작하지 않는다(보이는 판과 판정이 어긋나므로).
@@ -63,6 +64,10 @@ namespace MiniChess.Client.Board
             Current = FindSettings(_scene);
             IsLoading = false;
 
+            // 하늘/주변광/안개(RenderSettings)는 활성 씬의 것을 쓰므로 맵 씬을 활성으로 한다(맵마다 분위기가 다르고, 불러오는 씬은 영향을 주지 않게).
+            if (_scene.IsValid())
+                SceneManager.SetActiveScene(_scene);
+
             if (Current == null)
                 Debug.LogError($"[MapLoader] 맵 씬 '{sceneName}' 에 MapSceneSettings 가 없음");
 
@@ -110,6 +115,9 @@ namespace MiniChess.Client.Board
             Current = null;
             if (!_scene.IsValid() || !_scene.isLoaded)
                 yield break;
+
+            if (SceneManager.GetActiveScene() == _scene)
+                SceneManager.SetActiveScene(gameObject.scene);
 
             AsyncOperation unloading = SceneManager.UnloadSceneAsync(_scene);
             _scene = default;

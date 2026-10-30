@@ -83,8 +83,11 @@ namespace MiniChess.Client.Bootstrap
         [Header("Options (비우면 Resources/GameOptions 를 불러오고, 그것도 없으면 코드 기본값)")]
         [SerializeField] private GameOptions gameOptions;
 
+        [Header("Map (판/섬/석조물/하늘/조명을 담은 맵 씬. 비우면 MapLoader 의 기본 맵)")]
+        [SerializeField] private string mapScene;
+        [SerializeField] private MapLoader mapLoader;
+
         [Header("View")]
-        [SerializeField] private float cellSize = 1f;
         [SerializeField] private BoardView boardView;
         [SerializeField] private FieldEffectsView fieldEffectsView;
         [SerializeField] private SkillEffectsView skillEffectsView;
@@ -116,6 +119,9 @@ namespace MiniChess.Client.Bootstrap
         /// 화면과 사람의 조회는 Game(시점 경기)을 쓴다.
         /// </summary>
         public GameController Authority { get; private set; }
+
+        /// <summary>맵 씬이 올라오기를 기다리는 경기(맵을 불러오는 중에 경기가 시작된 경우). 없으면 null.</summary>
+        private GameController _pendingBegin;
 
         /// <summary>서버 결과를 기다리는 내 명령. 없으면 null.</summary>
         private CommandMessage _pendingCommand;
@@ -224,6 +230,7 @@ namespace MiniChess.Client.Bootstrap
             if (gameOptions == null) gameOptions = ScriptableObject.CreateInstance<GameOptions>();
             if (fieldEffects == null) fieldEffects = Resources.Load<FieldEffectCatalog>(FieldEffectCatalog.ResourcePath);
             if (skillEffects == null) skillEffects = Resources.Load<SkillEffectCatalog>(SkillEffectCatalog.ResourcePath);
+            if (mapLoader == null) mapLoader = CreateChild<MapLoader>("MapLoader");
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
             if (fieldEffectsView == null) fieldEffectsView = CreateChild<FieldEffectsView>("FieldEffectsView");
             if (skillEffectsView == null) skillEffectsView = CreateChild<SkillEffectsView>("SkillEffectsView");
@@ -255,8 +262,26 @@ namespace MiniChess.Client.Bootstrap
             statusEffectsView.Initialize(_effectCasters, unitsView);
             boardView.HasFieldVisual = fieldEffectsView.HasVisual;
 
+            // 맵 씬은 시작 화면에서부터 미리 불러 둔다(배경으로 보이고, 경기 시작을 기다리게 하지 않게).
+            StartCoroutine(mapLoader.Load(mapScene, OnMapLoaded));
+
             // 경기는 시작 화면의 접속 패널에서 방식을 고르면 시작한다(StartOnline / StartLocal).
             StateChanged?.Invoke();
+        }
+
+        /// <summary>맵 씬을 불러온 뒤: 맵을 기다리던 경기가 있으면 이제 시작한다.</summary>
+        private void OnMapLoaded(MapSceneSettings map)
+        {
+            if (map == null)
+            {
+                ReportFailure("맵을 불러오지 못했습니다");
+                return;
+            }
+
+            GameController pending = _pendingBegin;
+            _pendingBegin = null;
+            if (pending != null)
+                BeginGame(pending);
         }
 
         /// <summary>
@@ -357,16 +382,32 @@ namespace MiniChess.Client.Bootstrap
             return GameController.Restore(_viewConfig, Authority.GetSnapshot(viewer.Value));
         }
 
+        /// <summary>
+        /// 경기 화면을 연다. 판은 맵 씬의 칸을 쓰므로 맵이 아직 올라오지 않았으면 기다렸다가(OnMapLoaded) 시작한다.
+        /// 맵 씬이 코어 보드와 맞지 않으면(칸/벽 위치 등) 보이는 판과 판정이 어긋나므로 시작하지 않는다.
+        /// </summary>
         private void BeginGame(GameController game)
         {
+            if (mapLoader.Current == null)
+            {
+                _pendingBegin = game;
+                return;
+            }
+
+            if (!mapLoader.TryPrepare(game.State.Board, out BoardCoordinates coordinates))
+            {
+                ReportFailure("맵이 경기 판과 맞지 않아 시작할 수 없습니다");
+                return;
+            }
+
             // 이전 경기의 유닛을 계속 붙잡고 있지 않도록 먼저 해제한다.
             selection.Deselect();
 
             MatchId++;
             Game = game;
-            Coordinates =new BoardCoordinates(State.Board.Width, State.Board.Height, cellSize);
+            Coordinates = coordinates;
 
-            boardView.Build(State.Board, Coordinates);
+            boardView.Build(State.Board, Coordinates, mapLoader.Current);
             boardView.SyncEffects(State.Board);
             boardView.SyncStrikes(State);
             _effectCasters.Clear();
@@ -831,6 +872,7 @@ namespace MiniChess.Client.Bootstrap
             _connection?.Dispose();
             _connection = null;
             _pendingCommand = null;
+            _pendingBegin = null;
             _lastRequestId = 0;
             _turnDeadline = null;
             LocalTeam = null;
@@ -987,12 +1029,20 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>서버의 상태 변화: 받은 스냅샷으로 경기를 새로 만들어 화면을 맞추고, 이벤트로 연출한다.</summary>
         private void OnStateUpdate(StateUpdateMessage update)
         {
-            if (Game == null)
+            if (Game == null && _pendingBegin == null)
                 return;
 
             GameController game = RestoreOnline(update.Snapshot);
             if (game == null)
                 return;
+
+            // 맵을 기다리는 중이면 화면은 아직 없으므로 기다리는 경기만 최신 상태로 바꾼다(연출할 화면이 없어 이벤트는 넘긴다).
+            if (Game == null)
+            {
+                _pendingBegin = game;
+                _turnDeadline = update.TurnTimeLeftMs.HasValue ? Time.realtimeSinceStartup + update.TurnTimeLeftMs.Value / 1000f : (float?)null;
+                return;
+            }
 
             List<GameEvent> events = (update.Events ?? new List<EventEnvelope>())
                 .Select(ProtocolJson.ReadEvent)
