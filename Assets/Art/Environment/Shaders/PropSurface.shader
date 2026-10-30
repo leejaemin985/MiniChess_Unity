@@ -3,6 +3,8 @@
 //   - 돌: 채도를 낮추고(_StoneSaturation) 맵 돌 색조/밝기로. 잎: 밝기 변화만 살려 맵 잎 색(_LeafDark → _LeafLight)으로 다시 칠한다.
 //   - 이끼: 위를 향한 면에 맵 돌과 같은 이끼 얼룩(돌 마스크 텍스처 A, 월드 xz 로 투영)을 덮는다.
 // URP PBR 조명(그림자, 주변광, 안개). 모바일 기준: 텍스처 샘플 4번(색, 노멀, 거칠기, 이끼 얼룩).
+// 낮은 안개: 판 높이(y = 0)보다 아래로 내려갈수록 안개 색(거리 안개와 같은 색)에 잠긴다 → 섬 아래/허공의 배경 구조물이 안개 위로 떠 보인다.
+//   진하기/깊이는 맵 환경(MapEnvironment)이 전역으로 넣는다: _BackdropHaze.z = 완전히 잠기는 깊이, .w = 최대 진하기(_BackdropHazeColor.a = 1 이면 설정됨).
 Shader "MiniChess/PropSurface"
 {
     Properties
@@ -80,6 +82,10 @@ Shader "MiniChess/PropSurface"
             TEXTURE2D(_NormalMap);    SAMPLER(sampler_NormalMap);
             TEXTURE2D(_RoughnessMap); SAMPLER(sampler_RoughnessMap);
             TEXTURE2D(_MossMap);      SAMPLER(sampler_MossMap);
+
+            // 맵 환경이 넣는 전역 값(머티리얼마다가 아님)
+            half4 _BackdropHazeColor;
+            float4 _BackdropHaze;
 
             struct Attributes
             {
@@ -181,6 +187,13 @@ Shader "MiniChess/PropSurface"
 
                 half4 color = UniversalFragmentPBR(inputData, surface);
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);
+
+                // 낮은 안개: 판 높이 아래로 내려갈수록 안개 색으로
+                if (_BackdropHazeColor.a > 0.5)
+                {
+                    half low = saturate(-input.positionWS.y / max(_BackdropHaze.z, 0.001)) * _BackdropHaze.w;
+                    color.rgb = lerp(color.rgb, unity_FogColor.rgb, low);
+                }
                 return half4(color.rgb, 1);
             }
             ENDHLSL
