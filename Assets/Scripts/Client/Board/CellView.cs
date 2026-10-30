@@ -68,10 +68,10 @@ namespace MiniChess.Client.Board
         /// <summary>경기 중에 만든 표식(덫/조준점/장애물)과 이 컴포넌트를 지운다. 칸 오브젝트와 그림은 맵 씬에 그대로 남는다.</summary>
         internal void Detach()
         {
-            if (_trapMarker != null)
-                Destroy(_trapMarker);
-            if (_obstacle != null)
-                Destroy(_obstacle);
+            // 칸 자식인 표식은 떼어 낸 뒤 지운다. Destroy 는 프레임 끝에 지우므로, 같은 프레임에 다음 경기가 Attach 하면
+            // 칸의 렌더러 목록에 이 표식이 섞여 들어가 곧 지워진 렌더러를 건드리게 된다.
+            DestroyDetached(_trapMarker);
+            DestroyDetached(_obstacle);
 
             // 칸 색 덮어쓰기(기본 머티리얼)를 지워 맵 씬의 원래 모습으로 돌린다
             foreach (Renderer renderer in _renderers)
@@ -81,6 +81,16 @@ namespace MiniChess.Client.Board
             }
 
             Destroy(this); // OnDestroy 가 칸 밖에 둔 표식(조준점, 장애물 숫자)을 지운다
+        }
+
+        private static void DestroyDetached(GameObject marker)
+        {
+            if (marker == null)
+                return;
+
+            marker.transform.SetParent(null, true);
+            marker.SetActive(false);
+            Destroy(marker);
         }
 
         /// <summary>지형 기본 색(점령 칸 소멸 등으로 바뀔 때).</summary>
