@@ -95,6 +95,7 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private UnitsView unitsView;
         [SerializeField] private AttackEffectsView attackEffectsView;
         [SerializeField] private BoardCameraRig cameraRig;
+        [SerializeField] private BoardCameraInput cameraInput;
         [SerializeField] private BoardInput boardInput;
         [SerializeField] private SelectionController selection;
         [SerializeField] private PlacementController placement;
@@ -238,6 +239,7 @@ namespace MiniChess.Client.Bootstrap
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
             if (attackEffectsView == null) attackEffectsView = CreateChild<AttackEffectsView>("AttackEffectsView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
+            if (cameraInput == null) cameraInput = CreateChild<BoardCameraInput>("CameraInput");
             if (boardInput == null) boardInput = CreateChild<BoardInput>("BoardInput");
             if (selection == null) selection = CreateChild<SelectionController>("Selection");
             if (placement == null) placement = CreateChild<PlacementController>("Placement");
@@ -418,6 +420,7 @@ namespace MiniChess.Client.Bootstrap
             skillEffectsView.Build(Coordinates);
             CameraSettings cameraSettings = gameOptions.Camera;
             cameraRig.Frame(Coordinates, cameraSettings, cameraSettings.FaceLocalTeam ? GetViewYaw(ViewTeam) : 0f);
+            cameraInput.Initialize(cameraRig, cameraSettings, boardInput);
             boardInput.Initialize(cameraRig.Camera, Coordinates);
 
             StateChanged?.Invoke();
