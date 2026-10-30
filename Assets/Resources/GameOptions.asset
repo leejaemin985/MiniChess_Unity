@@ -17,3 +17,10 @@ MonoBehaviour:
     padding: 1.1
     fieldOfView: 0
     faceLocalTeam: 1
+    minPitch: 20
+    maxPitch: 80
+    minVisibleCells: 3
+    orbitSpeed: 270
+    pitchSpeed: 90
+    wheelZoomStep: 0.12
+    smoothing: 0.08
