@@ -16,3 +16,10 @@ MonoBehaviour:
   illustration: {fileID: 21300000, guid: 806a45ba4d8097842aa88886622e13ba, type: 3}
   faceCenter: {x: 0.403125, y: 0.75}
   faceSize: 0.31
+  bodyPrefab: {fileID: 5212414278470355137, guid: 8741215ce13ea694a9eee9bf19d228f6, type: 3}
+  summonBodyMaterial: {fileID: 0}
+  summonAura: {fileID: 0}
+  summonSpawnEffect: {fileID: 0}
+  summonAppearDelay: 0.25
+  summonAppearTime: 0.35
+  summonVanishEffect: {fileID: 0}
