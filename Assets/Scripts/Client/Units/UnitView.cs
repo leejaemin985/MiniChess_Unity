@@ -10,7 +10,8 @@ using UnityEngine;
 namespace MiniChess.Client.Units
 {
     /// <summary>
-    /// 유닛 하나의 표시(몸체 + 얼굴 + 이름/HP 라벨). 몸체는 캐릭터 모델 프리팹이 있으면 그것을, 없으면 캡슐을 쓴다(UnitBody).
+    /// 유닛 하나의 표시(몸체 + 발밑 팀 고리 + 얼굴 + 이름/HP 라벨). 몸체는 캐릭터 모델 프리팹이 있으면 그것을, 없으면 캡슐을 쓴다(UnitBody).
+    /// 모델 몸체는 팀 색을 칠하지 않으므로 팀은 발밑 고리로 구분하고, 이번 턴 행동을 마치면 고리를 어둡게 한다. 몸체는 상대 진영 쪽(facingYaw)을 본다.
     /// 얼굴은 시각 데이터가 있을 때만 몸체 위에 띄운다. 코어 Unit 을 읽기만 하며, Sync 로 상태를 그대로 반영한다.
     /// 상태 표시 데이터에 몸체 머티리얼이 있는 상태(봉인 등)에 걸려 있으면 몸체 머티리얼을 그것으로 바꾼다.
     /// </summary>
@@ -32,7 +33,7 @@ namespace MiniChess.Client.Units
         /// <summary>관문 이동에서 가라앉는 깊이(몸 높이보다 조금 깊게)와 가장 작아지는 크기.</summary>
         private const float PortalDepth = 1.2f;
         private const float PortalMinScale = 0.35f;
-        /// <summary>소환물 발밑 팀 색 고리(Resources, MiniChess/GlowMarker)와 지름(월드).</summary>
+        /// <summary>발밑 팀 색 고리(Resources, MiniChess/GlowMarker)와 지름(월드).</summary>
         private const string TeamRingPath = "Materials/TeamRing";
         private const float TeamRingSize = 0.8f;
         private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
@@ -55,6 +56,10 @@ namespace MiniChess.Client.Units
         private float _iconHeight;
         private Color _teamColor;
         private Color _actedColor;
+        private Renderer _ring;
+        private MaterialPropertyBlock _ringBlock;
+        private Color _ringColor;
+        private Color _ringActedColor;
         /// <summary>Sync 가 정한 자리. 이동 연출이 끝나면 여기에 맞춘다.</summary>
         private Vector3 _targetPosition;
         /// <summary>이동 연출 경로(지금 자리 → 거치는 칸들). 비어 있으면 이동 중이 아니다(Sync 가 바로 옮긴다).</summary>
@@ -79,8 +84,11 @@ namespace MiniChess.Client.Units
         /// <param name="statusVisuals">상태 이름/색/아이콘. null 이면 상태를 기본 색과 이름 글자로 그린다.</param>
         /// <param name="statusStyle">상태 배지 모양(UnitsView 인스펙터 값, 공유). null 이면 기본값.</param>
         /// <param name="bodyPrefab">캐릭터 모델 프리팹. null 이면 캡슐.</param>
+        /// <param name="ringColor">발밑 고리 색(팀 색). ringActedColor 는 이번 턴 행동을 마쳤을 때의 색.</param>
+        /// <param name="facingYaw">몸체가 바라볼 방향(도, 0 = +z). 모델 프리팹은 +z 를 앞으로 만든다.</param>
         public static UnitView Create(
-            Transform parent, Unit unit, Color teamColor, Color actedColor, Sprite face, Sprite faceMask = null, Sprite frameShape = null,
+            Transform parent, Unit unit, Color teamColor, Color actedColor, Color ringColor, Color ringActedColor, float facingYaw,
+            Sprite face, Sprite faceMask = null, Sprite frameShape = null,
             StatusVisualCatalog statusVisuals = null, StatusBadgeStyle statusStyle = null, GameObject bodyPrefab = null)
         {
             var root = new GameObject($"Unit {unit.Id} {unit.Team} {unit.Stats.Base.Id}");
@@ -90,9 +98,13 @@ namespace MiniChess.Client.Units
             view.Unit = unit;
             view._teamColor = teamColor;
             view._actedColor = actedColor;
+            view._ringColor = ringColor;
+            view._ringActedColor = ringActedColor;
             view._statusVisuals = statusVisuals;
             float scale = unit.IsSummon ? SummonScale : 1f;
             view._body = UnitBody.Create(root.transform, bodyPrefab, BodyHeight, BodyWidth, scale);
+            view._body.transform.localRotation = Quaternion.Euler(0f, facingYaw, 0f) * view._body.transform.localRotation;
+            view.CreateTeamRing();
             float labelHeight = BodyHeight * scale + FaceGap;
             view._iconHeight = labelHeight + IconSize * 0.5f;
 
@@ -119,9 +131,9 @@ namespace MiniChess.Client.Units
 
         /// <summary>
         /// 소환물 모습을 소환자 캐릭터의 소환물 데이터로 바꾼다(분신 → 그림자 몸, 발밑 연기, 보라빛 얼굴).
-        /// 기본 몸체 머티리얼이 있으면 팀 색 대신 발밑에 팀 색 고리를 둔다. 데이터가 없으면 그대로(옅은 팀 색).
+        /// 기본 몸체 머티리얼이 있으면 팀 색 대신 그 머티리얼로 그린다(팀은 발밑 고리로 구분). 데이터가 없으면 그대로(옅은 팀 색).
         /// </summary>
-        public void ApplySummonLook(CharacterVisual visual, Color ringColor)
+        public void ApplySummonLook(CharacterVisual visual)
         {
             if (visual == null || visual.SummonBodyMaterial == null)
                 return;
@@ -129,7 +141,6 @@ namespace MiniChess.Client.Units
             _body.SetBaseMaterial(visual.SummonBodyMaterial);
             if (visual.SummonAura != null)
                 Instantiate(visual.SummonAura, transform, false).name = "Summon Aura";
-            CreateTeamRing(ringColor);
             if (_face != null)
                 _face.SetImageColor(SummonFaceTint);
         }
@@ -140,7 +151,7 @@ namespace MiniChess.Client.Units
             _body.Appear(delay, duration);
         }
 
-        private void CreateTeamRing(Color color)
+        private void CreateTeamRing()
         {
             Material material = Resources.Load<Material>(TeamRingPath);
             if (material == null)
@@ -153,13 +164,21 @@ namespace MiniChess.Client.Units
             ring.transform.localPosition = Vector3.up * 0.015f;
             ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // 바닥에 눕힌다
             ring.transform.localScale = Vector3.one * TeamRingSize;
-            var renderer = ring.GetComponent<Renderer>();
-            renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            var block = new MaterialPropertyBlock();
-            block.SetColor(ColorId, color);
-            renderer.SetPropertyBlock(block);
+            _ring = ring.GetComponent<Renderer>();
+            _ring.sharedMaterial = material;
+            _ring.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _ring.receiveShadows = false;
+            _ringBlock = new MaterialPropertyBlock();
+            SetRingColor(_ringColor);
+        }
+
+        private void SetRingColor(Color color)
+        {
+            if (_ring == null)
+                return;
+
+            _ringBlock.SetColor(ColorId, color);
+            _ring.SetPropertyBlock(_ringBlock);
         }
 
         /// <summary>같은 유닛(같은 Id)을 새로 만든 상태의 객체로 바꾼다(온라인 스냅샷 복원). 모양은 그대로 둔다.</summary>
@@ -186,6 +205,7 @@ namespace MiniChess.Client.Units
 
             bool acted = !Unit.HasCombatActionLeft;
             _body.SetTint(acted ? _actedColor : _teamColor);
+            SetRingColor(acted ? _ringActedColor : _ringColor);
             SyncBodyMaterial();
             if (_face != null)
                 _face.SetDimmed(acted);

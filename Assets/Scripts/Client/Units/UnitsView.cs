@@ -35,6 +35,8 @@ namespace MiniChess.Client.Units
         private BoardCoordinates _coordinates;
         private GameState _state;
         private CharacterVisualCatalog _visuals;
+        /// <summary>팀마다 몸체가 바라볼 방향(도). 비어 있으면 0(+z).</summary>
+        private System.Func<Team, float> _facingYaw;
 
         [Tooltip("상태 이름/색/아이콘(유닛 머리 위 상태 아이콘). 비우면 Resources/StatusVisualCatalog 를 불러온다.")]
         [SerializeField] private StatusVisualCatalog statusVisuals;
@@ -122,12 +124,14 @@ namespace MiniChess.Client.Units
         }
 
         /// <param name="visuals">캐릭터 얼굴 데이터. null 이면 얼굴 없이 그린다.</param>
-        public void Build(GameState state, BoardCoordinates coordinates, CharacterVisualCatalog visuals)
+        /// <param name="facingYaw">팀마다 몸체가 바라볼 방향(도, 상대 진영 쪽). null 이면 모두 +z.</param>
+        public void Build(GameState state, BoardCoordinates coordinates, CharacterVisualCatalog visuals, System.Func<Team, float> facingYaw = null)
         {
             Clear();
             _coordinates = coordinates;
             _state = state;
             _visuals = visuals;
+            _facingYaw = facingYaw;
 
             Sync();
         }
@@ -220,23 +224,27 @@ namespace MiniChess.Client.Units
             _state = null;
         }
 
-        /// <summary>소환물은 팀 색을 옅게 해 본체와 구분한다.</summary>
+        /// <summary>소환물은 팀 색을 옅게 해 본체와 구분한다. 발밑 고리는 본래 팀 색이고, 행동을 마치면 어두워진다.</summary>
         private UnitView CreateView(Unit unit)
         {
-            Color color = GetTeamColor(unit.Team);
+            Color ringColor = GetTeamColor(unit.Team);
+            Color color = ringColor;
             if (unit.IsSummon)
                 color = Color.Lerp(color, Color.white, summonLighten);
 
             Color actedColor = Color.Lerp(color, Color.gray, actedDarken);
+            Color ringActedColor = Color.Lerp(ringColor, Color.gray, actedDarken);
             if (statusVisuals == null)
                 statusVisuals = Resources.Load<StatusVisualCatalog>(StatusVisualCatalog.ResourcePath);
 
+            float facing = _facingYaw?.Invoke(unit.Team) ?? 0f;
             UnitView view = UnitView.Create(
-                transform, unit, color, actedColor, FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame, statusVisuals, statusBadge, FindBodyPrefab(unit));
+                transform, unit, color, actedColor, ringColor, ringActedColor, facing,
+                FindFace(unit), _visuals?.FaceMask, _visuals?.FaceFrame, statusVisuals, statusBadge, FindBodyPrefab(unit));
 
-            // 소환물: 소환자 캐릭터의 소환물 모습(분신 → 그림자, 발밑 팀 색 고리). 방금 소환된 것이면 바닥에서 솟아오른다.
+            // 소환물: 소환자 캐릭터의 소환물 모습(분신 → 그림자). 방금 소환된 것이면 바닥에서 솟아오른다.
             CharacterVisual summonVisual = FindSummonVisual(unit);
-            view.ApplySummonLook(summonVisual, GetTeamColor(unit.Team));
+            view.ApplySummonLook(summonVisual);
             if (_appearing.Remove(unit.Id) && summonVisual != null)
                 view.PlayAppear(summonVisual.SummonAppearDelay, summonVisual.SummonAppearTime);
 

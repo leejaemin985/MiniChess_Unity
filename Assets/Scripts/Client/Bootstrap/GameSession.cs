@@ -253,7 +253,9 @@ namespace MiniChess.Client.Bootstrap
             // 둘 다 보드 하이라이트를 쓰므로, 상태 변경 시 선택(지우기) → 배치(다시 그리기) 순으로 처리되도록 이 순서로 초기화한다.
             selection.Initialize(this, boardInput, boardView);
             placement.Initialize(this, boardInput, boardView);
-            placementPreview.Initialize(placement, () => Coordinates, unitsView.GetTeamColor, id => Game?.State.Characters.Find(id)?.Name ?? id);
+            placementPreview.Initialize(
+                placement, () => Coordinates, unitsView.GetTeamColor, id => Game?.State.Characters.Find(id)?.Name ?? id,
+                id => characterVisuals?.Find(id)?.BodyPrefab, GetViewYaw);
             hud.Initialize(this, unitsView.GetTeamColor);
             botDriver.Initialize(this);
             _effectPools = EffectPoolSystem.Create();
@@ -415,7 +417,8 @@ namespace MiniChess.Client.Bootstrap
             _effectCasters.Clear();
             fieldEffectsView.Build(Coordinates);
             fieldEffectsView.Sync(State);
-            unitsView.Build(State, Coordinates, characterVisuals);
+            // 몸체는 자기 시작 구역에서 상대 쪽(보드 중심 방향)을 본다 = 그 팀 화면의 카메라 방향.
+            unitsView.Build(State, Coordinates, characterVisuals, GetViewYaw);
             attackEffectsView.Build(Coordinates);
             skillEffectsView.Build(Coordinates);
             CameraSettings cameraSettings = gameOptions.Camera;
