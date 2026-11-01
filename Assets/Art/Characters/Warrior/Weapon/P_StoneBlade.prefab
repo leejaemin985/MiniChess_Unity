@@ -1,0 +1,147 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &588215847617345797
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4462628046226843125}
+  m_Layer: 0
+  m_Name: OffHandGrip
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4462628046226843125
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 588215847617345797}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.19186734, y: 0, z: 0.079866715, w: 0.97816575}
+  m_LocalPosition: {x: 0.0448, y: -0.1053, z: -0.0275}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5357701392034725592}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &7817391990340534020
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5357701392034725592}
+  - component: {fileID: 836486013886635766}
+  m_Layer: 0
+  m_Name: P_StoneBlade
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5357701392034725592
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7817391990340534020}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 9161852124856155734}
+  - {fileID: 4462628046226843125}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &836486013886635766
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7817391990340534020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64d85177d4886cd459270cabadf7fd29, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hand: 0
+  offHandGrip: {fileID: 4462628046226843125}
+--- !u!1001 &8696405294542494141
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 5357701392034725592}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 150
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.0223
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.2923
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.1153
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.5549554
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.82817954
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.042387884
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.06592715
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+      propertyPath: m_Name
+      value: StoneBlade
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+--- !u!4 &9161852124856155734 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 4f80737bf85e613408f1d3552f288179, type: 3}
+  m_PrefabInstance: {fileID: 8696405294542494141}
+  m_PrefabAsset: {fileID: 0}

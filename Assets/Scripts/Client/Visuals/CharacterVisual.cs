@@ -23,6 +23,11 @@ namespace MiniChess.Client.Visuals
         [Tooltip("보드 위 몸체로 쓸 캐릭터 모델 프리팹(피벗은 발밑, 높이 약 1). 비우면 팀 색 캡슐을 쓴다.")]
         [SerializeField] private GameObject bodyPrefab;
 
+        [Tooltip("리깅된 몸체의 Animator 컨트롤러(보통 공용 AC_Unit 의 캐릭터별 오버라이드). 비우면 AC_Unit. 몸체 프리팹 생성 메뉴가 넣는다.")]
+        [SerializeField] private RuntimeAnimatorController animatorController;
+        [Tooltip("손에 쥘 무기 프리팹. 쥐는 손과 반대손 IK 지점은 무기 프리팹(CharacterWeapon)에서 정한다. 몸체 프리팹 생성 메뉴가 붙인다.")]
+        [SerializeField] private CharacterWeapon weaponPrefab;
+
         [Header("Summon (이 캐릭터가 부른 소환물, 예: 낫 → 그림자 분신)")]
         [Tooltip("소환물 몸체의 기본 머티리얼(예: 그림자). 비우면 팀 색을 옅게 칠한다. 지정하면 소환물 발밑에 팀 색 고리를 둔다.")]
         [SerializeField] private Material summonBodyMaterial;
@@ -44,6 +49,12 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>몸체 모델 프리팹. 지정하지 않았으면 null(캡슐).</summary>
         public GameObject BodyPrefab => bodyPrefab;
+
+        /// <summary>몸체 Animator 컨트롤러. 지정하지 않았으면 null(공용 컨트롤러).</summary>
+        public RuntimeAnimatorController AnimatorController => animatorController;
+
+        /// <summary>손에 쥘 무기 프리팹. 없으면 null.</summary>
+        public CharacterWeapon WeaponPrefab => weaponPrefab;
 
         /// <summary>소환물 몸체 기본 머티리얼. 없으면 null(팀 색).</summary>
         public Material SummonBodyMaterial => summonBodyMaterial;
