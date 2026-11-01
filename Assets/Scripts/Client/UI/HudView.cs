@@ -79,8 +79,8 @@ namespace MiniChess.Client.UI
 
             AnnounceCapture(state);
 
-            // 이 화면에서 조작하지 않는 팀(봇, 온라인 상대)의 턴이거나 서버 결과를 기다리는 중에는 턴을 끝낼 수 없다.
-            _endTurnButton.interactable = state.Phase == GamePhase.Battle && _session.IsLocallyControlled(state.CurrentTeam) && !_session.IsAwaitingServer;
+            // 이 화면에서 조작하지 않는 팀(봇, 온라인 상대)의 턴이거나 서버 결과 대기/행동 연출 중에는 턴을 끝낼 수 없다.
+            _endTurnButton.interactable = state.Phase == GamePhase.Battle && _session.IsLocallyControlled(state.CurrentTeam) && !_session.IsBusy;
 
             _gameOverPanel.SetActive(state.IsGameOver);
             if (state.IsGameOver)

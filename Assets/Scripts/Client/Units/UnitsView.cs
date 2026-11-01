@@ -200,6 +200,19 @@ namespace MiniChess.Client.Units
                 view.ShowActionIcon(icon, duration);
         }
 
+        /// <summary>유닛 몸체의 동작 애니메이션(공격, 스킬)을 재생한다. 뷰가 없으면 무시.</summary>
+        public void PlayAction(int unitId, UnitAction action)
+        {
+            if (TryGetView(unitId, out UnitView view))
+                view.PlayAction(action);
+        }
+
+        /// <summary>유닛 동작 클립의 타격 시점(초, Hit 이벤트). 뷰, 애니메이션, Hit 이벤트 중 하나라도 없으면 null.</summary>
+        public float? GetHitTime(int unitId, UnitAction action)
+        {
+            return TryGetView(unitId, out UnitView view) ? view.GetHitTime(action) : null;
+        }
+
         public bool TryGetView(Unit unit, out UnitView view)
         {
             return _views.TryGetValue(unit.Id, out view);

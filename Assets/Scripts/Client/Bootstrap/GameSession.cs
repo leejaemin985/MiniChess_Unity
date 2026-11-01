@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using MiniChess.Bot;
@@ -75,6 +76,8 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private CharacterVisualCatalog characterVisuals;
         [Tooltip("기본 공격/스킬 시전 아이콘을 띄우는 시간(초).")]
         [SerializeField, Min(0f)] private float actionIconDuration = 0.7f;
+        [Tooltip("기본 공격 타격 시점(초, 동작 시작부터). 공격 클립에 Hit 이벤트가 없거나 애니메이션 없는 몸체(캡슐 등)일 때 쓴다.")]
+        [SerializeField, Min(0f)] private float defaultHitDelay = 0.2f;
         [Tooltip("장판 종류별 이펙트 프리팹. 비우면 Resources/FieldEffectCatalog 를 불러온다.")]
         [SerializeField] private FieldEffectCatalog fieldEffects;
         [Tooltip("스킬별 범위 이펙트(일자 베기 등) 프리팹. 비우면 Resources/SkillEffectCatalog 를 불러온다.")]
@@ -191,6 +194,17 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>보낸 명령의 서버 결과를 기다리는 중인지. 기다리는 동안은 새 입력을 받지 않는다.</summary>
         public bool IsAwaitingServer => _pendingCommand != null;
+
+        /// <summary>행동 연출(공격 모션 → 타격)을 재생하는 중인지. 그동안 화면은 이전 상태를 보여 주므로 새 입력을 받지 않는다.</summary>
+        public bool IsPresenting => _presenting;
+
+        /// <summary>새 입력을 받지 않는 중인지(서버 결과 대기 또는 행동 연출 중).</summary>
+        public bool IsBusy => IsAwaitingServer || _presenting;
+
+        /// <summary>타격 시점을 기다리는 연출. 그동안 도착한 다음 화면 갱신은 _presentQueue 에서 차례를 기다린다.</summary>
+        private bool _presenting;
+        private Coroutine _presentRoutine;
+        private readonly Queue<Action> _presentQueue = new Queue<Action>();
 
         /// <summary>
         /// 지금 경기의 번호. 새 경기(로컬 새 경기, 온라인 경기 시작, 재접속 대기)마다 바뀐다.
@@ -404,8 +418,9 @@ namespace MiniChess.Client.Bootstrap
                 return;
             }
 
-            // 이전 경기의 유닛을 계속 붙잡고 있지 않도록 먼저 해제한다.
+            // 이전 경기의 유닛을 계속 붙잡고 있지 않도록 먼저 해제한다. 이전 경기의 남은 연출도 버린다.
             selection.Deselect();
+            ResetPresentation();
 
             MatchId++;
             Game = game;
@@ -629,8 +644,9 @@ namespace MiniChess.Client.Bootstrap
             Team? viewer = HiddenViewer;
             if (!viewer.HasValue)
             {
-                PlayEvents(outcome.Events);
-                return Succeed();
+                IReadOnlyList<GameEvent> events = outcome.Events as IReadOnlyList<GameEvent> ?? outcome.Events.ToList();
+                Present(events, () => Succeed());
+                return true;
             }
 
             ShowView(LocalView(), Authority.GetVisibleEvents(viewer.Value, outcome.Events));
@@ -643,15 +659,96 @@ namespace MiniChess.Client.Bootstrap
         /// </summary>
         private void ShowView(GameController view, IReadOnlyList<GameEvent> events)
         {
+            Present(events, () =>
+            {
+                Game = view;
+                unitsView.Rebind(State);
+                Succeed();
+            });
+        }
+
+        /// <summary>
+        /// 행동 하나의 결과를 연출하고 화면에 반영한다(apply: 상태 반영). 기본 공격이면 공격 모션을 먼저 시작하고, 타격 시점(공격 클립의 Hit 이벤트)까지
+        /// 나머지 연출(타격 이펙트, 연쇄 반응, 사망)과 상태 반영(HP, 사망)을 미룬다. 그 밖의 행동은 지금처럼 바로 연출하고 반영한다.
+        /// 연출 중에 들어온 다음 갱신(온라인 상대 행동 등)은 차례를 기다린다.
+        /// </summary>
+        private void Present(IReadOnlyList<GameEvent> events, Action apply)
+        {
+            if (_presenting)
+            {
+                _presentQueue.Enqueue(() => Present(events, apply));
+                return;
+            }
+
+            float hitDelay = PlayActionStart(events);
+            if (hitDelay <= 0f)
+            {
+                PlayEvents(events);
+                apply();
+                return;
+            }
+
+            _presenting = true;
+            StateChanged?.Invoke(); // 입력 잠금을 화면(턴 종료 버튼 등)에 알린다
+            _presentRoutine = StartCoroutine(PresentAfter(hitDelay, events, apply));
+        }
+
+        private IEnumerator PresentAfter(float delay, IReadOnlyList<GameEvent> events, Action apply)
+        {
+            yield return new WaitForSeconds(delay);
+
+            _presentRoutine = null;
             PlayEvents(events);
-            Game = view;
-            unitsView.Rebind(State);
-            Succeed();
+            _presenting = false;
+            apply();
+            if (_presentQueue.Count > 0)
+                _presentQueue.Dequeue()();
+        }
+
+        /// <summary>진행 중인 연출과 대기 중인 갱신을 버린다(새 경기).</summary>
+        private void ResetPresentation()
+        {
+            if (_presentRoutine != null)
+                StopCoroutine(_presentRoutine);
+            _presentRoutine = null;
+            _presenting = false;
+            _presentQueue.Clear();
+        }
+
+        /// <summary>
+        /// 행동의 시작 연출: 기본 공격자마다 공격 모션과 기본 공격 아이콘. 타격 시점까지의 시간(초)을 돌려준다(첫 공격자의 공격 클립 Hit 이벤트, 없으면 defaultHitDelay).
+        /// 기본 공격이 없으면 0(바로 연출).
+        /// </summary>
+        private float PlayActionStart(IReadOnlyList<GameEvent> events)
+        {
+            float hitDelay = 0f;
+            foreach (GameEvent gameEvent in events)
+            {
+                int attackerId;
+                switch (gameEvent)
+                {
+                    case UnitAttackedEvent attacked:
+                        attackerId = attacked.AttackerId;
+                        break;
+                    case ObstacleHitEvent hit:
+                        attackerId = hit.AttackerId;
+                        break;
+                    default:
+                        continue;
+                }
+
+                unitsView.PlayAction(attackerId, UnitAction.Attack);
+                ShowActionIcon(attackerId, characterVisuals?.BasicAttackIcon);
+                if (hitDelay <= 0f)
+                    hitDelay = Mathf.Max(unitsView.GetHitTime(attackerId, UnitAction.Attack) ?? defaultHitDelay, Mathf.Epsilon);
+            }
+
+            return hitDelay;
         }
 
         /// <summary>
         /// 일어난 일을 연출한다(로컬/온라인 공용).
-        ///   - 기본 공격: 공격자 위에 기본 공격 아이콘, 맞은 자리에 타격 이펙트. 스킬: 시전자 위에 스킬 시전 아이콘, 범위 이펙트(일자 베기 등).
+        ///   - 기본 공격: 맞은 자리에 타격 이펙트(공격 모션과 아이콘은 PlayActionStart 가 먼저, 이것은 타격 시점에 불린다). 스킬: 시전자 위에 스킬 시전 아이콘, 범위 이펙트(일자 베기 등).
         ///     (유닛 뷰 위치를 쓰므로 뷰를 새 상태로 맞추기 전에 호출한다)
         ///   - 스킬로 시전자가 직접 이동했으면(돌진 등) 그 경로에 경로 이펙트.
         ///   - 스킬로 시전자가 유닛을 순간이동시키거나 자리를 바꿨으면(실 관문, 분신 교환) 워프 이펙트, 그 유닛들은 가라앉았다 솟아오른다.
@@ -678,15 +775,15 @@ namespace MiniChess.Client.Bootstrap
                 switch (gameEvent)
                 {
                     case UnitAttackedEvent attacked:
-                        ShowActionIcon(attacked.AttackerId, characterVisuals?.BasicAttackIcon);
+                        // 공격 모션과 아이콘은 PlayActionStart 가 타격 시점보다 먼저 시작했다.
                         attackEffectsView.PlayOnUnit(characterVisuals?.BasicAttackEffect, attacked.AttackerId, attacked.TargetId);
                         break;
                     case ObstacleHitEvent hit:
-                        ShowActionIcon(hit.AttackerId, characterVisuals?.BasicAttackIcon);
                         attackEffectsView.PlayOnCell(characterVisuals?.BasicAttackEffect, hit.AttackerId, hit.Position);
                         fieldEffectsView.PlayReaction(hit.Position, CellEffectLayer.Obstacle);
                         break;
                     case SkillUsedEvent used:
+                        unitsView.PlayAction(used.CasterId, GetSkillAction(used.CasterId, used.SkillId));
                         ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);
                         skillEffectsView.Play(used.CasterId, used.SkillId, used.AffectedCells);
                         skillEffectsView.PlayCast(used.CasterId, used.SkillId);
@@ -724,6 +821,14 @@ namespace MiniChess.Client.Bootstrap
                         break;
                 }
             }
+        }
+
+        /// <summary>스킬이 시전자 캐릭터의 몇 번째 칸인지로 몸체 동작을 고른다. 2번 칸이면 Skill2, 그 밖(1번 칸, 추가 스킬, 시전자를 못 찾음)은 Skill1.</summary>
+        private UnitAction GetSkillAction(int casterId, string skillId)
+        {
+            Unit caster = State.FindUnit(casterId);
+            string[] slots = caster != null ? State.Characters.Find(caster.Stats.Base.Id)?.SkillSlots : null;
+            return slots != null && slots.Length > 1 && slots[1] == skillId ? UnitAction.Skill2 : UnitAction.Skill1;
         }
 
         /// <summary>

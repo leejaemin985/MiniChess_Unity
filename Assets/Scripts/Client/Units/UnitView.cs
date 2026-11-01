@@ -308,6 +308,18 @@ namespace MiniChess.Client.Units
             transform.localScale = Vector3.one;
         }
 
+        /// <summary>몸체 동작 애니메이션(공격, 스킬)을 재생한다. 애니메이션 없는 몸체는 무시.</summary>
+        public void PlayAction(UnitAction action)
+        {
+            _body.PlayAction(action);
+        }
+
+        /// <summary>동작 클립의 타격 시점(초, Hit 이벤트). 애니메이션이나 Hit 이벤트가 없으면 null.</summary>
+        public float? GetHitTime(UnitAction action)
+        {
+            return _body.GetEventTime(action, UnitActions.HitEvent);
+        }
+
         /// <summary>
         /// 행동 아이콘(기본 공격 등)을 얼굴 위에 duration 초 동안 띄운다. 커지며 나타나고 끝에 흐려진다.
         /// 이미 떠 있으면 처음부터 다시 보여준다.

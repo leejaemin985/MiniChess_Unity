@@ -118,6 +118,9 @@ namespace MiniChess.Client.Players
 
             while (game == _game && !game.State.IsGameOver && game.State.CurrentTeam == team)
             {
+                // 직전 행동의 연출(공격 모션 → 타격)이 끝난 뒤에 다음 행동을 고른다.
+                while (_session.IsPresenting)
+                    yield return null;
                 yield return new WaitForSeconds(_session.BotActionDelay);
                 if (game != _game)
                     break;

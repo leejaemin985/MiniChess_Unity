@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MiniChess.Client.Common;
+using MiniChess.Client.Visuals;
 using UnityEngine;
 
 namespace MiniChess.Client.Units
@@ -33,6 +34,8 @@ namespace MiniChess.Client.Units
 
         private Renderer[] _renderers;
         private Material[][] _originals;
+        /// <summary>리깅된 모델 몸체의 Animator. 캡슐이나 리깅 안 된 모델이면 null.</summary>
+        private Animator _animator;
         private MaterialPropertyBlock _block;
         /// <summary>색을 칠하는 몸체인지. 캡슐만 칠하고, 모델은 텍스처 색이 덮이지 않게 칠하지 않는다.</summary>
         private bool _tintable;
@@ -76,6 +79,51 @@ namespace MiniChess.Client.Units
             var unitBody = body.AddComponent<UnitBody>();
             unitBody.Collect(tintable: prefab == null);
             return unitBody;
+        }
+
+        /// <summary>동작 애니메이션을 재생한다(Animator 트리거). 애니메이션이 없는 몸체(캡슐, 리깅 안 된 모델)는 무시한다.</summary>
+        public void PlayAction(UnitAction action)
+        {
+            if (_animator != null && _animator.runtimeAnimatorController != null)
+                _animator.SetTrigger(UnitActions.TriggerId(action));
+        }
+
+        /// <summary>
+        /// 동작 클립에서 eventName 애니메이션 이벤트(Hit 등)의 첫 시간(초, 동작 시작부터)을 찾는다.
+        /// 동작 클립은 지금 컨트롤러(캐릭터별 오버라이드면 바꿔 낀 클립)의 슬롯 클립이다. 애니메이션이 없거나 이벤트가 없으면 null.
+        /// </summary>
+        public float? GetEventTime(UnitAction action, string eventName)
+        {
+            AnimationClip clip = FindActionClip(action);
+            if (clip == null)
+                return null;
+
+            foreach (AnimationEvent animationEvent in clip.events)
+            {
+                if (animationEvent.functionName == eventName)
+                    return animationEvent.time;
+            }
+
+            return null;
+        }
+
+        private AnimationClip FindActionClip(UnitAction action)
+        {
+            RuntimeAnimatorController controller = _animator != null ? _animator.runtimeAnimatorController : null;
+            if (controller == null)
+                return null;
+
+            string slot = UnitActions.SlotClipName(action);
+            if (controller is AnimatorOverrideController overrides)
+                return overrides[slot];
+
+            foreach (AnimationClip clip in controller.animationClips)
+            {
+                if (clip.name == slot)
+                    return clip;
+            }
+
+            return null;
         }
 
         /// <summary>몸체 색(팀 색, 행동 완료 색). 모델 몸체이거나 머티리얼 교체 중이면 기억만 하고 칠하지 않는다.</summary>
@@ -343,6 +391,9 @@ namespace MiniChess.Client.Units
             _tintable = tintable;
             _block = new MaterialPropertyBlock();
             _renderers = GetComponentsInChildren<Renderer>(true);
+            _animator = GetComponentInChildren<Animator>(true);
+            if (_animator != null && !_animator.TryGetComponent(out UnitAnimationEvents _))
+                _animator.gameObject.AddComponent<UnitAnimationEvents>();
             _originals = new Material[_renderers.Length][];
             for (int i = 0; i < _renderers.Length; i++)
                 _originals[i] = _renderers[i].sharedMaterials;
