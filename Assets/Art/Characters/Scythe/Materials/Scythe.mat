@@ -117,6 +117,11 @@ Material:
     - _Metallic: 1
     - _OcclusionStrength: 1
     - _OutlineAlbedo: 0.5
+    - _OutlineFadeEnd: 45
+    - _OutlineFadeStart: 30
+    - _OutlineMaxWidth: 2
+    - _OutlineMinWidth: 0.5
+    - _OutlineRefDistance: 8
     - _OutlineWidth: 1.5
     - _Parallax: 0.005
     - _QueueOffset: 0
