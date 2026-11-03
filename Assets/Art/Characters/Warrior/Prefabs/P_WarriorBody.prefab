@@ -56,8 +56,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 713040493467946576}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.045678213, y: 0.042396236, z: 0.58925223, w: 0.805542}
-  m_LocalPosition: {x: -0.0005775885, y: 0.03933793, z: 0.0010078214}
+  m_LocalRotation: {x: 0.029404238, y: 0.026382398, z: 0.686353, w: 0.72619486}
+  m_LocalPosition: {x: -0.003013741, y: 0.04429428, z: 0.00052628684}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -87,8 +87,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3864830855658187013}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.63808846, y: 0.7315335, z: -0.15083632, w: -0.18695006}
-  m_LocalPosition: {x: 0.00000029588796, y: 0.042903285, z: 0.0008678905}
+  m_LocalRotation: {x: 0.6658386, y: 0.69554645, z: -0.18541826, w: -0.19619928}
+  m_LocalPosition: {x: 0.0035757408, y: 0.04543949, z: -0.0019983249}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -220,6 +220,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Warrior
       objectReference: {fileID: 0}
+    - target: {fileID: 4164213433230802979, guid: d9778ad621cec8843b689c37737a3b0c, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.0024044886
+      objectReference: {fileID: 0}
+    - target: {fileID: 4164213433230802979, guid: d9778ad621cec8843b689c37737a3b0c, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.0037064385
+      objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: d9778ad621cec8843b689c37737a3b0c, type: 3}
       propertyPath: m_Controller
       value: 
@@ -227,6 +235,14 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: d9778ad621cec8843b689c37737a3b0c, type: 3}
       propertyPath: m_ApplyRootMotion
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607804874090535400, guid: d9778ad621cec8843b689c37737a3b0c, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.041834846
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607804874090535400, guid: d9778ad621cec8843b689c37737a3b0c, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.09914822
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
