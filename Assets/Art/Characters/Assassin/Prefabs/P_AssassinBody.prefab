@@ -56,12 +56,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8469217606756233987}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0.095566645, y: -0.09633337, z: 0.6420297, w: 0.7545759}
+  m_LocalPosition: {x: -0.00022952362, y: 0.050025165, z: -0.0011300052}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4603862353437148839}
+  m_Father: {fileID: 3030594780730244231}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8591690995778274460
 GameObject:
@@ -87,12 +87,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8591690995778274460}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.6160356, y: 0.6769859, z: 0.22557254, w: 0.33362734}
-  m_LocalPosition: {x: 0.004460615, y: 0.039634883, z: -0.0013796581}
+  m_LocalRotation: {x: 0.06618884, y: 0.06640448, z: 0.6680327, w: 0.73820174}
+  m_LocalPosition: {x: -0.001423833, y: 0.049994964, z: 0.0007282998}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7822395762525379628}
+  m_Father: {fileID: 1949247982008479399}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1424430407179697316
 PrefabInstance:
@@ -146,6 +146,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Assassin
       objectReference: {fileID: 0}
+    - target: {fileID: 4926999661973466484, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.015618831
+      objectReference: {fileID: 0}
+    - target: {fileID: 4926999661973466484, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.046522304
+      objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
       propertyPath: m_Controller
       value: 
@@ -157,10 +165,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: 9172192419619102856, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
+    - targetCorrespondingSourceObject: {fileID: -8590183774158401021, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4742205587856645673}
-    - targetCorrespondingSourceObject: {fileID: -6043650914741405181, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 4164213433230802979, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2041631139401281793}
     m_AddedComponents:
@@ -171,6 +179,11 @@ PrefabInstance:
 --- !u!4 &1463158150546365263 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
+  m_PrefabInstance: {fileID: 1424430407179697316}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &1949247982008479399 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8590183774158401021, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
   m_PrefabInstance: {fileID: 1424430407179697316}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &2235472312691900917 stripped
@@ -194,13 +207,8 @@ MonoBehaviour:
   leftSocket: {fileID: 4742205587856645673}
   weapon: {fileID: 0}
   blendSpeed: 8
---- !u!4 &4603862353437148839 stripped
+--- !u!4 &3030594780730244231 stripped
 Transform:
-  m_CorrespondingSourceObject: {fileID: -6043650914741405181, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
-  m_PrefabInstance: {fileID: 1424430407179697316}
-  m_PrefabAsset: {fileID: 0}
---- !u!4 &7822395762525379628 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 9172192419619102856, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
+  m_CorrespondingSourceObject: {fileID: 4164213433230802979, guid: b1a98435f848acf4d972f6eae3d46b97, type: 3}
   m_PrefabInstance: {fileID: 1424430407179697316}
   m_PrefabAsset: {fileID: 0}
