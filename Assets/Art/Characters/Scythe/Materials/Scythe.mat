@@ -122,7 +122,7 @@ Material:
     - _OutlineMaxWidth: 2
     - _OutlineMinWidth: 0.5
     - _OutlineRefDistance: 8
-    - _OutlineWidth: 1.5
+    - _OutlineWidth: 1
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1

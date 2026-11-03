@@ -5,7 +5,7 @@
 //   - 림 라이트: 시선과 비스듬한 가장자리를 밝게(밝은 면에서만).
 //   - 주변광(SH)을 약하게 더해 그림자 면이 새까맣게 죽지 않게 한다. 안개 적용.
 //   - 외곽선: 메시를 법선 방향으로 부풀려 뒷면만 그린다(Outline 패스). 굵기(1080p 기준 픽셀)는 기준 거리에서의 값이고, 거리에 반비례해 가늘어진다
-//     (캐릭터 크기 대비 선 비율 유지). 최소/최대 픽셀로 제한하고, 사라지는 거리 구간에서 0 으로 줄여 아주 멀리서는 선을 뺀다.
+//     (캐릭터 크기 대비 선 비율 유지). 사라지는 거리 구간에서 0 으로 줄여 아주 멀리서는 선을 뺀다.
 //     부풀리는 방향은 같은 위치 정점들의 평균 법선(CharacterOutlineNormals 가 임포트 때 UV7 에 탄젠트 공간으로 구워 둠)이라 법선이 갈라진 경계에서도 선이 끊기지 않는다.
 //     탄젠트 공간 값이라 스킨 애니메이션에도 따라 돈다. UV7 이 없으면 정점 법선을 쓴다.
 // 모바일 기준: 텍스처 샘플 1번(외곽선 1번 더), 보조광은 쓰지 않는다. 그림자 캐스트/깊이 패스 포함(SRP Batcher 호환).
@@ -31,10 +31,8 @@ Shader "MiniChess/CharacterToon"
         _RimPower ("Rim Power", Range(1, 8)) = 4
 
         [Header(Outline)]
-        _OutlineWidth ("Outline Width (px at 1080p, at Ref Distance)", Range(0, 6)) = 1.5
+        _OutlineWidth ("Outline Width (px at 1080p, at Ref Distance)", Range(0, 6)) = 1
         _OutlineRefDistance ("Outline Ref Distance", Float) = 8
-        _OutlineMinWidth ("Outline Min Width (px)", Range(0, 3)) = 0.5
-        _OutlineMaxWidth ("Outline Max Width (px)", Range(0, 6)) = 2
         _OutlineFadeStart ("Outline Fade Start Distance", Float) = 30
         _OutlineFadeEnd ("Outline Fade End Distance", Float) = 45
         _OutlineColor ("Outline Color", Color) = (0.12, 0.08, 0.1, 1)
@@ -64,8 +62,6 @@ Shader "MiniChess/CharacterToon"
             half _RimPower;
             half _OutlineWidth;
             float _OutlineRefDistance;
-            half _OutlineMinWidth;
-            half _OutlineMaxWidth;
             float _OutlineFadeStart;
             float _OutlineFadeEnd;
             half4 _OutlineColor;
@@ -203,10 +199,10 @@ Shader "MiniChess/CharacterToon"
                 if (dot(input.smoothNormalTS, input.smoothNormalTS) < 0.25)
                     smoothOS = input.normalOS;
 
-                // 굵기(픽셀): 기준 거리 값을 거리에 반비례로 줄이고(오브젝트 원점 거리라 몸 전체가 같은 굵기) 최소/최대로 제한,
+                // 굵기(픽셀): 기준 거리 값을 거리에 반비례로 줄이고(오브젝트 원점 거리라 몸 전체가 같은 굵기),
                 // 사라지는 구간에서 0 까지 줄인다. 1080p 기준값을 해상도에 맞춘다.
                 float cameraDistance = length(GetCameraPositionWS() - TransformObjectToWorld(float3(0, 0, 0)));
-                float pixels = clamp(_OutlineWidth * _OutlineRefDistance / max(cameraDistance, 0.01), _OutlineMinWidth, _OutlineMaxWidth);
+                float pixels = _OutlineWidth * _OutlineRefDistance / max(cameraDistance, 0.01);
                 pixels *= 1.0 - smoothstep(_OutlineFadeStart, max(_OutlineFadeEnd, _OutlineFadeStart + 0.01), cameraDistance);
                 pixels *= _ScreenParams.y / 1080.0;
 
