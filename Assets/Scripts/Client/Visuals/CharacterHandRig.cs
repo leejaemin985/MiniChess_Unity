@@ -56,12 +56,14 @@ namespace MiniChess.Client.Visuals
         }
 
         /// <summary>
-        /// side 손 뼈 아래에 손바닥 소켓을 만든다. 손가락 뿌리 뼈({Right|Left}{Index|Middle|Little}Proximal)가 손 뼈의 +Y 쪽에 있는 리그(Meshy/Mixamo) 기준.
+        /// side 손 뼈 아래에 손바닥 소켓을 만든다. 손가락 뿌리 뼈(검지/중지/새끼)는 Humanoid 매핑에서 먼저 찾고,
+        /// 매핑에 없으면(손가락을 뺀 아바타) 손 뼈 바로 아래에서 이름({Right|Left}{Index|Middle|Little}Proximal)으로 찾는다.
         /// 손가락 뼈가 없으면 손 뼈 원점에 손 뼈 회전 그대로 만든다.
         /// </summary>
         public static Transform CreateSocket(Animator animator, WeaponHand side)
         {
-            Transform hand = animator.GetBoneTransform(side == WeaponHand.Right ? HumanBodyBones.RightHand : HumanBodyBones.LeftHand);
+            bool right = side == WeaponHand.Right;
+            Transform hand = animator.GetBoneTransform(right ? HumanBodyBones.RightHand : HumanBodyBones.LeftHand);
             if (hand == null)
                 return null;
 
@@ -69,18 +71,25 @@ namespace MiniChess.Client.Visuals
             socket.SetParent(hand, false);
 
             string prefix = side.ToString();
-            Transform index = hand.Find($"{prefix}IndexProximal");
-            Transform middle = hand.Find($"{prefix}MiddleProximal");
-            Transform little = hand.Find($"{prefix}LittleProximal");
+            Transform index = FindFinger(animator, hand, right ? HumanBodyBones.RightIndexProximal : HumanBodyBones.LeftIndexProximal, $"{prefix}IndexProximal");
+            Transform middle = FindFinger(animator, hand, right ? HumanBodyBones.RightMiddleProximal : HumanBodyBones.LeftMiddleProximal, $"{prefix}MiddleProximal");
+            Transform little = FindFinger(animator, hand, right ? HumanBodyBones.RightLittleProximal : HumanBodyBones.LeftLittleProximal, $"{prefix}LittleProximal");
             if (index == null || middle == null || little == null)
                 return socket;
 
-            // 검지 뿌리 - 새끼 뿌리 = 쥔 손잡이 축(엄지 쪽이 +Y), 손가락(손 뼈 +Y)을 그 축에 수직으로 눕힌 것이 +X.
+            // 검지 뿌리 - 새끼 뿌리 = 쥔 손잡이 축(엄지 쪽이 +Y), 손가락(손 뼈 → 중지 뿌리)을 그 축에 수직으로 눕힌 것이 +X.
             Vector3 up = (index.localPosition - little.localPosition).normalized;
-            Vector3 fingers = Vector3.ProjectOnPlane(Vector3.up, up).normalized;
+            Vector3 fingers = Vector3.ProjectOnPlane(middle.localPosition, up).normalized;
             socket.localPosition = middle.localPosition * PalmRatio;
             socket.localRotation = Quaternion.LookRotation(Vector3.Cross(fingers, up), up);
             return socket;
+        }
+
+        /// <summary>손가락 뿌리 뼈: Humanoid 매핑 → 없으면 손 뼈 자식 중 이름이 같은 것.</summary>
+        private static Transform FindFinger(Animator animator, Transform hand, HumanBodyBones bone, string name)
+        {
+            Transform mapped = animator.GetBoneTransform(bone);
+            return mapped != null && mapped.parent == hand ? mapped : hand.Find(name);
         }
 
         private void Awake()
