@@ -8,6 +8,8 @@
 //     (캐릭터 크기 대비 선 비율 유지). 사라지는 거리 구간에서 0 으로 줄여 아주 멀리서는 선을 뺀다.
 //     부풀리는 방향은 같은 위치 정점들의 평균 법선(CharacterOutlineNormals 가 임포트 때 UV7 에 탄젠트 공간으로 구워 둠)이라 법선이 갈라진 경계에서도 선이 끊기지 않는다.
 //     탄젠트 공간 값이라 스킨 애니메이션에도 따라 돈다. UV7 이 없으면 정점 법선을 쓴다.
+//   - 발광(_EMISSION 키워드, 켠 머티리얼만): 정점 색 R 을 마스크로 그 영역을 _EmissionColor(HDR)로 명암과 상관없이 칠한다(블룸용).
+//     마스크는 임포트 때 구워 둔다(무기 날 끝: WeaponEdgeGlow). 정점 색이 없는 메시에 켜면 전체가 빛난다.
 // 모바일 기준: 텍스처 샘플 1번(외곽선 1번 더), 보조광은 쓰지 않는다. 그림자 캐스트/깊이 패스 포함(SRP Batcher 호환).
 Shader "MiniChess/CharacterToon"
 {
@@ -38,6 +40,10 @@ Shader "MiniChess/CharacterToon"
         _OutlineColor ("Outline Color", Color) = (0.12, 0.08, 0.1, 1)
         _OutlineAlbedo ("Outline Albedo Mix", Range(0, 1)) = 0.5
 
+        [Header(Emission)]
+        [Toggle(_EMISSION)] _EmissionEnabled ("Emission (Vertex Color R Mask)", Float) = 0
+        [HDR] _EmissionColor ("Emission Color", Color) = (0, 0, 0, 1)
+
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
 
@@ -66,6 +72,7 @@ Shader "MiniChess/CharacterToon"
             float _OutlineFadeEnd;
             half4 _OutlineColor;
             half _OutlineAlbedo;
+            half4 _EmissionColor;
             half _Cull;
         CBUFFER_END
         ENDHLSL
@@ -84,6 +91,7 @@ Shader "MiniChess/CharacterToon"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
+            #pragma shader_feature_local _EMISSION
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -94,6 +102,9 @@ Shader "MiniChess/CharacterToon"
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
                 float2 uv : TEXCOORD0;
+                #if _EMISSION
+                    half4 color : COLOR;
+                #endif
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -104,6 +115,9 @@ Shader "MiniChess/CharacterToon"
                 float3 positionWS : TEXCOORD1;
                 half3 normalWS : TEXCOORD2;
                 half fogFactor : TEXCOORD3;
+                #if _EMISSION
+                    half emission : TEXCOORD4;
+                #endif
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -119,6 +133,9 @@ Shader "MiniChess/CharacterToon"
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 output.uv = input.uv;
                 output.fogFactor = ComputeFogFactor(position.positionCS.z);
+                #if _EMISSION
+                    output.emission = input.color.r;
+                #endif
                 return output;
             }
 
@@ -148,6 +165,11 @@ Shader "MiniChess/CharacterToon"
                 // 림: 밝은 면 가장자리만
                 half rim = pow(1.0 - saturate(dot(normalWS, viewWS)), _RimPower) * lit;
                 color += _RimColor.rgb * rim * _RimStrength;
+
+                // 발광: 마스크 영역을 명암과 상관없이 발광 색으로 칠한다(더하면 밝은 바탕색과 섞여 분홍으로 뜬다). HDR 이면 블룸.
+                #if _EMISSION
+                    color = lerp(color, _EmissionColor.rgb, input.emission);
+                #endif
 
                 color = MixFog(color, input.fogFactor);
                 return half4(color, 1);
