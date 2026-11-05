@@ -17,14 +17,19 @@ MonoBehaviour:
   faceCenter: {x: 0.403125, y: 0.75}
   faceSize: 0.31
   bodyPrefab: {fileID: 5212414278470355137, guid: 8741215ce13ea694a9eee9bf19d228f6, type: 3}
-  animatorController: {fileID: 0}
-  weaponPrefab: {fileID: 0}
-  companions:
-  - prefab: {fileID: 8093767220275185594, guid: feac13fc00124814eb4f5f76203946d1, type: 3}
-    localPosition: {x: 0.14505412, y: 0.5422835, z: -0.033078577}
-    localEulerAngles: {x: 0, y: 0, z: 0}
-    followBone: 1
-    bone: 0
+  animatorController: {fileID: 22100000, guid: 1397294d5db054c4bb37cfff27bba6c3, type: 2}
+  weaponPrefab: {fileID: 2779523446442331503, guid: feac13fc00124814eb4f5f76203946d1, type: 3}
+  companions: []
+  statusStance:
+    statusId: INSTALLED
+    stowBone: 0
+    stowPosition: {x: 0.17618287, y: 0.6461687, z: -0.03995059}
+    stowEulerAngles: {x: -0.00033809437, y: 266.78687, z: 249.20692}
+    deployPrefab: {fileID: 8991185015296618299, guid: 4b9e93a9a881be84c86cb9bca3d21100, type: 3}
+    deployPosition: {x: 0, y: 0, z: 0}
+    deployEulerAngles: {x: 0, y: 0, z: 0}
+    bodyPosition: {x: 0.292, y: 0, z: -0.251}
+    bodyYaw: -45.80693
   summonBodyMaterial: {fileID: 0}
   summonAura: {fileID: 0}
   summonSpawnEffect: {fileID: 0}
