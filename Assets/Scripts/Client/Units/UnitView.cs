@@ -211,6 +211,7 @@ namespace MiniChess.Client.Units
                 _face.SetDimmed(acted);
 
             _statuses.Sync(Unit.Statuses);
+            _body.SyncStatuses(Unit.Statuses);
             float badgeSize = _statuses.BadgeSize;
             _statuses.transform.localPosition = Vector3.up * (_labelBaseHeight + badgeSize * 0.5f);
             float statusRow = Unit.Statuses.Count > 0 ? badgeSize + FaceGap : 0f;

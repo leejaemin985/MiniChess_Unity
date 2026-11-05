@@ -19,6 +19,27 @@ namespace MiniChess.Client.Visuals
     }
 
     /// <summary>
+    /// 상태에 따른 자세 바꾸기(StatusStance). statusId 가 비어 있으면 쓰지 않는다. 위치/회전은 모두 몸체 루트(칸 가운데 발밑, 앞 = +z) 기준.
+    /// 그 상태인 동안:
+    ///   - 손에 쥔 무기를 stowBone 아래 보관 지점으로 옮긴다(위치/회전은 모델의 기본 자세(바인드 포즈)에서 잰다. 무기 루트(손잡이 지점)가 이 지점에 겹친다).
+    ///   - 설치물(deployPrefab, 예: 박격포)을 칸에 보이고, 캐릭터 모델을 bodyPosition 으로 옮겨 bodyYaw 방향을 보게 한다.
+    ///   - 보조 대기(AltIdle)를 재생한다.
+    /// </summary>
+    [Serializable]
+    public struct StatusStanceSettings
+    {
+        [CoreStatusId] public string statusId;
+        public HumanBodyBones stowBone;
+        public Vector3 stowPosition;
+        public Vector3 stowEulerAngles;
+        public GameObject deployPrefab;
+        public Vector3 deployPosition;
+        public Vector3 deployEulerAngles;
+        public Vector3 bodyPosition;
+        public float bodyYaw;
+    }
+
+    /// <summary>
     /// 캐릭터 하나의 시각 데이터. 코어 캐릭터 Id 로 유닛과 연결한다(코어는 그림을 모른다).
     /// 얼굴은 일러스트 안의 정사각형 영역(중심 + 한 변 길이)으로 지정하며, 배경이 함께 보여도 된다.
     /// </summary>
@@ -43,6 +64,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField] private CharacterWeapon weaponPrefab;
         [Tooltip("몸체 곁에 늘 붙어 다니는 오브젝트(예: 화염술사 → 불 정령). 몸체 프리팹 생성 메뉴가 몸체 루트 아래에 붙인다.")]
         [SerializeField] private BodyCompanion[] companions = Array.Empty<BodyCompanion>();
+        [Tooltip("상태에 따른 자세(예: 박격포 설치 → 권총을 허리춤에 넣고 박격포 조작 대기). 상태를 비우면 쓰지 않는다. 몸체 프리팹 생성 메뉴가 붙인다.")]
+        [SerializeField] private StatusStanceSettings statusStance;
 
         [Header("Summon (이 캐릭터가 부른 소환물, 예: 낫 → 그림자 분신)")]
         [Tooltip("소환물 몸체의 기본 머티리얼(예: 그림자). 비우면 팀 색을 옅게 칠한다. 지정하면 소환물 발밑에 팀 색 고리를 둔다.")]
@@ -74,6 +97,9 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>몸체 곁에 붙어 다니는 오브젝트들(없으면 빈 배열).</summary>
         public BodyCompanion[] Companions => companions ?? Array.Empty<BodyCompanion>();
+
+        /// <summary>상태에 따른 자세 설정. statusId 가 비어 있으면 쓰지 않는다.</summary>
+        public StatusStanceSettings StatusStance => statusStance;
 
         /// <summary>소환물 몸체 기본 머티리얼. 없으면 null(팀 색).</summary>
         public Material SummonBodyMaterial => summonBodyMaterial;
