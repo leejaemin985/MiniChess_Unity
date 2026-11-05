@@ -4,6 +4,14 @@ using UnityEngine;
 
 namespace MiniChess.Client.Visuals
 {
+    /// <summary>몸체 곁에 붙어 다니는 오브젝트 하나. 위치는 몸체 루트(발밑 가운데, 앞 = +z) 기준.</summary>
+    [Serializable]
+    public struct BodyCompanion
+    {
+        public GameObject prefab;
+        public Vector3 localPosition;
+    }
+
     /// <summary>
     /// 캐릭터 하나의 시각 데이터. 코어 캐릭터 Id 로 유닛과 연결한다(코어는 그림을 모른다).
     /// 얼굴은 일러스트 안의 정사각형 영역(중심 + 한 변 길이)으로 지정하며, 배경이 함께 보여도 된다.
@@ -27,6 +35,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField] private RuntimeAnimatorController animatorController;
         [Tooltip("손에 쥘 무기 프리팹. 쥐는 손과 반대손 IK 지점은 무기 프리팹(CharacterWeapon)에서 정한다. 몸체 프리팹 생성 메뉴가 붙인다.")]
         [SerializeField] private CharacterWeapon weaponPrefab;
+        [Tooltip("몸체 곁에 늘 붙어 다니는 오브젝트(예: 화염술사 → 불 정령). 몸체 프리팹 생성 메뉴가 몸체 루트 아래에 붙인다.")]
+        [SerializeField] private BodyCompanion[] companions = Array.Empty<BodyCompanion>();
 
         [Header("Summon (이 캐릭터가 부른 소환물, 예: 낫 → 그림자 분신)")]
         [Tooltip("소환물 몸체의 기본 머티리얼(예: 그림자). 비우면 팀 색을 옅게 칠한다. 지정하면 소환물 발밑에 팀 색 고리를 둔다.")]
@@ -55,6 +65,9 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>손에 쥘 무기 프리팹. 없으면 null.</summary>
         public CharacterWeapon WeaponPrefab => weaponPrefab;
+
+        /// <summary>몸체 곁에 붙어 다니는 오브젝트들(없으면 빈 배열).</summary>
+        public BodyCompanion[] Companions => companions ?? Array.Empty<BodyCompanion>();
 
         /// <summary>소환물 몸체 기본 머티리얼. 없으면 null(팀 색).</summary>
         public Material SummonBodyMaterial => summonBodyMaterial;
