@@ -4,9 +4,9 @@ namespace MiniChess.Client.Common
 {
     /// <summary>
     /// 카메라가 보드를 비스듬히 내려다본다. 판 위의 한 점(초점)을 중심으로 돌고(yaw 360도 자유, pitch 는 범위 안), 당기고(거리), 옮긴다(초점).
-    ///   - Frame: 기본 시점을 정한다(보드 전체가 화면에 들어오는 거리, 내 진영 쪽 yaw). ResetView 로 언제든 돌아온다.
+    ///   - Frame: 기본 시점을 정한다(보드 전체가 화면에 들어오는 거리 × HomeDistance, 내 진영 쪽 yaw). ResetView 로 언제든 돌아온다.
     ///   - Orbit/Zoom/Pan: 입력(BoardCameraInput)이 목표 시점만 바꾸고, 카메라는 LateUpdate 에서 목표를 부드럽게 따라간다.
-    ///   - 확대는 가리킨 지점을 향해 당긴다(그 지점이 화면에서 그 자리에 남는다). 가장 멀리는 기본 거리.
+    ///   - 확대는 가리킨 지점을 향해 당긴다(그 지점이 화면에서 그 자리에 남는다). 가장 멀리는 보드 전체가 들어오는 거리.
     ///   - 초점은 판 안에서만 움직이고, 멀어질수록 판 중심으로 모인다(가장 멀리서는 판 중심) → 판을 화면 밖으로 잃지 않는다.
     /// yaw 0 은 Player1 쪽(-z)에서 +z 를 바라보는 방향이고, 180 이면 반대편에서 본다.
     /// </summary>
@@ -20,6 +20,8 @@ namespace MiniChess.Client.Common
         private View _target;
         private View _current;
         private float _minDistance;
+        /// <summary>가장 멀리: 보드 전체가 화면에 들어오는 거리.</summary>
+        private float _maxDistance;
 
         private struct View
         {
@@ -60,6 +62,7 @@ namespace MiniChess.Client.Common
             float distance = radius / Mathf.Sin(narrowHalfFov);
 
             // 가장 가까이: 좁은 쪽에 칸 MinVisibleCells 개가 들어오는 거리
+            _maxDistance = distance;
             _minDistance = Mathf.Min(distance, settings.MinVisibleCells * coordinates.CellSize * 0.5f / Mathf.Tan(narrowHalfFov));
 
             _home = new View
@@ -67,7 +70,7 @@ namespace MiniChess.Client.Common
                 Focus = coordinates.Center,
                 Yaw = yaw,
                 Pitch = Mathf.Clamp(settings.Pitch, settings.MinPitch, settings.MaxPitch),
-                Distance = distance,
+                Distance = Mathf.Clamp(distance * settings.HomeDistance, _minDistance, _maxDistance),
             };
             _target = _home;
             _current = _home;
@@ -101,7 +104,7 @@ namespace MiniChess.Client.Common
             if (!IsFramed || factor <= 0f || _target.Distance <= 0f)
                 return;
 
-            float distance = Mathf.Clamp(_target.Distance * factor, _minDistance, _home.Distance);
+            float distance = Mathf.Clamp(_target.Distance * factor, _minDistance, _maxDistance);
             float scale = distance / _target.Distance;
 
             // 가리킨 점을 중심으로 카메라와 초점을 같은 비율로 당기면 그 점이 화면에서 그 자리에 남는다
@@ -142,10 +145,10 @@ namespace MiniChess.Client.Common
             Apply(_current);
         }
 
-        /// <summary>당길수록 초점을 판 가장자리까지 옮길 수 있고, 가장 멀리(기본 거리)에서는 판 중심으로 모은다.</summary>
+        /// <summary>당길수록 초점을 판 가장자리까지 옮길 수 있고, 가장 멀리(보드 전체 거리)에서는 판 중심으로 모은다.</summary>
         private void ClampFocus()
         {
-            float zoom = Mathf.InverseLerp(_home.Distance, _minDistance, _target.Distance);
+            float zoom = Mathf.InverseLerp(_maxDistance, _minDistance, _target.Distance);
             Vector2 half = _coordinates.Size * (0.5f * zoom);
             Vector3 center = _coordinates.Center;
             Vector3 offset = _target.Focus - center;

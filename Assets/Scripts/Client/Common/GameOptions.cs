@@ -26,6 +26,9 @@ namespace MiniChess.Client.Common
         [Tooltip("보드가 화면에 꽉 차지 않게 두는 여유 배율. 1 이면 보드 외접원이 화면에 딱 맞는다.")]
         [SerializeField, Min(0.5f)] private float padding = 1.1f;
 
+        [Tooltip("기본 시점 거리: 판 전체가 들어오는 거리 대비 배율. 1 이면 판 전체, 작을수록 가까이(캐릭터가 크게). 가장 멀리 밀 수 있는 거리는 판 전체 그대로.")]
+        [SerializeField, Range(0.2f, 1f)] private float homeDistance = 1f;
+
         [Tooltip("시야각(도). 0 이면 카메라에 설정된 값을 그대로 쓴다.")]
         [SerializeField, Range(0f, 120f)] private float fieldOfView;
 
@@ -56,6 +59,7 @@ namespace MiniChess.Client.Common
 
         public float Pitch => pitch;
         public float Padding => padding;
+        public float HomeDistance => homeDistance;
         public float FieldOfView => fieldOfView;
         public bool FaceLocalTeam => faceLocalTeam;
         public float MinPitch => Mathf.Min(minPitch, maxPitch);
