@@ -17,6 +17,14 @@ MonoBehaviour:
   faceCenter: {x: 0.403125, y: 0.75}
   faceSize: 0.31
   bodyPrefab: {fileID: 5212414278470355137, guid: 8741215ce13ea694a9eee9bf19d228f6, type: 3}
+  animatorController: {fileID: 0}
+  weaponPrefab: {fileID: 0}
+  companions:
+  - prefab: {fileID: 8093767220275185594, guid: feac13fc00124814eb4f5f76203946d1, type: 3}
+    localPosition: {x: 0.14505412, y: 0.5422835, z: -0.033078577}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    followBone: 1
+    bone: 0
   summonBodyMaterial: {fileID: 0}
   summonAura: {fileID: 0}
   summonSpawnEffect: {fileID: 0}
