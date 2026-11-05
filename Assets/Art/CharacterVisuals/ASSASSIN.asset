@@ -17,6 +17,8 @@ MonoBehaviour:
   faceCenter: {x: 0.38125, y: 0.86041665}
   faceSize: 0.34
   bodyPrefab: {fileID: 4108621765422319716, guid: 61fe50e6b0fa62e4d88d4ea485867259, type: 3}
+  animatorController: {fileID: 22100000, guid: ddc61a87c66b93a4798de88e66cc7aed, type: 2}
+  weaponPrefab: {fileID: 2017487290696431794, guid: 25af805972ea01844815bad9e6f44a8e, type: 3}
   summonBodyMaterial: {fileID: 0}
   summonAura: {fileID: 0}
   summonSpawnEffect: {fileID: 0}
