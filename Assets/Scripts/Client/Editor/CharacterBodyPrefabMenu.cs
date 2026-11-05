@@ -11,7 +11,7 @@ namespace MiniChess.Client.Editor
     ///     리깅 안 된 모델(MeshRenderer)은 경계 상자 바닥 중앙이 루트에 오게 옮기고, 리깅된 모델(SkinnedMeshRenderer)은 리그 원점이 발밑이라 그대로 둔다.
     ///   - 리깅된 Humanoid 모델은 Animator 에 CharacterVisual 의 컨트롤러(없으면 공용 AC_Unit)를 넣는다. 루트 모션은 끄고(칸 위치는 UnitView 가 정함), 화면 밖이면 뼈 갱신을 멈춘다.
     ///     양손에 손바닥 소켓을 만들고 CharacterHandRig 를 붙인다. CharacterVisual 에 무기가 있으면 무기의 쥐는 손 소켓에 붙인다(반대손은 런타임 IK).
-    ///   - CharacterVisual 의 동반 오브젝트(예: 불 정령)는 루트 아래 지정 위치에 붙인다(뼈를 따라가지 않는다).
+    ///   - CharacterVisual 의 동반 오브젝트(예: 불 정령, 허리춤 권총)는 루트 기준 지정 위치에 붙인다. followBone 이면 그 자리에서 지정 뼈 아래로 옮긴다.
     ///   - 앞 방향은 +z(Meshy 내보내기 기준). 팀별로 상대 진영을 보게 돌리는 것은 UnitView 가 한다.
     /// 폴더 이름(PascalCase)을 코어 캐릭터 Id(UPPER_SNAKE, 예: ChainGuard → CHAIN_GUARD)로 바꿔 CharacterVisual 을 찾는다.
     /// 모델을 바꾸거나(리깅된 모델 등) 캐릭터가 늘면 다시 실행한다. 프리팹은 덮어쓴다.
@@ -86,7 +86,7 @@ namespace MiniChess.Client.Editor
             }
 
             if (visual != null)
-                AddCompanions(root.transform, visual.Companions);
+                AddCompanions(root.transform, animator, visual.Companions);
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, $"{prefabFolder}/P_{name}Body.prefab");
             Object.DestroyImmediate(root);
@@ -110,17 +110,26 @@ namespace MiniChess.Client.Editor
             animator.gameObject.AddComponent<CharacterHandRig>().Setup(right, left, weapon);
         }
 
-        /// <summary>동반 오브젝트(예: 불 정령)를 몸체 루트 아래 지정 위치에 프리팹 인스턴스로 붙인다.</summary>
-        private static void AddCompanions(Transform root, BodyCompanion[] companions)
+        /// <summary>
+        /// 동반 오브젝트(예: 불 정령, 허리춤 권총)를 몸체 루트 기준 지정 위치/회전에 프리팹 인스턴스로 놓는다.
+        /// 뼈를 따라가는 것은 그 자리(바인드 포즈) 그대로 뼈 아래로 옮긴다. 뼈가 없으면(리깅 안 된 모델) 루트에 둔다.
+        /// </summary>
+        private static void AddCompanions(Transform root, Animator animator, BodyCompanion[] companions)
         {
             for (int i = 0; i < companions.Length; i++)
             {
-                if (companions[i].prefab == null)
+                BodyCompanion entry = companions[i];
+                if (entry.prefab == null)
                     continue;
 
-                var companion = (GameObject)PrefabUtility.InstantiatePrefab(companions[i].prefab, root);
+                var companion = (GameObject)PrefabUtility.InstantiatePrefab(entry.prefab, root);
                 companion.name = $"Companion_{i}";
-                companion.transform.localPosition = companions[i].localPosition;
+                companion.transform.localPosition = entry.localPosition;
+                companion.transform.localRotation = Quaternion.Euler(entry.localEulerAngles);
+
+                Transform bone = entry.followBone && animator != null && animator.isHuman ? animator.GetBoneTransform(entry.bone) : null;
+                if (bone != null)
+                    companion.transform.SetParent(bone, true);
             }
         }
 

@@ -4,12 +4,18 @@ using UnityEngine;
 
 namespace MiniChess.Client.Visuals
 {
-    /// <summary>몸체 곁에 붙어 다니는 오브젝트 하나. 위치는 몸체 루트(발밑 가운데, 앞 = +z) 기준.</summary>
+    /// <summary>
+    /// 몸체 곁에 붙어 다니는 오브젝트 하나. 위치/회전은 몸체 루트(발밑 가운데, 앞 = +z) 기준이며 모델의 기본 자세(바인드 포즈)에서 잰다.
+    /// followBone 이면 그 자리에서 bone 에 붙여 뼈를 따라 움직인다(예: 허리춤 권총 → Hips). 아니면 몸체 루트에 고정(예: 떠다니는 불 정령).
+    /// </summary>
     [Serializable]
     public struct BodyCompanion
     {
         public GameObject prefab;
         public Vector3 localPosition;
+        public Vector3 localEulerAngles;
+        public bool followBone;
+        public HumanBodyBones bone;
     }
 
     /// <summary>
