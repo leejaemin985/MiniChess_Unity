@@ -9,15 +9,18 @@ namespace MiniChess.Bot.Engine
     ///   7~10: 상대 응수와 그 뒤 내 턴까지 읽는다(깊이 3). 높을수록 비교하는 계획이 많다.
     /// 대전으로 확인한 점(2026-11-06): 깊이 1 에서는 빔 폭을 넓혀도 거의 강해지지 않고, 깊이 3 도 빔 2 면 깊이 1 보다 약하다.
     /// 실력 차이는 한 턴 행동 수 제한, 실수 확률/범위, 깊이 3(빔 4 이상)에서 난다.
-    /// 실력은 시간이 아니라 탐색량으로 정해 기기와 무관하게 같고, 시간 상한(60초)은 안전장치로만 둔다.
+    /// 실력은 시간이 아니라 탐색량으로 정해 기기와 무관하게 같고, 시간 상한(TimeLimitMs)은 안전장치로만 둔다.
     /// </summary>
     public static class BotLevels
     {
         public const int Min = 1;
         public const int Max = 10;
 
-        /// <summary>시간 상한(ms). 느린 기기에서 넘으면 그때까지 읽은 것으로 고른다.</summary>
-        public const int TimeLimitMs = 60000;
+        /// <summary>
+        /// 시간 상한(ms). 넘으면 그때까지 읽은 것으로 고른다.
+        /// 지금은 임시값(9999초, 사실상 제한 없음): 경량화를 마친 뒤 기기 측정으로 실제 상한을 정한다.
+        /// </summary>
+        public const int TimeLimitMs = 9999 * 1000;
 
         public static EngineSettings Settings(int level)
         {
