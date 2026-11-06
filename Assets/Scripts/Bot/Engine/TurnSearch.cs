@@ -185,12 +185,17 @@ namespace MiniChess.Bot.Engine
             var replayed = new List<TurnPlan>(plans.Count);
             foreach (TurnPlan plan in plans)
             {
+                long started = SearchProfile.Begin();
                 GameController copy = state.Fork();
+                SearchProfile.End(ProfileStep.Fork, started);
+
+                started = SearchProfile.Begin();
                 foreach (BotAction action in plan.Actions)
                 {
                     if (copy.State.IsGameOver || copy.State.CurrentTeam != opponent || !action.Execute(copy))
                         break;
                 }
+                SearchProfile.End(ProfileStep.Execute, started);
 
                 replayed.Add(new TurnPlan { Actions = plan.Actions, Score = plan.Score, Result = copy });
             }
@@ -207,12 +212,12 @@ namespace MiniChess.Bot.Engine
 
             double ScoreAfterTurn(GameController line)
             {
-                return _evaluator.Evaluate(EndTurnOnce(line, mover), mover, _weights, stalled, caution);
+                return Score(EndTurnOnce(line, mover), mover, stalled, caution);
             }
 
             double QuickScore(GameController line)
             {
-                return _evaluator.Evaluate(line, mover, _weights, stalled, caution);
+                return Score(line, mover, stalled, caution);
             }
 
             // 정밀 채점 수: 음수면 자동(빔 폭의 3배 + 돌려줄 계획 후보 수), 0 이면 모두.
@@ -238,7 +243,28 @@ namespace MiniChess.Bot.Engine
         /// <summary>잎 평가: 턴을 끝낸(또는 막 바뀐) 판을 team 기준으로.</summary>
         private double Evaluate(GameController state)
         {
-            return _evaluator.Evaluate(state, _team, _weights, _stalled, _caution);
+            return Score(state, _team, _stalled, _caution);
+        }
+
+        private double Score(GameController state, Team team, bool stalled, double caution)
+        {
+            long started = SearchProfile.Begin();
+            double score = _evaluator.Evaluate(state, team, _weights, stalled, caution);
+            SearchProfile.End(ProfileStep.Evaluate, started);
+            return score;
+        }
+
+        /// <summary>복제 후 턴 종료(비용을 나눠 잰다).</summary>
+        private static GameController ForkAndEndTurn(GameController acted, Team mover, int? seed)
+        {
+            long started = SearchProfile.Begin();
+            GameController copy = acted.Fork(randomSeed: seed);
+            SearchProfile.End(ProfileStep.Fork, started);
+
+            started = SearchProfile.Begin();
+            copy.EndTurn(new EndTurnRequest(mover));
+            SearchProfile.End(ProfileStep.EndTurn, started);
+            return copy;
         }
 
         /// <summary>
@@ -270,9 +296,7 @@ namespace MiniChess.Bot.Engine
 
         private static GameController EndTurnWithSeed(GameController acted, Team mover, int seed)
         {
-            GameController copy = acted.Fork(randomSeed: seed);
-            copy.EndTurn(new EndTurnRequest(mover));
-            return copy;
+            return ForkAndEndTurn(acted, mover, seed);
         }
 
         /// <summary>계획 생성 중 점수용 턴 종료(무작위는 기본 흐름 하나만 본다).</summary>
@@ -281,9 +305,7 @@ namespace MiniChess.Bot.Engine
             if (line.State.IsGameOver || line.State.CurrentTeam != mover)
                 return line;
 
-            GameController ended = line.Fork();
-            ended.EndTurn(new EndTurnRequest(mover));
-            return ended;
+            return ForkAndEndTurn(line, mover, null);
         }
 
         private static int SeedFor(ulong hash, int sample)

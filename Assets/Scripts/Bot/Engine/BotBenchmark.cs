@@ -17,6 +17,9 @@ namespace MiniChess.Bot.Engine
         public double Seconds;
         public long Nodes;
 
+        /// <summary>이 턴의 단계별 비용(SearchProfile).</summary>
+        internal List<(ProfileStep Step, double Seconds, long Calls)> Steps;
+
         public override string ToString() => $"L{Level} turn {TurnNumber}: {Seconds:F1}s ({Nodes} nodes)";
     }
 
@@ -61,15 +64,28 @@ namespace MiniChess.Bot.Engine
                     bool isMeasured = team == Team.Player1;
                     int turnNumber = game.State.TurnNumber;
 
+                    SearchProfile.Reset();
+                    SearchProfile.Enabled = isMeasured;
                     watch.Restart();
-                    long nodes = PlayTurn(game, isMeasured ? (BotPlayer)measured : opponent, team, isMeasured ? measured : null, cancellation);
-                    watch.Stop();
+                    long nodes;
+                    try
+                    {
+                        nodes = PlayTurn(game, isMeasured ? (BotPlayer)measured : opponent, team, isMeasured ? measured : null, cancellation);
+                    }
+                    finally
+                    {
+                        watch.Stop();
+                        SearchProfile.Enabled = false;
+                    }
 
                     if (!isMeasured || cancellation.IsCancellationRequested)
                         continue;
 
                     measuredTurns++;
-                    var turn = new BenchmarkTurn { Level = level, TurnNumber = turnNumber, Seconds = watch.Elapsed.TotalSeconds, Nodes = nodes };
+                    var turn = new BenchmarkTurn
+                    {
+                        Level = level, TurnNumber = turnNumber, Seconds = watch.Elapsed.TotalSeconds, Nodes = nodes, Steps = SearchProfile.Read(),
+                    };
                     results.Add(turn);
                     onTurn?.Invoke(turn);
                 }
@@ -78,11 +94,26 @@ namespace MiniChess.Bot.Engine
             return results;
         }
 
-        /// <summary>레벨별 평균/최대 시간 요약 한 줄씩.</summary>
+        /// <summary>
+        /// 레벨별 평균/최대 시간 요약과, 그 아래 단계별 비용 분해(전체 시간 중 비율, 1회 평균 us, 횟수). other = 단계 밖(정렬, 할당 등).
+        /// </summary>
         public static IEnumerable<string> Summary(IEnumerable<BenchmarkTurn> turns)
         {
-            return turns.GroupBy(turn => turn.Level).OrderBy(group => group.Key)
-                .Select(group => $"L{group.Key}: avg {group.Average(t => t.Seconds):F1}s, max {group.Max(t => t.Seconds):F1}s ({group.Count()} turns)");
+            foreach (IGrouping<int, BenchmarkTurn> group in turns.GroupBy(turn => turn.Level).OrderBy(group => group.Key))
+            {
+                double total = group.Sum(t => t.Seconds);
+                yield return $"L{group.Key}: avg {group.Average(t => t.Seconds):F1}s, max {group.Max(t => t.Seconds):F1}s ({group.Count()} turns)";
+
+                List<(ProfileStep Step, double Seconds, long Calls)> steps = group.Where(t => t.Steps != null).SelectMany(t => t.Steps)
+                    .GroupBy(s => s.Step).Select(g => (g.Key, g.Sum(s => s.Seconds), g.Sum(s => s.Calls))).ToList();
+                if (steps.Count == 0 || total <= 0)
+                    continue;
+
+                foreach ((ProfileStep step, double seconds, long calls) in steps.OrderByDescending(s => s.Seconds))
+                    yield return $"    {step,-9} {100 * seconds / total,5:F1}%  {seconds * 1e6 / Math.Max(1, calls),8:F1}us x {calls}";
+                double other = total - steps.Sum(s => s.Seconds);
+                yield return $"    {"other",-9} {100 * other / total,5:F1}%";
+            }
         }
 
         /// <summary>한 턴을 끝까지 진행하고, 측정 봇이면 그 턴에 읽은 판 수 합을 돌려준다.</summary>

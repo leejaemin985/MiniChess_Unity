@@ -33,8 +33,14 @@ namespace MiniChess.Bot.Search
 
         public static ulong Hash(GameController game, Team viewer)
         {
+            long started = Engine.SearchProfile.Begin();
+            object snapshot = game.GetSnapshot(viewer);
+            Engine.SearchProfile.End(Engine.ProfileStep.Snapshot, started);
+
+            started = Engine.SearchProfile.Begin();
             ulong hash = Offset;
-            Add(ref hash, game.GetSnapshot(viewer), 0);
+            Add(ref hash, snapshot, 0);
+            Engine.SearchProfile.End(Engine.ProfileStep.Hash, started);
             return hash;
         }
 

@@ -16,6 +16,9 @@ const string Usage = @"
   dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- bench [봇] [--games N] [--seed S] [--samples K]
       탐색 비용(분기 수, 한 턴 행동 순서 수, Fork/생성/실행 비용)을 잰다. 국면은 [봇](기본 easy)끼리 둔 경기에서 뽑는다.
 
+  dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- levelbench [7,8,9,10] [--turns N] [--seed S]
+      기기 벤치마크와 같은 국면에서 레벨별 한 턴 판단 시간과 단계별 비용(Fork/실행/평가/해시 등)을 잰다.
+
   dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- tune [--engine d=1,p=0] [--iterations N] [--games G] [--from 파일] [--out 파일]
       엔진 판 평가 값을 SPSA 로 튜닝한다(값을 흔든 두 봇끼리 반복당 G경기). 10회마다 --out(기본 tuned.txt)에 저장한다.
       결과는 engine:d=3@tuned.txt 처럼 봇 지정에 붙여 대전으로 검증한다.
@@ -117,6 +120,17 @@ switch (args[0])
     {
         BotSpec player = BotSpec.Parse(positional.Count > 0 ? positional[0] : "easy");
         Bench.Run(player, Option("games", 6), Option("seed", 100), Option("samples", 40));
+        return 0;
+    }
+
+    case "levelbench":
+    {
+        // 기기용 벤치마크(BotBenchmarkPanel)와 같은 국면·같은 측정. 경량화 전후 비교와 Unity/기기 결과 대조용.
+        int[] levels = positional.Count > 0 ? positional[0].Split(',').Select(int.Parse).ToArray() : new[] { 7, 8, 9, 10 };
+        var turns = MiniChess.Bot.Engine.BotBenchmark.Run(levels, Option("turns", 5), Option("seed", MiniChess.Bot.Engine.BotBenchmark.DefaultSeed),
+            turn => Console.WriteLine(turn), CancellationToken.None);
+        foreach (string line in MiniChess.Bot.Engine.BotBenchmark.Summary(turns))
+            Console.WriteLine(line);
         return 0;
     }
 

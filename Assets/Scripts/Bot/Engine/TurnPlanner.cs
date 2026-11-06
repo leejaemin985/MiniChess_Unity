@@ -113,7 +113,11 @@ namespace MiniChess.Bot.Engine
                     if (line.Game.State.IsGameOver || line.Game.State.CurrentTeam != team)
                         continue;
 
-                    foreach (BotAction action in BotActionGenerator.Generate(line.Game, team))
+                    long started = SearchProfile.Begin();
+                    List<BotAction> actions = BotActionGenerator.Generate(line.Game, team);
+                    SearchProfile.End(ProfileStep.Generate, started);
+
+                    foreach (BotAction action in actions)
                     {
                         if ((_settings.NodeBudget > 0 && nodes >= _settings.NodeBudget) || cancellation.IsCancellationRequested || stop())
                         {
@@ -121,8 +125,14 @@ namespace MiniChess.Bot.Engine
                             break;
                         }
 
+                        started = SearchProfile.Begin();
                         GameController child = line.Game.Fork();
-                        if (!action.Execute(child))
+                        SearchProfile.End(ProfileStep.Fork, started);
+
+                        started = SearchProfile.Begin();
+                        bool executedOk = action.Execute(child);
+                        SearchProfile.End(ProfileStep.Execute, started);
+                        if (!executedOk)
                             continue;
 
                         nodes++;
