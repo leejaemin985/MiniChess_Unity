@@ -40,7 +40,7 @@ namespace MiniChess.Bot.Arena
     /// <summary>
     /// 밸런스 실험용 후공(Player2) AP 보정. 규칙을 바꾸기 전에 실험만 해 보려고 Arena 에서 AP 를 직접 더한다
     /// (봇의 수 읽기는 이 보정을 모르고 규칙대로 앞 턴을 예상한다). 값이 정해지면 Core 규칙으로 옮긴다.
-    /// 프리셋 규칙의 선공 보정(ApRuleData.SecondPlayerStartBonus = 3, 이 측정으로 정함) 위에 더해진다.
+    /// 프리셋 규칙의 선공 보정(ApRuleData.SecondPlayerStartBonus, 값과 근거는 Core ASSUMPTIONS.md "선공 보정") 위에 더해진다.
     /// </summary>
     public static class ApHandicap
     {
