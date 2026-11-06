@@ -49,13 +49,7 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField, Min(0f)] private float botActionDelay = 0.5f;
         [Tooltip("봇 무작위 시드. 0 이면 매 경기 다르게.")]
         [SerializeField] private int botSeed;
-        [Tooltip("봇 난이도(수를 읽는 깊이). 쉬움 = 깊이 0(가끔 실수), 보통 = 이번 턴 행동 순서까지, 어려움 = 상대 응수까지, Custom = 아래 설정.")]
-        [SerializeField] private BotDifficulty player1BotDifficulty = BotDifficulty.Normal;
-        [SerializeField] private BotDifficulty player2BotDifficulty = BotDifficulty.Normal;
-        [Tooltip("난이도가 Custom 일 때의 탐색 설정. 깊이별 연산량은 BotSearchConfig 주석 참고.")]
-        [SerializeField] private BotSearchConfig player1BotSearch = new BotSearchConfig();
-        [SerializeField] private BotSearchConfig player2BotSearch = new BotSearchConfig();
-        [Tooltip("난이도가 Level 일 때의 레벨(1~10, 새 엔진 봇). 1~6 = 이번 턴만 읽음(낮을수록 자주 실수), 7~10 = 상대 응수까지 읽음(높을수록 오래 생각, 최대 60초).")]
+        [Tooltip("봇 레벨(1~10, 엔진 봇 BotLevels). 1~6 = 이번 턴만 읽음(낮을수록 자주 실수), 7~10 = 상대 응수와 그 뒤 내 턴까지 읽음(높을수록 오래 생각).")]
         [SerializeField, Range(1, 10)] private int player1BotLevel = 5;
         [SerializeField, Range(1, 10)] private int player2BotLevel = 5;
 
@@ -172,21 +166,10 @@ namespace MiniChess.Client.Bootstrap
         public float BotActionDelay => botActionDelay;
         public int BotSeed => botSeed;
 
-        public BotDifficulty GetBotDifficulty(Team team)
-        {
-            return team == Team.Player1 ? player1BotDifficulty : player2BotDifficulty;
-        }
-
-        /// <summary>난이도가 Level 일 때 쓰는 팀의 레벨(1~10).</summary>
+        /// <summary>팀의 봇 레벨(1~10).</summary>
         public int GetBotLevel(Team team)
         {
             return team == Team.Player1 ? player1BotLevel : player2BotLevel;
-        }
-
-        /// <summary>난이도가 Custom 일 때 쓰는 팀의 탐색 설정.</summary>
-        public BotSearchConfig GetBotSearch(Team team)
-        {
-            return team == Team.Player1 ? player1BotSearch : player2BotSearch;
         }
 
         /// <summary>서버에 접속해 대전하는 중인지.</summary>

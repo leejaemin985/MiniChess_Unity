@@ -176,7 +176,8 @@ namespace MiniChess.Client.Players
             if (!_bots.TryGetValue(team, out BotPlayer bot))
             {
                 int seed = _session.BotSeed != 0 ? _session.BotSeed + (int)team : Random.Range(int.MinValue, int.MaxValue);
-                bot = BotFactory.Create(_session.GetBotDifficulty(team), seed, _session.GetBotSearch(team).ToSettings(), _session.GetBotLevel(team));
+                // 게임은 엔진 봇(레벨 1~10)만 쓴다. 이전 봇(쉬움/보통/어려움/Custom)은 BotFactory 에 남아 있고 Arena 비교용으로만 쓴다.
+                bot = BotFactory.Create(BotDifficulty.Level, seed, level: _session.GetBotLevel(team));
                 _bots[team] = bot;
             }
 
