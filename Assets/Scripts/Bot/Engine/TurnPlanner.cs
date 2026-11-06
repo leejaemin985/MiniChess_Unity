@@ -139,7 +139,7 @@ namespace MiniChess.Bot.Engine
                     break;
 
                 beam = SelectBeam(children);
-                best = best.Concat(children).OrderByDescending(line => line.Score).Take(_settings.PlansToKeep).ToList();
+                best = best.Concat(children).OrderByDescending(line => line.Score).Take(CandidatesToKeep).ToList();
 
                 // 빔과 상위 계획이 아닌 판은 더 쓰지 않으므로 놓아 준다(판 하나가 수십 KB).
                 foreach (Line child in children)
@@ -151,7 +151,7 @@ namespace MiniChess.Bot.Engine
 
             LastNodes = nodes;
             LastTranspositions = transpositions;
-            return best.Select(line => new TurnPlan
+            return Diverse(best).Select(line => new TurnPlan
             {
                 Actions = line.Actions,
                 ExpectedHashes = line.Hashes,
@@ -160,24 +160,85 @@ namespace MiniChess.Bot.Engine
             }).ToList();
         }
 
-        /// <summary>점수 순으로 BeamWidth 개. 마지막 행동 종류가 같은 순서는 MaxPerActionKey 개까지만.</summary>
+        /// <summary>계획을 고르기 전에 모아 두는 후보 수(다양한 계획을 고를 여유).</summary>
+        private int CandidatesToKeep => _settings.PlansToKeep <= 1 ? 1 : _settings.PlansToKeep * 4;
+
+        /// <summary>
+        /// 점수 순으로 PlansToKeep 개를 고르되, 이동을 뺀 행동(공격, 스킬과 그 대상)의 조합이 같은 계획은 가장 좋은 하나만 먼저 고른다.
+        /// 끝에 이동 한 칸만 다른 계획들로 자리가 차면 턴 단위 탐색이 사실상 같은 계획끼리 비교하게 된다.
+        /// 조합이 다른 계획이 모자라면 남은 자리는 점수 순으로 채운다.
+        /// </summary>
+        private List<Line> Diverse(List<Line> candidates)
+        {
+            if (_settings.PlansToKeep <= 1)
+                return candidates.Take(1).ToList();
+
+            var picked = new List<Line>();
+            var signatures = new HashSet<string>();
+            foreach (Line line in candidates)
+            {
+                if (picked.Count >= _settings.PlansToKeep)
+                    break;
+                if (signatures.Add(CombatSignature(line)))
+                    picked.Add(line);
+            }
+
+            foreach (Line line in candidates)
+            {
+                if (picked.Count >= _settings.PlansToKeep)
+                    break;
+                if (!picked.Contains(line))
+                    picked.Add(line);
+            }
+
+            return picked.OrderByDescending(line => line.Score).ToList();
+        }
+
+        /// <summary>이동을 뺀 행동들(순서 무관). 같은 공격/스킬을 같은 대상에 쓰는 계획은 이동이 달라도 같은 조합이다.</summary>
+        private static string CombatSignature(Line line)
+        {
+            return string.Join("|", line.Actions.Where(action => action.Kind != BotActionKind.Move).Select(action => action.ToString()).OrderBy(text => text, StringComparer.Ordinal));
+        }
+
+        /// <summary>
+        /// 점수 순으로 BeamWidth 개. 먼저 이동을 뺀 행동 조합이 서로 다른 줄로 채우고(빔이 한 줄의 변형으로만 차지 않게),
+        /// 모자라면 나머지를 점수 순으로 채운다. 어느 쪽이든 마지막 행동 종류가 같은 줄은 MaxPerActionKey 개까지만.
+        /// </summary>
         private List<Line> SelectBeam(List<Line> children)
         {
             var beam = new List<Line>();
             var perKey = new Dictionary<(int UnitId, BotActionKind Kind, string SkillId), int>();
-            foreach (Line line in children.OrderByDescending(line => line.Score))
-            {
-                if (beam.Count >= _settings.BeamWidth)
-                    break;
+            var signatures = new HashSet<string>();
+            List<Line> ordered = children.OrderByDescending(line => line.Score).ToList();
 
+            bool TryAdd(Line line)
+            {
                 BotAction last = line.Actions[line.Actions.Count - 1];
                 var key = (last.UnitId, last.Kind, last.SkillId);
                 perKey.TryGetValue(key, out int taken);
                 if (taken >= _settings.MaxPerActionKey)
-                    continue;
+                    return false;
 
                 perKey[key] = taken + 1;
                 beam.Add(line);
+                return true;
+            }
+
+            foreach (Line line in ordered)
+            {
+                if (beam.Count >= _settings.BeamWidth)
+                    break;
+                string signature = CombatSignature(line);
+                if (!signatures.Contains(signature) && TryAdd(line))
+                    signatures.Add(signature);
+            }
+
+            foreach (Line line in ordered)
+            {
+                if (beam.Count >= _settings.BeamWidth)
+                    break;
+                if (!beam.Contains(line))
+                    TryAdd(line);
             }
 
             return beam;

@@ -15,7 +15,11 @@ const string Usage = @"
   dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- bench [봇] [--games N] [--seed S] [--samples K]
       탐색 비용(분기 수, 한 턴 행동 순서 수, Fork/생성/실행 비용)을 잰다. 국면은 [봇](기본 easy)끼리 둔 경기에서 뽑는다.
 
-봇: random | easy | normal | hard | rule | search:d=2,b=6,c=8,r=6,v=2,a=10,t=0 | engine:b=8,a=10,k=2,n=0,t=0
+  dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- inspect <엔진봇> <상대봇> [--seed S] [--from T] [--to T]
+      엔진봇(P1)과 상대봇(P2)의 경기를 진행하며 엔진봇의 턴마다 루트 계획과 탐색 값, 실제 실행한 행동을 찍는다.
+
+봇: random | easy | normal | hard | rule | search:d=2,b=6,c=8,r=6,v=2,a=10,t=0
+     | engine:d=2,m=4,r=4,s=3,b=4,a=10,k=2,n=0,t=0,p=1
 ";
 
 if (args.Length == 0)
@@ -99,6 +103,18 @@ switch (args[0])
     {
         BotSpec player = BotSpec.Parse(positional.Count > 0 ? positional[0] : "easy");
         Bench.Run(player, Option("games", 6), Option("seed", 100), Option("samples", 40));
+        return 0;
+    }
+
+    case "inspect":
+    {
+        if (positional.Count != 2)
+        {
+            Console.WriteLine(Usage);
+            return 1;
+        }
+
+        Inspect.Run(BotSpec.Parse(positional[0]), BotSpec.Parse(positional[1]), Option("seed", 1), Option("from", 1), Option("to", 9));
         return 0;
     }
 

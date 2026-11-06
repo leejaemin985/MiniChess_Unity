@@ -7,7 +7,8 @@ namespace MiniChess.Bot.Arena
     /// 명령줄의 봇 지정 문자열을 봇 생성기로 바꾼다. 경기마다 새 봇을 만든다(봇은 턴 계획 등 상태를 가진다).
     ///   random | easy | normal | hard | rule
     ///   search:d=2,b=6,c=8,r=6,v=2,a=10,t=0   (Depth, BeamWidth, CandidatesPerStep, ReplyCandidates, MaxVariantsPerSkill, MaxActions, TimeLimitMs)
-    ///   engine:b=8,a=10,k=2,n=0,t=0          (BeamWidth, MaxActions, MaxPerActionKey, NodeBudget, TimeLimitMs)
+    ///   engine:d=2,m=4,r=4,s=3,b=4,a=10,k=2,n=0,t=0,p=1
+    ///     (Depth, MyPlans, ReplyPlans, ChanceSamples, BeamWidth, MaxActions, MaxPerActionKey, NodeBudget, TimeLimitMs, Parallel)
     /// </summary>
     public sealed class BotSpec
     {
@@ -98,11 +99,16 @@ namespace MiniChess.Bot.Arena
             {
                 switch (kv.Key)
                 {
+                    case "d": settings.Depth = kv.Value; break;
+                    case "m": settings.MyPlans = kv.Value; break;
+                    case "r": settings.ReplyPlans = kv.Value; break;
+                    case "s": settings.ChanceSamples = kv.Value; break;
                     case "b": settings.BeamWidth = kv.Value; break;
                     case "a": settings.MaxActions = kv.Value; break;
                     case "k": settings.MaxPerActionKey = kv.Value; break;
                     case "n": settings.NodeBudget = kv.Value; break;
                     case "t": settings.TimeLimitMs = kv.Value; break;
+                    case "p": settings.Parallel = kv.Value != 0; break;
                     default: throw new ArgumentException($"알 수 없는 엔진 인자: {kv.Key}");
                 }
             }
