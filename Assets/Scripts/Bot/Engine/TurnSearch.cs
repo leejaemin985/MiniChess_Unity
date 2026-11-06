@@ -31,6 +31,9 @@ namespace MiniChess.Bot.Engine
 
         /// <summary>내 루트 계획마다 하위 트리를 병렬로 읽는다(결과는 순차와 같다).</summary>
         public bool Parallel = true;
+
+        /// <summary>깊이 1 에서도 이 수만큼 루트 계획을 만든다(실수로 차선 계획을 고를 후보). 깊이 2 이상은 MyPlans 와 큰 쪽.</summary>
+        public int MinRootPlans = 1;
     }
 
     /// <summary>
@@ -86,7 +89,7 @@ namespace MiniChess.Bot.Engine
             // 신중함은 탐색을 시작한 판의 형세로 고정한다(판마다 다시 정하면 점수를 비교할 수 없다).
             _caution = new BoardAnalysis(start, team, _weights, stalled).Caution;
 
-            int rootCount = _settings.Depth <= 1 ? 1 : _settings.MyPlans;
+            int rootCount = Math.Max(_settings.MinRootPlans, _settings.Depth <= 1 ? 1 : _settings.MyPlans);
             List<TurnPlan> roots = PlanTurn(start, team, rootCount, myView: true);
             LastRootValues = roots.Select(plan => (plan, plan.Score)).ToList();
             if (_settings.Depth <= 1 || roots.Count == 1)
@@ -110,6 +113,7 @@ namespace MiniChess.Bot.Engine
             }
 
             // 시간이 다 돼 읽다 멈춘 하위 트리도 거기까지 본 판의 평가로 값이 나오므로 그대로 비교한다.
+            // (순차 탐색에서 가지친 루트의 값은 상한이라 실제보다 높지 않다. 차선 선택(실수)은 깊이 1 에서만 쓴다.)
             LastRootValues = roots.Select((plan, i) => (plan, values[i])).ToList();
             int best = 0;
             for (int i = 1; i < roots.Count; i++)

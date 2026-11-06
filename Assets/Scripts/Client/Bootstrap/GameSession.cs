@@ -55,6 +55,9 @@ namespace MiniChess.Client.Bootstrap
         [Tooltip("난이도가 Custom 일 때의 탐색 설정. 깊이별 연산량은 BotSearchConfig 주석 참고.")]
         [SerializeField] private BotSearchConfig player1BotSearch = new BotSearchConfig();
         [SerializeField] private BotSearchConfig player2BotSearch = new BotSearchConfig();
+        [Tooltip("난이도가 Level 일 때의 레벨(1~10, 새 엔진 봇). 1~6 = 이번 턴만 읽음(낮을수록 자주 실수), 7~10 = 상대 응수까지 읽음(높을수록 오래 생각, 최대 60초).")]
+        [SerializeField, Range(1, 10)] private int player1BotLevel = 5;
+        [SerializeField, Range(1, 10)] private int player2BotLevel = 5;
 
         [Header("Online (켜면 서버에 접속해 상대와 대전. 봇/Quick Start 는 쓰지 않는다)")]
         [Tooltip("시작 화면의 접속 패널에서 고른 방식으로 바뀐다(연결 = 켬, 로컬 플레이 = 끔).")]
@@ -172,6 +175,12 @@ namespace MiniChess.Client.Bootstrap
         public BotDifficulty GetBotDifficulty(Team team)
         {
             return team == Team.Player1 ? player1BotDifficulty : player2BotDifficulty;
+        }
+
+        /// <summary>난이도가 Level 일 때 쓰는 팀의 레벨(1~10).</summary>
+        public int GetBotLevel(Team team)
+        {
+            return team == Team.Player1 ? player1BotLevel : player2BotLevel;
         }
 
         /// <summary>난이도가 Custom 일 때 쓰는 팀의 탐색 설정.</summary>

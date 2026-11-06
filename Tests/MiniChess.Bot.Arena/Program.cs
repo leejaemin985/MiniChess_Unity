@@ -15,11 +15,15 @@ const string Usage = @"
   dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- bench [봇] [--games N] [--seed S] [--samples K]
       탐색 비용(분기 수, 한 턴 행동 순서 수, Fork/생성/실행 비용)을 잰다. 국면은 [봇](기본 easy)끼리 둔 경기에서 뽑는다.
 
+  dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- tune [--engine d=1,p=0] [--iterations N] [--games G] [--from 파일] [--out 파일]
+      엔진 판 평가 값을 SPSA 로 튜닝한다(값을 흔든 두 봇끼리 반복당 G경기). 10회마다 --out(기본 tuned.txt)에 저장한다.
+      결과는 engine:d=3@tuned.txt 처럼 봇 지정에 붙여 대전으로 검증한다.
+
   dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- inspect <엔진봇> <상대봇> [--seed S] [--from T] [--to T]
       엔진봇(P1)과 상대봇(P2)의 경기를 진행하며 엔진봇의 턴마다 루트 계획과 탐색 값, 실제 실행한 행동을 찍는다.
 
 봇: random | easy | normal | hard | rule | search:d=2,b=6,c=8,r=6,v=2,a=10,t=0
-     | engine:d=2,m=4,r=4,s=3,b=4,a=10,k=2,n=0,t=0,p=1
+     | engine:d=2,m=4,r=4,s=3,b=4,a=10,k=2,n=0,t=0,p=1 | level:1~10   (engine/level 끝에 @튜닝파일)
 ";
 
 if (args.Length == 0)
@@ -103,6 +107,15 @@ switch (args[0])
     {
         BotSpec player = BotSpec.Parse(positional.Count > 0 ? positional[0] : "easy");
         Bench.Run(player, Option("games", 6), Option("seed", 100), Option("samples", 40));
+        return 0;
+    }
+
+    case "tune":
+    {
+        string engineArgs = options.TryGetValue("engine", out string value) ? value : "d=1,p=0";
+        TunedParams start = options.TryGetValue("from", out string from) ? TunedParams.Load(from) : TunedParams.Default();
+        string outPath = options.TryGetValue("out", out string path) ? path : "tuned.txt";
+        Tuner.Run(engineArgs, start, Option("iterations", 200), Option("games", 24), Option("seed", 1), Option("threads", Environment.ProcessorCount), outPath);
         return 0;
     }
 

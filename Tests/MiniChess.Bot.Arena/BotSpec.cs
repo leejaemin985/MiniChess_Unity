@@ -9,6 +9,8 @@ namespace MiniChess.Bot.Arena
     ///   search:d=2,b=6,c=8,r=6,v=2,a=10,t=0   (Depth, BeamWidth, CandidatesPerStep, ReplyCandidates, MaxVariantsPerSkill, MaxActions, TimeLimitMs)
     ///   engine:d=2,m=4,r=4,s=3,b=4,a=10,k=2,n=0,t=0,p=1
     ///     (Depth, MyPlans, ReplyPlans, ChanceSamples, BeamWidth, MaxActions, MaxPerActionKey, NodeBudget, TimeLimitMs, Parallel)
+    ///   level:1~10                           (BotLevels 표, 시간 상한 없이)
+    ///   engine 과 level 은 끝에 @파일 을 붙이면 그 튜닝 값(TunedParams)을 쓴다.
     /// </summary>
     public sealed class BotSpec
     {
@@ -49,12 +51,38 @@ namespace MiniChess.Bot.Arena
                 }
                 case "engine":
                 {
-                    Dictionary<string, int> values = ParseArgs(args);
-                    return new BotSpec(spec, seed => new Engine.EngineBot(seed, ToEngineSettings(values)));
+                    // engine:d=3,m=4@path/to/tuned.txt  — @ 뒤는 튜닝 값 파일(TunedParams).
+                    int at = text.IndexOf('@');
+                    string engineArgs = at < 0 ? args : args.Substring(0, args.IndexOf('@'));
+                    TunedParams tuned = at < 0 ? null : TunedParams.Load(text.Substring(at + 1).Trim());
+                    return ForEngine(engineArgs, tuned, spec);
+                }
+                case "level":
+                {
+                    // level:7 또는 level:7@tuned.txt. 대전 결과가 매번 같도록 시간 상한은 끈다(동시 경기로 느려져도 실력이 같게).
+                    int at = text.IndexOf('@');
+                    int level = int.Parse(at < 0 ? args : args.Substring(0, args.IndexOf('@')), CultureInfo.InvariantCulture);
+                    TunedParams tuned = at < 0 ? null : TunedParams.Load(text.Substring(at + 1).Trim());
+                    Engine.EngineSettings settings = Engine.BotLevels.Settings(level);
+                    settings.TimeLimitMs = 0;
+                    settings.Parallel = false;
+                    return tuned == null
+                        ? new BotSpec(spec, seed => new Engine.EngineBot(seed, settings))
+                        : new BotSpec(spec, seed => new Engine.EngineBot(seed, settings, tuned.ToWeights(), tuned.ToScales()));
                 }
                 default:
                     throw new ArgumentException($"알 수 없는 봇: {text}");
             }
+        }
+
+        /// <summary>엔진 봇. tuned 가 있으면 그 판 평가 값으로(튜너가 흔든 값을 넣을 때도 쓴다).</summary>
+        public static BotSpec ForEngine(string engineArgs, TunedParams tuned, string name)
+        {
+            Engine.EngineSettings settings = ToEngineSettings(ParseArgs(engineArgs));
+            if (tuned == null)
+                return new BotSpec(name, seed => new Engine.EngineBot(seed, settings));
+
+            return new BotSpec(name, seed => new Engine.EngineBot(seed, settings, tuned.ToWeights(), tuned.ToScales()));
         }
 
         private static Dictionary<string, int> ParseArgs(string args)
