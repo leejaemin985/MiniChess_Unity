@@ -131,35 +131,96 @@ namespace MiniChess.Bot.Rules
                 || unit.Stats.Base.SkillIds.Any(id => id != used.Id && !unit.TurnState.HasUsedSkill(id));
         }
 
-        public IEnumerable<SkillDefinition> SkillsOf(Unit unit)
-        {
-            return unit.Stats.Base.SkillIds.Select(FindSkill).Where(skill => skill != null);
-        }
+        public IEnumerable<SkillDefinition> SkillsOf(Unit unit) => SkillFactsOf(unit).Select(facts => facts.Skill);
 
         /// <summary>싸우기 좋은 적과의 거리: 기본 공격 사거리와 피해 스킬 사거리 중 큰 값.</summary>
         public int PreferredRange(Unit unit)
         {
-            int skillRange = SkillsOf(unit)
-                .Where(skill => SkillEstimates.EnemyDamage(skill) > 0)
-                .Select(SkillEstimates.Reach)
-                .DefaultIfEmpty(0)
-                .Max();
+            int skillRange = 0;
+            foreach (SkillFacts facts in SkillFactsOf(unit))
+            {
+                if (facts.EnemyDamage > 0)
+                    skillRange = Math.Max(skillRange, facts.Reach);
+            }
+
             return Math.Max(1, Math.Max(unit.Stats.AttackRange, skillRange - 1));
         }
 
+        /// <summary>
+        /// 위협도 캐시(스레드마다). 위협도는 규칙, 스킬, 기본 능력치, 공격력, 설치 여부, 최대 AP 만으로 정해진다.
+        /// 판 평가마다 모든 유닛의 위협도를 다시 셈하던 비용을 없앤다.
+        /// </summary>
+        [ThreadStatic] private static Dictionary<(object Rules, SkillCatalog Catalog, IReadOnlyUnitBaseStats Base, int Attack, bool Installed, int MaxAp), double> _threatCache;
+
+        private const int ThreatCacheLimit = 4096;
+
         private double ComputeThreat(Unit unit)
+        {
+            var key = ((object)State.Rules, State.Skills, unit.Stats.Base, unit.Stats.Attack, IsInstalled(unit), State.GetPlayer(unit.Team).Ap.Max);
+            var cache = _threatCache ?? (_threatCache = new Dictionary<(object, SkillCatalog, IReadOnlyUnitBaseStats, int, bool, int), double>());
+            if (cache.TryGetValue(key, out double threat))
+                return threat;
+
+            threat = ComputeThreatUncached(unit);
+            if (cache.Count >= ThreatCacheLimit)
+                cache.Clear();
+            cache[key] = threat;
+            return threat;
+        }
+
+        private double ComputeThreatUncached(Unit unit)
         {
             var hits = new List<(double Damage, int Cost)>();
             if (!IsInstalled(unit))
                 hits.Add((unit.Stats.Attack, AttackCost));
-            foreach (SkillDefinition skill in SkillsOf(unit))
+            foreach (SkillFacts facts in SkillFactsOf(unit))
             {
-                double damage = SkillEstimates.EnemyDamage(skill);
-                if (damage > 0)
-                    hits.Add((damage, skill.ApCost ?? 0));
+                if (facts.EnemyDamage > 0)
+                    hits.Add((facts.EnemyDamage, facts.Skill.ApCost ?? 0));
             }
 
             return BestWithinBudget(hits, State.GetPlayer(unit.Team).Ap.Max);
+        }
+
+        /// <summary>스킬 하나에서 판과 무관하게 정해지는 추정값(스킬 정의는 경기 중 바뀌지 않는다).</summary>
+        private sealed class SkillFacts
+        {
+            public SkillDefinition Skill;
+            public double EnemyDamage;
+            public int Reach;
+            public int SelfMoveReach;
+            public CanMoveCondition[] MoveConditions;
+        }
+
+        /// <summary>
+        /// 유닛 기본 능력치(복제한 판끼리 같은 객체)별 스킬 추정값 목록(스레드마다 캐시). SkillIds 순서이고 카탈로그에 없는 스킬은 뺀다.
+        /// 판 평가마다 스킬을 찾고 효과를 훑던 비용을 없앤다.
+        /// </summary>
+        [ThreadStatic] private static Dictionary<(SkillCatalog Catalog, IReadOnlyUnitBaseStats Base), SkillFacts[]> _skillFacts;
+
+        private const int SkillFactsCacheLimit = 1024;
+
+        private SkillFacts[] SkillFactsOf(Unit unit)
+        {
+            Dictionary<(SkillCatalog, IReadOnlyUnitBaseStats), SkillFacts[]> cache =
+                _skillFacts ?? (_skillFacts = new Dictionary<(SkillCatalog, IReadOnlyUnitBaseStats), SkillFacts[]>());
+            var key = (State.Skills, unit.Stats.Base);
+            if (cache.TryGetValue(key, out SkillFacts[] facts))
+                return facts;
+
+            facts = unit.Stats.Base.SkillIds.Select(FindSkill).Where(skill => skill != null).Select(skill => new SkillFacts
+            {
+                Skill = skill,
+                EnemyDamage = SkillEstimates.EnemyDamage(skill),
+                Reach = SkillEstimates.Reach(skill),
+                SelfMoveReach = SkillEstimates.SelfMoveReach(skill),
+                MoveConditions = skill.Conditions.OfType<CanMoveCondition>().ToArray(),
+            }).ToArray();
+
+            if (cache.Count >= SkillFactsCacheLimit)
+                cache.Clear();
+            cache[key] = facts;
+            return facts;
         }
 
         /// <summary>
@@ -294,11 +355,105 @@ namespace MiniChess.Bot.Rules
         {
             if (!_engageSteps.TryGetValue(range, out int[,] steps))
             {
-                steps = ComputeEngageSteps(range);
+                steps = EngageStepsCached(range);
                 _engageSteps[range] = steps;
             }
 
             return steps[position.X, position.Y];
+        }
+
+        /// <summary>
+        /// 접근 지도 캐시(스레드마다). 지도는 사거리, 칠 대상 위치, 걸을 수 있는 칸만으로 정해지므로, 판이 달라도 이 셋이 같으면
+        /// 다시 쓴다(탐색 중 대부분의 판은 내 유닛만 움직여 적 위치와 보드가 그대로다). 키를 그대로 비교하므로 결과는 캐시가 없을 때와 같다.
+        /// 지도 배열은 여러 분석이 함께 읽으므로 고치면 안 된다.
+        /// </summary>
+        [ThreadStatic] private static Dictionary<EngageKey, int[,]> _engageCache;
+
+        private const int EngageCacheLimit = 4096;
+
+        private ulong[] _walkable;
+
+        private int[,] EngageStepsCached(int range)
+        {
+            Board board = State.Board;
+            if (_walkable == null)
+            {
+                _walkable = new ulong[(board.Width * board.Height + 63) / 64];
+                for (int x = 0; x < board.Width; x++)
+                for (int y = 0; y < board.Height; y++)
+                {
+                    int bit = x * board.Height + y;
+                    if (Walkable(board.GetCell(new Position(x, y))))
+                        _walkable[bit >> 6] |= 1UL << (bit & 63);
+                }
+            }
+
+            List<Unit> targets = EngageTargets().ToList();
+            var cells = new int[targets.Count];
+            for (int i = 0; i < targets.Count; i++)
+                cells[i] = targets[i].Position.Value.X * board.Height + targets[i].Position.Value.Y;
+            Array.Sort(cells);
+
+            var key = new EngageKey(range, board.Width, board.Height, _walkable, cells);
+            Dictionary<EngageKey, int[,]> cache = _engageCache ?? (_engageCache = new Dictionary<EngageKey, int[,]>());
+            if (cache.TryGetValue(key, out int[,] steps))
+                return steps;
+
+            if (cache.Count >= EngageCacheLimit)
+                cache.Clear();
+            steps = ComputeEngageSteps(range);
+            cache[key] = steps;
+            return steps;
+        }
+
+        /// <summary>접근 지도 캐시 키. 배열 내용까지 비교한다(해시 충돌로 다른 지도를 쓰는 일이 없게).</summary>
+        private sealed class EngageKey : IEquatable<EngageKey>
+        {
+            private readonly int _range, _width, _height, _hash;
+            private readonly ulong[] _walkable;
+            private readonly int[] _targets;
+
+            public EngageKey(int range, int width, int height, ulong[] walkable, int[] targets)
+            {
+                _range = range;
+                _width = width;
+                _height = height;
+                _walkable = walkable;
+                _targets = targets;
+
+                unchecked
+                {
+                    int hash = (range * 397 ^ width) * 397 ^ height;
+                    foreach (ulong bits in walkable)
+                        hash = hash * 31 + bits.GetHashCode();
+                    foreach (int cell in targets)
+                        hash = hash * 31 + cell;
+                    _hash = hash;
+                }
+            }
+
+            public bool Equals(EngageKey other)
+            {
+                if (other == null || other._hash != _hash || other._range != _range || other._width != _width || other._height != _height
+                    || other._walkable.Length != _walkable.Length || other._targets.Length != _targets.Length)
+                    return false;
+                for (int i = 0; i < _walkable.Length; i++)
+                {
+                    if (other._walkable[i] != _walkable[i])
+                        return false;
+                }
+
+                for (int i = 0; i < _targets.Length; i++)
+                {
+                    if (other._targets[i] != _targets[i])
+                        return false;
+                }
+
+                return true;
+            }
+
+            public override bool Equals(object obj) => Equals(obj as EngageKey);
+            public override int GetHashCode() => _hash;
         }
 
         private IEnumerable<Unit> EngageTargets()
@@ -360,21 +515,20 @@ namespace MiniChess.Bot.Rules
             _enemyHits = _enemyHits ?? ComputeEnemyHits();
             _enemyApNext = _enemyApNext ?? ApNextTurn(Enemy);
 
-            var hits = new List<(double Damage, int Cost)>();
+            // 닿는 공격을 큰 피해부터(_enemyHits 는 피해 순으로 정렬돼 있다) 상대 AP 안에서 더한다.
+            double total = 0;
+            int ap = _enemyApNext.Value;
+            int moveCost = MoveCostPerCell;
             foreach (EnemyHit hit in _enemyHits)
             {
                 int distance = RangeCalculator.GetDistance(hit.From, position);
-                if (distance <= hit.Mobility + hit.Reach)
-                    hits.Add((hit.Damage, hit.Cost + (distance > hit.Reach ? MoveCostPerCell : 0)));
-            }
+                if (distance > hit.Mobility + hit.Reach)
+                    continue;
 
-            double total = 0;
-            int ap = _enemyApNext.Value;
-            foreach ((double damage, int cost) in hits.OrderByDescending(hit => hit.Damage))
-            {
+                int cost = hit.Cost + (distance > hit.Reach ? moveCost : 0);
                 if (cost > ap)
                     continue;
-                total += damage;
+                total += hit.Damage;
                 ap -= cost;
             }
 
@@ -418,26 +572,27 @@ namespace MiniChess.Bot.Rules
                     continue;
 
                 // 걷기는 속박/설치면 못 한다. 스킬 이동은 그 스킬의 이동 조건으로 본다(돌진은 속박을 무시하고, 도약은 막힌다).
+                SkillFacts[] skills = SkillFactsOf(enemy);
                 int mobility = IsRooted(enemy) || IsInstalled(enemy) ? 0 : Weights.EnemyMobility;
-                mobility = Math.Max(mobility, SkillsOf(enemy)
-                    .Where(skill => skill.Conditions.OfType<CanMoveCondition>().All(condition => condition.IsMet(State, enemy)))
-                    .Select(SkillEstimates.SelfMoveReach)
-                    .DefaultIfEmpty(0)
-                    .Max());
+                foreach (SkillFacts facts in skills)
+                {
+                    if (facts.SelfMoveReach > mobility && facts.MoveConditions.All(condition => condition.IsMet(State, enemy)))
+                        mobility = facts.SelfMoveReach;
+                }
 
                 Position from = enemy.Position.Value;
                 if (!IsInstalled(enemy))
                     hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = enemy.Stats.AttackRange, Damage = BasicAttackDamage(enemy), Cost = AttackCost });
 
-                foreach (SkillDefinition skill in SkillsOf(enemy))
+                foreach (SkillFacts facts in skills)
                 {
-                    double damage = SkillEstimates.EnemyDamage(skill);
-                    if (damage > 0)
-                        hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = SkillEstimates.Reach(skill), Damage = damage, Cost = skill.ApCost ?? 0 });
+                    if (facts.EnemyDamage > 0)
+                        hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = facts.Reach, Damage = facts.EnemyDamage, Cost = facts.Skill.ApCost ?? 0 });
                 }
             }
 
-            return hits;
+            // 칸마다 큰 피해부터 더하므로 미리 정렬해 둔다(안정 정렬이라 같은 피해는 원래 순서, 칸마다 정렬하던 것과 같다).
+            return hits.OrderByDescending(hit => hit.Damage).ToList();
         }
 
         #endregion
