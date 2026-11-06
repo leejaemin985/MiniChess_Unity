@@ -15,7 +15,7 @@ const string Usage = @"
   dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- bench [봇] [--games N] [--seed S] [--samples K]
       탐색 비용(분기 수, 한 턴 행동 순서 수, Fork/생성/실행 비용)을 잰다. 국면은 [봇](기본 easy)끼리 둔 경기에서 뽑는다.
 
-봇: random | easy | normal | hard | rule | search:d=2,b=6,c=8,r=6,v=2,a=10,t=0
+봇: random | easy | normal | hard | rule | search:d=2,b=6,c=8,r=6,v=2,a=10,t=0 | engine:b=8,a=10,k=2,n=0,t=0
 ";
 
 if (args.Length == 0)

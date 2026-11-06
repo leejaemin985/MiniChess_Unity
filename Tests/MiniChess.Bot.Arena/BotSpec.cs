@@ -7,6 +7,7 @@ namespace MiniChess.Bot.Arena
     /// 명령줄의 봇 지정 문자열을 봇 생성기로 바꾼다. 경기마다 새 봇을 만든다(봇은 턴 계획 등 상태를 가진다).
     ///   random | easy | normal | hard | rule
     ///   search:d=2,b=6,c=8,r=6,v=2,a=10,t=0   (Depth, BeamWidth, CandidatesPerStep, ReplyCandidates, MaxVariantsPerSkill, MaxActions, TimeLimitMs)
+    ///   engine:b=8,a=10,k=2,n=0,t=0          (BeamWidth, MaxActions, MaxPerActionKey, NodeBudget, TimeLimitMs)
     /// </summary>
     public sealed class BotSpec
     {
@@ -45,6 +46,11 @@ namespace MiniChess.Bot.Arena
                     Dictionary<string, int> values = ParseArgs(args);
                     return new BotSpec(spec, seed => new SearchBot(seed, ToSettings(values)));
                 }
+                case "engine":
+                {
+                    Dictionary<string, int> values = ParseArgs(args);
+                    return new BotSpec(spec, seed => new Engine.EngineBot(seed, ToEngineSettings(values)));
+                }
                 default:
                     throw new ArgumentException($"알 수 없는 봇: {text}");
             }
@@ -79,6 +85,25 @@ namespace MiniChess.Bot.Arena
                     case "a": settings.MaxActions = kv.Value; break;
                     case "t": settings.TimeLimitMs = kv.Value; break;
                     default: throw new ArgumentException($"알 수 없는 탐색 인자: {kv.Key}");
+                }
+            }
+
+            return settings;
+        }
+
+        private static Engine.EngineSettings ToEngineSettings(Dictionary<string, int> values)
+        {
+            var settings = new Engine.EngineSettings();
+            foreach (KeyValuePair<string, int> kv in values)
+            {
+                switch (kv.Key)
+                {
+                    case "b": settings.BeamWidth = kv.Value; break;
+                    case "a": settings.MaxActions = kv.Value; break;
+                    case "k": settings.MaxPerActionKey = kv.Value; break;
+                    case "n": settings.NodeBudget = kv.Value; break;
+                    case "t": settings.TimeLimitMs = kv.Value; break;
+                    default: throw new ArgumentException($"알 수 없는 엔진 인자: {kv.Key}");
                 }
             }
 
