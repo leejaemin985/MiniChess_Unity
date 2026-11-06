@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using MiniChess.Bot.Eval;
 using MiniChess.Bot.Rules;
 using MiniChess.Core.Actions;
 using MiniChess.Core.Common;
@@ -11,7 +12,7 @@ namespace MiniChess.Bot.Search
 {
     /// <summary>
     /// 수 읽기 봇. 턴을 시작할 때 경기를 복사(GameController.Fork, 자기 팀 시점이라 숨겨진 정보는 모른다)해
-    /// 행동 순서를 실제로 실행해 보고, 턴을 끝낸 판(깊이 2 면 상대 응수 뒤의 판)의 점수(PositionEvaluator)가 가장 좋은 순서를 고른다.
+    /// 행동 순서를 실제로 실행해 보고, 턴을 끝낸 판(깊이 2 면 상대 응수 뒤의 판)의 점수(Evaluator)가 가장 좋은 순서를 고른다.
     ///   - 후보: 규칙 봇 점수(ActionScorer)가 높은 행동 CandidatesPerStep 개.
     ///   - 넓이: 단계마다 판 점수가 높은 순서 BeamWidth 개만 이어서 읽는다(빔 탐색).
     ///   - 깊이: 1 = 이번 턴, 2 = + 상대 응수, 3 = + 그 뒤 내 다음 턴(SearchSettings.Depth).
@@ -23,6 +24,7 @@ namespace MiniChess.Bot.Search
         private readonly Random _random;
         private readonly StallTracker _stall = new StallTracker();
         private readonly List<BotAction> _plan = new List<BotAction>();
+        private readonly Evaluator _evaluator = Evaluator.CreateDefault();
         private int _planTurn = -1;
 
         public SearchSettings Settings { get; }
@@ -209,7 +211,7 @@ namespace MiniChess.Bot.Search
         private double ScoreEndingTurn(GameController game, Team team, bool stalled)
         {
             GameController ended = EndTurn(game, team);
-            return PositionEvaluator.Evaluate(ended, team, Weights, stalled, _caution);
+            return _evaluator.Evaluate(ended, team, Weights, stalled, _caution);
         }
 
         /// <summary>
@@ -226,7 +228,7 @@ namespace MiniChess.Bot.Search
             if (Settings.Depth >= 3 && !reply.State.IsGameOver && reply.State.CurrentTeam == team)
                 return BeamSearch(reply, team, stalled)[0].Score;
 
-            return PositionEvaluator.Evaluate(reply, team, Weights, stalled, _caution);
+            return _evaluator.Evaluate(reply, team, Weights, stalled, _caution);
         }
 
         private static GameController EndTurn(GameController game, Team team)

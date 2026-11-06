@@ -150,15 +150,16 @@ namespace MiniChess.Bot.Tests
                 new[] { WarriorPiece.PieceId, ArcherPiece.PieceId },
                 new[] { WarriorPiece.PieceId, ArcherPiece.PieceId });
             var weights = new BotWeights();
+            var evaluator = Eval.Evaluator.CreateDefault();
             Unit attacker = game.State.GetPlayer(Team.Player1).Units.Single(unit => unit.Stats.Base.Id == WarriorPiece.PieceId);
             Unit target = game.GetAttackTargets(attacker.Id).First();
             double caution = new BoardAnalysis(game, Team.Player1, weights).Caution;
-            double before = Search.PositionEvaluator.Evaluate(game, Team.Player1, weights, stalled: false, caution);
+            double before = evaluator.Evaluate(game, Team.Player1, weights, stalled: false, caution);
 
             Assert.True(game.Attack(new AttackRequest(Team.Player1, attacker.Id, target.Id)).Success);
 
-            double after = Search.PositionEvaluator.Evaluate(game, Team.Player1, weights, stalled: false, caution);
-            double afterRecomputed = Search.PositionEvaluator.Evaluate(game, Team.Player1, weights, stalled: false);
+            double after = evaluator.Evaluate(game, Team.Player1, weights, stalled: false, caution);
+            double afterRecomputed = evaluator.Evaluate(game, Team.Player1, weights, stalled: false);
             _output.WriteLine($"공격 전 {before:F2}, 공격 후(고정) {after:F2}, 공격 후(판마다 다시 정함) {afterRecomputed:F2}");
             Assert.Equal(1, new BoardAnalysis(game, Team.Player1, weights).Caution);
             Assert.True(after > before);
