@@ -55,7 +55,10 @@ namespace MiniChess.Bot.Rules
             foreach (Unit unit in Allies.Concat(Enemies))
                 _threat[unit.Id] = ComputeThreat(unit);
 
-            _danger = ComputeDanger();
+            _danger = new double[State.Board.Width, State.Board.Height];
+            for (int x = 0; x < State.Board.Width; x++)
+            for (int y = 0; y < State.Board.Height; y++)
+                _danger[x, y] = double.NaN;
             Caution = caution ?? (stalled ? Math.Min(ComputeCaution(), weights.CautionStalled) : ComputeCaution());
         }
 
@@ -264,8 +267,18 @@ namespace MiniChess.Bot.Rules
 
         #region Cells
 
-        /// <summary>내 유닛이 이 칸에서 상대 턴을 맞으면 받을 것으로 예상되는 피해.</summary>
-        public double DangerAt(Position position) => _danger[position.X, position.Y];
+        /// <summary>내 유닛이 이 칸에서 상대 턴을 맞으면 받을 것으로 예상되는 피해. 처음 물을 때 계산해 둔다(판 평가는 아군 칸만 묻는다).</summary>
+        public double DangerAt(Position position)
+        {
+            double cached = _danger[position.X, position.Y];
+            if (double.IsNaN(cached))
+            {
+                cached = ComputeDanger(position);
+                _danger[position.X, position.Y] = cached;
+            }
+
+            return cached;
+        }
 
         /// <summary>가장 가까운 적(소환물이 아닌 적 우선)까지의 거리. 적이 없으면 0.</summary>
         public int NearestEnemyDistance(Position position)
@@ -335,76 +348,96 @@ namespace MiniChess.Bot.Rules
         public bool CaptureOpen => State.Capture.IsActive && State.Capture.Tile.HasValue && !State.Capture.CapturedBy.HasValue;
 
         /// <summary>
-        /// 다음 상대 턴 예상 피해. 적마다 (이동 가정 + 사거리) 안에 닿는 기본 공격과 피해 스킬을 모아(각각 한 번씩),
-        /// 상대의 다음 턴 AP 로 할 수 있는 만큼 큰 것부터 더한다. 상대 예약 포격과 상대 피해 장판도 더한다.
+        /// 이 칸의 다음 상대 턴 예상 피해. 적마다 (이동 가정 + 사거리) 안에 닿는 기본 공격과 피해 스킬을 모아(각각 한 번씩),
+        /// 상대의 다음 턴 AP 로 할 수 있는 만큼 큰 것부터 더한다. 상대 예약 포격과 상대 피해 장판도 더한다. 벽은 0.
         /// </summary>
-        private double[,] ComputeDanger()
+        private double ComputeDanger(Position position)
         {
-            var danger = new double[State.Board.Width, State.Board.Height];
-            int enemyApNext = ApNextTurn(Enemy);
+            BoardCell cell = State.Board.GetCell(position);
+            if (cell.Terrain == TerrainType.Wall)
+                return 0;
 
-            foreach (BoardCell cell in State.Board.AllCells())
+            _enemyHits = _enemyHits ?? ComputeEnemyHits();
+            _enemyApNext = _enemyApNext ?? ApNextTurn(Enemy);
+
+            var hits = new List<(double Damage, int Cost)>();
+            foreach (EnemyHit hit in _enemyHits)
             {
-                if (cell.Terrain == TerrainType.Wall)
-                    continue;
-
-                Position position = cell.Position;
-                double total = 0;
-                int ap = enemyApNext;
-                foreach ((double damage, int cost) in Enemies.SelectMany(enemy => EnemyHitsAt(enemy, position)).OrderByDescending(hit => hit.Damage))
-                {
-                    if (cost > ap)
-                        continue;
-                    total += damage;
-                    ap -= cost;
-                }
-
-                // 상대 포격의 조준 칸은 봇에게 숨겨진 정보라(GameVisibility) 위험에 넣지 않는다.
-                foreach (ScheduledStrike strike in State.ScheduledStrikes)
-                {
-                    if (strike.SourceTeam != Team && !GameVisibility.IsHidden(strike, Team) && strike.Cells.Contains(position))
-                        total += strike.Damage;
-                }
-
-                if (cell.GetEffect(CellEffectLayer.AreaEffect) is DamageField field && field.Zone.OwnerTeam != Team)
-                    total += field.DamageAmount;
-
-                danger[position.X, position.Y] = total;
+                int distance = RangeCalculator.GetDistance(hit.From, position);
+                if (distance <= hit.Mobility + hit.Reach)
+                    hits.Add((hit.Damage, hit.Cost + (distance > hit.Reach ? MoveCostPerCell : 0)));
             }
 
-            return danger;
+            double total = 0;
+            int ap = _enemyApNext.Value;
+            foreach ((double damage, int cost) in hits.OrderByDescending(hit => hit.Damage))
+            {
+                if (cost > ap)
+                    continue;
+                total += damage;
+                ap -= cost;
+            }
+
+            // 상대 포격의 조준 칸은 봇에게 숨겨진 정보라(GameVisibility) 위험에 넣지 않는다.
+            foreach (ScheduledStrike strike in State.ScheduledStrikes)
+            {
+                if (strike.SourceTeam != Team && !GameVisibility.IsHidden(strike, Team) && strike.Cells.Contains(position))
+                    total += strike.Damage;
+            }
+
+            if (cell.GetEffect(CellEffectLayer.AreaEffect) is DamageField field && field.Zone.OwnerTeam != Team)
+                total += field.DamageAmount;
+
+            return total;
         }
 
+        /// <summary>적 하나의 공격 하나(기본 공격, 피해 스킬 각각): 어디서, 얼마나 움직여, 얼마 사거리로, 얼마 피해를, 몇 AP 에.</summary>
+        private struct EnemyHit
+        {
+            public Position From;
+            public int Mobility;
+            public int Reach;
+            public double Damage;
+            public int Cost;
+        }
+
+        private List<EnemyHit> _enemyHits;
+        private int? _enemyApNext;
+
         /// <summary>
-        /// 적 하나가 다음 턴에 이 칸을 칠 수 있는 공격들(기본 공격, 피해 스킬 각각)의 피해와 AP 비용.
+        /// 적들이 다음 턴에 쓸 수 있는 공격(칸과 무관한 부분). 적 순서, 기본 공격 → 스킬 순서.
         /// 다가가야 닿으면 이동 1칸 비용을 더한다(한 번 다가가면 나머지 공격도 그 자리에서 한다고 본다).
         /// </summary>
-        private IEnumerable<(double Damage, int Cost)> EnemyHitsAt(Unit enemy, Position position)
+        private List<EnemyHit> ComputeEnemyHits()
         {
-            // 기절한 적은 스스로 아무것도 못 한다.
-            if (IsStunned(enemy))
-                yield break;
-
-            // 걷기는 속박/설치면 못 한다. 스킬 이동은 그 스킬의 이동 조건으로 본다(돌진은 속박을 무시하고, 도약은 막힌다).
-            int mobility = IsRooted(enemy) || IsInstalled(enemy) ? 0 : Weights.EnemyMobility;
-            mobility = Math.Max(mobility, SkillsOf(enemy)
-                .Where(skill => skill.Conditions.OfType<CanMoveCondition>().All(condition => condition.IsMet(State, enemy)))
-                .Select(SkillEstimates.SelfMoveReach)
-                .DefaultIfEmpty(0)
-                .Max());
-
-            int distance = RangeCalculator.GetDistance(enemy.Position.Value, position);
-
-            if (!IsInstalled(enemy) && distance <= mobility + enemy.Stats.AttackRange)
-                yield return (BasicAttackDamage(enemy), AttackCost + (distance > enemy.Stats.AttackRange ? MoveCostPerCell : 0));
-
-            foreach (SkillDefinition skill in SkillsOf(enemy))
+            var hits = new List<EnemyHit>();
+            foreach (Unit enemy in Enemies)
             {
-                double damage = SkillEstimates.EnemyDamage(skill);
-                int reach = SkillEstimates.Reach(skill);
-                if (damage > 0 && distance <= mobility + reach)
-                    yield return (damage, (skill.ApCost ?? 0) + (distance > reach ? MoveCostPerCell : 0));
+                // 기절한 적은 스스로 아무것도 못 한다.
+                if (IsStunned(enemy))
+                    continue;
+
+                // 걷기는 속박/설치면 못 한다. 스킬 이동은 그 스킬의 이동 조건으로 본다(돌진은 속박을 무시하고, 도약은 막힌다).
+                int mobility = IsRooted(enemy) || IsInstalled(enemy) ? 0 : Weights.EnemyMobility;
+                mobility = Math.Max(mobility, SkillsOf(enemy)
+                    .Where(skill => skill.Conditions.OfType<CanMoveCondition>().All(condition => condition.IsMet(State, enemy)))
+                    .Select(SkillEstimates.SelfMoveReach)
+                    .DefaultIfEmpty(0)
+                    .Max());
+
+                Position from = enemy.Position.Value;
+                if (!IsInstalled(enemy))
+                    hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = enemy.Stats.AttackRange, Damage = BasicAttackDamage(enemy), Cost = AttackCost });
+
+                foreach (SkillDefinition skill in SkillsOf(enemy))
+                {
+                    double damage = SkillEstimates.EnemyDamage(skill);
+                    if (damage > 0)
+                        hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = SkillEstimates.Reach(skill), Damage = damage, Cost = skill.ApCost ?? 0 });
+                }
             }
+
+            return hits;
         }
 
         #endregion

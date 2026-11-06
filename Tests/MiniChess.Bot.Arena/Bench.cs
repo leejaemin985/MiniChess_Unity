@@ -24,6 +24,7 @@ namespace MiniChess.Bot.Arena
             var execute = new Timer();
             var evaluate = new Timer();
             var hash = new Timer();
+            var endTurn = new Timer();
             long twoStepLines = 0, twoStepDistinct = 0;
             var evaluator = Eval.Evaluator.CreateDefault();
             var weights = new Rules.BotWeights();
@@ -42,7 +43,7 @@ namespace MiniChess.Bot.Arena
                     {
                         Sample(game, rng, samplesPerPosition, branching, logSequences, steps, fork, generate, execute);
                         Team team = game.State.CurrentTeam;
-                        (long lines, long distinct) = TwoStepTranspositions(game, team, hash, evaluate, evaluator, weights);
+                        (long lines, long distinct) = TwoStepTranspositions(game, team, hash, evaluate, endTurn, evaluator, weights);
                         twoStepLines += lines;
                         twoStepDistinct += distinct;
                     }
@@ -57,12 +58,12 @@ namespace MiniChess.Bot.Arena
             Console.WriteLine($"한 턴 행동 순서 수 log10: 최소 {logSequences[0]:F1} / 중간 {Pct(logSequences, 0.5):F1} / 상위10% {Pct(logSequences, 0.9):F1} / 최대 {logSequences[^1]:F1}");
             Console.WriteLine($"무작위 진행 한 턴 행동 수: 평균 {steps.Average():F1} / 최대 {steps.Max()}");
             Console.WriteLine($"1회 비용: Fork {fork.Micros:F1}us, 합법 수 생성 {generate.Micros:F1}us, 행동 실행 {execute.Micros:F1}us, " +
-                              $"판 평가 {evaluate.Micros:F1}us, 판 해시 {hash.Micros:F1}us");
+                              $"판 평가 {evaluate.Micros:F1}us, 판 해시 {hash.Micros:F1}us, 턴 종료 {endTurn.Micros:F1}us");
             Console.WriteLine($"행동 2개 순서: {twoStepLines}가지 → 서로 다른 판 {twoStepDistinct}개 ({100.0 * twoStepDistinct / Math.Max(1, twoStepLines):F1}%)");
         }
 
         /// <summary>행동 2개까지의 모든 순서를 실행해, 순서 수와 서로 다른 판(해시) 수를 센다.</summary>
-        private static (long Lines, long Distinct) TwoStepTranspositions(GameController game, Team team, Timer hash, Timer evaluate, Eval.Evaluator evaluator, Rules.BotWeights weights)
+        private static (long Lines, long Distinct) TwoStepTranspositions(GameController game, Team team, Timer hash, Timer evaluate, Timer endTurn, Eval.Evaluator evaluator, Rules.BotWeights weights)
         {
             var seen = new HashSet<ulong>();
             long lines = 0;
@@ -80,7 +81,11 @@ namespace MiniChess.Bot.Arena
                     lines++;
                     seen.Add(hash.Time(() => Search.StateHasher.Hash(two, team)));
                     if (lines % 8 == 0)
+                    {
                         evaluate.Time(() => evaluator.Evaluate(two, team, weights, false));
+                        GameController ended = two.Fork();
+                        endTurn.Time(() => ended.EndTurn(new EndTurnRequest(team)));
+                    }
                 }
             }
 
