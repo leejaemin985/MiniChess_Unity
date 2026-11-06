@@ -210,6 +210,16 @@ namespace MiniChess.Bot.Engine
                 return _evaluator.Evaluate(EndTurnOnce(line, mover), mover, _weights, stalled, caution);
             }
 
+            double QuickScore(GameController line)
+            {
+                return _evaluator.Evaluate(line, mover, _weights, stalled, caution);
+            }
+
+            // 정밀 채점 수: 음수면 자동(빔 폭의 3배 + 돌려줄 계획 후보 수), 0 이면 모두.
+            int fullScore = _settings.Planner.FullScoreCount;
+            if (fullScore < 0)
+                fullScore = _settings.Planner.BeamWidth * 3 + (count <= 1 ? 1 : count * 4);
+
             var planner = new TurnPlanner(new PlannerSettings
             {
                 BeamWidth = _settings.Planner.BeamWidth,
@@ -217,8 +227,9 @@ namespace MiniChess.Bot.Engine
                 MaxPerActionKey = _settings.Planner.MaxPerActionKey,
                 NodeBudget = _settings.Planner.NodeBudget,
                 PlansToKeep = count,
+                FullScoreCount = fullScore,
             });
-            List<TurnPlan> plans = planner.Plan(start, mover, ScoreAfterTurn, _stop, _cancellation);
+            List<TurnPlan> plans = planner.Plan(start, mover, ScoreAfterTurn, _stop, _cancellation, QuickScore);
             Interlocked.Add(ref _nodes, planner.LastNodes);
             Interlocked.Add(ref _transpositions, planner.LastTranspositions);
             return plans;

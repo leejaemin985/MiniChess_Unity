@@ -43,11 +43,18 @@ namespace MiniChess.Bot.Engine
 
         /// <summary>실행해 볼 판 수 상한. 0 이면 제한 없음.</summary>
         public int NodeBudget;
+
+        /// <summary>
+        /// 2단계 채점: 단계마다 가벼운 점수 상위 몇 개만 턴 종료까지 실행해 정밀 채점할지. 0 이면 모두 정밀 채점(가장 느림).
+        /// 정밀 채점 수가 빔 폭보다 넉넉해야 빔이 가벼운 점수의 오차에 휘둘리지 않는다.
+        /// </summary>
+        public int FullScoreCount;
     }
 
     /// <summary>
-    /// 이번 턴의 행동 순서를 읽는다(빔 탐색). 후보를 미리 점수로 거르지 않고, 단계마다 모든 합법 행동을 Core 로 실제 실행해
-    /// 턴을 끝낸 판의 점수로 고른다. 그래서 새 메커닉(장판, AP 토큰 등)의 결과를 봇이 따로 알 필요가 없다.
+    /// 이번 턴의 행동 순서를 읽는다(빔 탐색). 후보를 규칙 점수로 미리 거르지 않고, 단계마다 모든 합법 행동을 Core 로 실제 실행해
+    /// 판 점수로 고른다. 그래서 새 메커닉(장판, AP 토큰 등)의 결과를 봇이 따로 알 필요가 없다.
+    /// 2단계 채점(FullScoreCount)이면 실행한 판을 먼저 가볍게(턴 종료 없이) 평가하고, 상위만 턴을 끝낸 판으로 정밀 채점한다.
     /// 행동 순서만 다르고 결과가 같은 판은 해시로 한 번만 읽는다.
     /// </summary>
     internal sealed class TurnPlanner
@@ -75,7 +82,9 @@ namespace MiniChess.Bot.Engine
         /// <param name="start">자기 팀 시점 복사본(Fork(team)). 바뀌지 않는다.</param>
         /// <param name="scoreAfterTurn">행동을 실행한 판(턴 종료 전)을 받아, 턴을 끝낸 판의 점수를 낸다.</param>
         /// <param name="stop">true 면 그때까지 읽은 것으로 끝낸다(시간 제한, 취소).</param>
-        public List<TurnPlan> Plan(GameController start, Team team, Func<GameController, double> scoreAfterTurn, Func<bool> stop, CancellationToken cancellation = default)
+        /// <param name="quickScore">2단계 채점의 가벼운 점수(턴 종료 없이 평가). null 이거나 FullScoreCount 가 0 이면 모든 판을 정밀 채점한다.</param>
+        public List<TurnPlan> Plan(GameController start, Team team, Func<GameController, double> scoreAfterTurn, Func<bool> stop,
+            CancellationToken cancellation = default, Func<GameController, double> quickScore = null)
         {
             int nodes = 0, transpositions = 0;
             var seen = new HashSet<ulong>();
@@ -93,9 +102,12 @@ namespace MiniChess.Bot.Engine
             var beam = new List<Line> { root };
             bool exhausted = false;
 
+            bool twoStage = quickScore != null && _settings.FullScoreCount > 0;
+
             for (int step = 0; step < _settings.MaxActions && beam.Count > 0 && !exhausted; step++)
             {
-                var children = new List<Line>();
+                // 1) 빔의 모든 줄에 모든 합법 행동을 실행해 본다. 2단계 채점이면 여기서는 가벼운 점수(턴 종료 없이 평가)만 매긴다.
+                var executed = new List<(Line Parent, BotAction Action, GameController Game, double Quick)>();
                 foreach (Line line in beam)
                 {
                     if (line.Game.State.IsGameOver || line.Game.State.CurrentTeam != team)
@@ -113,26 +125,39 @@ namespace MiniChess.Bot.Engine
                         if (!action.Execute(child))
                             continue;
 
-                        ulong hash = StateHasher.Hash(child, team);
-                        if (!seen.Add(hash))
-                        {
-                            transpositions++;
-                            continue;
-                        }
-
                         nodes++;
-                        children.Add(new Line
-                        {
-                            Game = child,
-                            Actions = new List<BotAction>(line.Actions) { action },
-                            Hashes = new List<ulong>(line.Hashes) { hash },
-                            Hash = hash,
-                            Score = scoreAfterTurn(child),
-                        });
+                        executed.Add((line, action, child, twoStage ? quickScore(child) : 0));
                     }
 
                     if (exhausted)
                         break;
+                }
+
+                // 2) 가벼운 점수 상위 FullScoreCount 개만(2단계 채점이 아니면 모두) 중복 판을 거르고 턴 종료까지 실행해 정밀하게 채점한다.
+                //    해시와 턴 종료는 판 하나에 드는 비용의 대부분이라, 빔에 들 가능성이 낮은 판에는 쓰지 않는다.
+                IEnumerable<(Line Parent, BotAction Action, GameController Game, double Quick)> ordered =
+                    twoStage ? executed.OrderByDescending(item => item.Quick) : (IEnumerable<(Line, BotAction, GameController, double)>)executed;
+                var children = new List<Line>();
+                foreach ((Line parent, BotAction action, GameController child, double _) in ordered)
+                {
+                    if (twoStage && children.Count >= _settings.FullScoreCount)
+                        break;
+
+                    ulong hash = StateHasher.Hash(child, team);
+                    if (!seen.Add(hash))
+                    {
+                        transpositions++;
+                        continue;
+                    }
+
+                    children.Add(new Line
+                    {
+                        Game = child,
+                        Actions = new List<BotAction>(parent.Actions) { action },
+                        Hashes = new List<ulong>(parent.Hashes) { hash },
+                        Hash = hash,
+                        Score = scoreAfterTurn(child),
+                    });
                 }
 
                 if (children.Count == 0)

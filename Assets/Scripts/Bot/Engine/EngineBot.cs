@@ -40,8 +40,17 @@ namespace MiniChess.Bot.Engine
         /// <summary>한 번 판단할 때의 시간 상한(ms, 안전장치). 0 이면 제한 없음(테스트/레벨 측정은 결과가 매번 같도록 0).</summary>
         public int TimeLimitMs { get; set; }
 
-        /// <summary>루트 계획마다 하위 트리를 병렬로 읽는다(결과는 순차와 같다).</summary>
-        public bool Parallel { get; set; } = true;
+        /// <summary>
+        /// 턴 계획: 단계마다 턴 종료까지 실행해 정밀 채점할 판 수(나머지는 가벼운 점수로만 거른다).
+        /// 음수 = 자동(빔 폭의 3배 + 계획 후보 수), 0 = 모두 정밀 채점(가장 느림).
+        /// </summary>
+        public int FullScoreCount { get; set; } = -1;
+
+        /// <summary>
+        /// 루트 계획마다 하위 트리를 병렬로 읽는다(결과는 순차와 같다). .NET 에서는 빨라지지만
+        /// Unity(Mono/IL2CPP)에서는 가비지 컬렉션이 모든 스레드를 멈춰 오히려 느려서(레벨 8: 5.4초 → 8.1초) 기본은 끈다.
+        /// </summary>
+        public bool Parallel { get; set; }
 
         /// <summary>낮은 레벨용: 이 확률로 최선 대신 2~MistakeRange 위 계획 중 하나를 고른다(깊이 1 에서만). 0 이면 실수 없음.</summary>
         public double MistakeChance { get; set; }
@@ -142,6 +151,7 @@ namespace MiniChess.Bot.Engine
                     MaxActions = Settings.MaxActions,
                     MaxPerActionKey = Settings.MaxPerActionKey,
                     NodeBudget = Settings.NodeBudget,
+                    FullScoreCount = Settings.FullScoreCount,
                 },
             }, _evaluator, Weights, TimeUp, Cancellation);
 
