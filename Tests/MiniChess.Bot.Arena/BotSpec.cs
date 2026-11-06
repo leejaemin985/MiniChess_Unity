@@ -7,8 +7,8 @@ namespace MiniChess.Bot.Arena
     /// 명령줄의 봇 지정 문자열을 봇 생성기로 바꾼다. 경기마다 새 봇을 만든다(봇은 턴 계획 등 상태를 가진다).
     ///   random | easy | normal | hard | rule
     ///   search:d=2,b=6,c=8,r=6,v=2,a=10,t=0   (Depth, BeamWidth, CandidatesPerStep, ReplyCandidates, MaxVariantsPerSkill, MaxActions, TimeLimitMs)
-    ///   engine:d=2,m=4,r=4,s=3,b=4,a=10,k=2,n=0,t=0,p=1,f=-1
-    ///     (Depth, MyPlans, ReplyPlans, ChanceSamples, BeamWidth, MaxActions, MaxPerActionKey, NodeBudget, TimeLimitMs, Parallel, FullScoreCount)
+    ///   engine:d=2,m=4,r=4,s=3,b=4,a=10,k=2,n=0,t=0,p=1,f=-1,l=0
+    ///     (Depth, MyPlans, ReplyPlans, ChanceSamples, BeamWidth, MaxActions, MaxPerActionKey, NodeBudget, TimeLimitMs, Parallel, FullScoreCount, LeafBeamWidth)
     ///   level:1~10                           (BotLevels 표, 시간 상한 없이)
     ///   engine 과 level 은 끝에 @파일 을 붙이면 그 튜닝 값(TunedParams)을 쓴다.
     /// </summary>
@@ -138,6 +138,7 @@ namespace MiniChess.Bot.Arena
                     case "t": settings.TimeLimitMs = kv.Value; break;
                     case "p": settings.Parallel = kv.Value != 0; break;
                     case "f": settings.FullScoreCount = kv.Value; break;
+                    case "l": settings.LeafBeamWidth = kv.Value; break;
                     default: throw new ArgumentException($"알 수 없는 엔진 인자: {kv.Key}");
                 }
             }

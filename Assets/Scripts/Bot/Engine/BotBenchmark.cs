@@ -35,7 +35,9 @@ namespace MiniChess.Bot.Engine
 
         /// <param name="ownTurns">레벨마다 잴 측정 봇의 턴 수(경기가 먼저 끝나면 그만큼만).</param>
         /// <param name="onTurn">한 턴을 잴 때마다 불린다(측정 스레드에서).</param>
-        public static List<BenchmarkTurn> Run(IReadOnlyList<int> levels, int ownTurns, int seed, Action<BenchmarkTurn> onTurn, CancellationToken cancellation)
+        /// <param name="adjust">측정 봇 설정을 바꿔 볼 때(Arena 실험용). 상대(레벨 6)는 그대로다.</param>
+        public static List<BenchmarkTurn> Run(IReadOnlyList<int> levels, int ownTurns, int seed, Action<BenchmarkTurn> onTurn, CancellationToken cancellation,
+            Action<EngineSettings> adjust = null)
         {
             var results = new List<BenchmarkTurn>();
             foreach (int level in levels)
@@ -51,6 +53,7 @@ namespace MiniChess.Bot.Engine
 
                 EngineSettings settings = BotLevels.Settings(level);
                 settings.TimeLimitMs = 0;
+                adjust?.Invoke(settings);
                 var measured = new EngineBot(seed * 2 + 1, settings);
                 var opponent = new EngineBot(seed * 2 + 2, BotLevels.Settings(6));
                 BotMatch.Place(game, Team.Player1, measured);

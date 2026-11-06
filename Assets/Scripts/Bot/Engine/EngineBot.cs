@@ -28,6 +28,14 @@ namespace MiniChess.Bot.Engine
         /// <summary>턴 계획: 단계마다 이어서 읽을 행동 순서 수.</summary>
         public int BeamWidth { get; set; } = 4;
 
+        /// <summary>
+        /// 깊이 3 이상: 마지막 내 턴(잎 턴)의 빔 폭. 0 이면 BeamWidth 와 같다.
+        /// 잎 턴은 "다음 내 턴이 얼마나 좋을지" 어림하는 용도이고 계획 생성 호출의 대부분을 차지해, 좁히면 빨라진다.
+        /// 다만 대전으로 확인한 결과(2026-11-06, 레벨 10 기준 빔 8 → 잎 4) 실력이 크게 떨어지고(Elo -115, 100판)
+        /// 실제 경기 시간은 25% 만 줄어 레벨 표에는 쓰지 않는다(실력을 낮춰도 되는 경량 설정용).
+        /// </summary>
+        public int LeafBeamWidth { get; set; }
+
         /// <summary>턴 계획: 한 턴에 읽는 행동 수 상한.</summary>
         public int MaxActions { get; set; } = 10;
 
@@ -145,6 +153,7 @@ namespace MiniChess.Bot.Engine
                 ChanceSamples = Settings.ChanceSamples,
                 Parallel = Settings.Parallel,
                 MinRootPlans = CanMistake ? Settings.MistakeRange : 1,
+                LeafBeamWidth = Settings.LeafBeamWidth,
                 Planner = new PlannerSettings
                 {
                     BeamWidth = Settings.BeamWidth,

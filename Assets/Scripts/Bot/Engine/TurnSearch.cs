@@ -34,6 +34,9 @@ namespace MiniChess.Bot.Engine
 
         /// <summary>깊이 1 에서도 이 수만큼 루트 계획을 만든다(실수로 차선 계획을 고를 후보). 깊이 2 이상은 MyPlans 와 큰 쪽.</summary>
         public int MinRootPlans = 1;
+
+        /// <summary>마지막 내 턴(잎 턴, 루트가 아닌)의 빔 폭. 0 이면 Planner.BeamWidth.</summary>
+        public int LeafBeamWidth;
     }
 
     /// <summary>
@@ -150,7 +153,9 @@ namespace MiniChess.Bot.Engine
 
             // 마지막 내 턴은 고를 것이 계획 점수 1위뿐이라(그 뒤는 잎 평가) 계획 하나만 만든다.
             List<TurnPlan> plans = mine
-                ? PlanTurn(state, mover, depthLeft == 1 ? 1 : _settings.MyPlans, myView: true)
+                ? (depthLeft == 1
+                    ? PlanTurn(state, mover, 1, myView: true, beamWidth: _settings.LeafBeamWidth)
+                    : PlanTurn(state, mover, _settings.MyPlans, myView: true))
                 : OpponentPlans(state, mover);
 
             double best = mine ? double.NegativeInfinity : double.PositiveInfinity;
@@ -204,8 +209,10 @@ namespace MiniChess.Bot.Engine
         }
 
         /// <summary>mover 의 이번 턴 상위 계획. 내 계획은 내 평가(고정 신중함), 상대 계획은 상대 평가(그 판의 신중함)로 고른다.</summary>
-        private List<TurnPlan> PlanTurn(GameController start, Team mover, int count, bool myView)
+        /// <param name="beamWidth">빔 폭(0 이면 설정값).</param>
+        private List<TurnPlan> PlanTurn(GameController start, Team mover, int count, bool myView, int beamWidth = 0)
         {
+            int beam = beamWidth > 0 ? beamWidth : _settings.Planner.BeamWidth;
             Interlocked.Increment(ref _plannerCalls);
             bool stalled = myView && _stalled;
             double caution = myView ? _caution : new BoardAnalysis(start, mover, _weights).Caution;
@@ -223,11 +230,11 @@ namespace MiniChess.Bot.Engine
             // 정밀 채점 수: 음수면 자동(빔 폭의 3배 + 돌려줄 계획 후보 수), 0 이면 모두.
             int fullScore = _settings.Planner.FullScoreCount;
             if (fullScore < 0)
-                fullScore = _settings.Planner.BeamWidth * 3 + (count <= 1 ? 1 : count * 4);
+                fullScore = beam * 3 + (count <= 1 ? 1 : count * 4);
 
             var planner = new TurnPlanner(new PlannerSettings
             {
-                BeamWidth = _settings.Planner.BeamWidth,
+                BeamWidth = beam,
                 MaxActions = _settings.Planner.MaxActions,
                 MaxPerActionKey = _settings.Planner.MaxPerActionKey,
                 NodeBudget = _settings.Planner.NodeBudget,
