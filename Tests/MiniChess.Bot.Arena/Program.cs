@@ -11,6 +11,7 @@ const string Usage = @"
       --threads T    동시에 돌릴 경기 수(기본 CPU 코어 수)
       --max-turns M  안전용 턴 상한(기본 400, 규칙상 상한은 따로 있다)
       --verbose      경기마다 결과를 찍는다
+      --p2-start-ap N / --p2-turn-ap N   [밸런스 실험] 후공에게 시작 시 한 번 / 매 턴 AP 를 더한다(Core 규칙 아님)
 
   dotnet run -c Release --project Tests/MiniChess.Bot.Arena -- bench [봇] [--games N] [--seed S] [--samples K]
       탐색 비용(분기 수, 한 턴 행동 순서 수, Fork/생성/실행 비용)을 잰다. 국면은 [봇](기본 easy)끼리 둔 경기에서 뽑는다.
@@ -49,6 +50,11 @@ for (int i = 1; i < args.Length; i++)
 }
 
 int Option(string key, int fallback) => options.TryGetValue(key, out string value) ? int.Parse(value) : fallback;
+
+ApHandicap.SecondStartBonus = Option("p2-start-ap", 0);
+ApHandicap.SecondTurnBonus = Option("p2-turn-ap", 0);
+if (ApHandicap.Active)
+    Console.WriteLine($"[실험] 후공 AP 보정: 시작 +{ApHandicap.SecondStartBonus}, 매 턴 +{ApHandicap.SecondTurnBonus}");
 
 switch (args[0])
 {
@@ -96,6 +102,10 @@ switch (args[0])
         Console.WriteLine($"점수율 {stats.Score:P1}, Elo 차이 {elo:+0;-0;0} (95% {low:+0;-0;0} ~ {high:+0;-0;0})");
         Console.WriteLine($"A 선공일 때 점수율 {results.Where(r => r.AIsPlayer1 && r.Error == null).Select(r => r.ScoreA).DefaultIfEmpty(0.5).Average():P1}, " +
                           $"B 선공일 때 {results.Where(r => !r.AIsPlayer1 && r.Error == null).Select(r => r.ScoreA).DefaultIfEmpty(0.5).Average():P1}");
+        List<GameResult> decided = results.Where(r => r.Error == null).ToList();
+        double p1Score = decided.Select(r => r.AIsPlayer1 ? r.ScoreA : 1 - r.ScoreA).DefaultIfEmpty(0.5).Average();
+        double p1Margin = 1.96 * Math.Sqrt(p1Score * (1 - p1Score) / Math.Max(1, decided.Count));
+        Console.WriteLine($"선공(P1) 점수율 {p1Score:P1} (95% {p1Score - p1Margin:P1} ~ {p1Score + p1Margin:P1})");
         Console.WriteLine($"평균 턴 {results.Average(r => r.Turns):F1}, 종료 사유: {string.Join(", ", results.GroupBy(r => r.EndReason).Select(g => $"{g.Key} {g.Count()}"))}");
         PrintTiming("A", a.Name, results.Select(r => r.TimingA));
         PrintTiming("B", b.Name, results.Select(r => r.TimingB));
