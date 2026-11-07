@@ -23,6 +23,7 @@ namespace MiniChess.Client.Interaction
     ///       첫 단계의 칸을 누르면 그 칸부터 다시 고른다. 우클릭은 마지막 선택 취소.
     ///     - 자기 자신만 지정하는 스킬: 스킬 버튼을 누르면 바로 후보(범위 표시).
     ///     - 회전하는 범위의 스킬: 우클릭으로 범위를 시계 방향 90도씩 돌린다(이때 우클릭은 취소가 아니다. 취소는 다른 칸 좌클릭, 스킬 버튼, 취소 버튼).
+    ///   평타 모드: 평타 버튼 → 이동 칸 대신 기본 공격 사거리와 대상만 보임 → 대상(적, 장애물)을 누르면 공격 후보. 다른 칸을 누르면 평타 지정을 끝낸다.
     ///   후보가 있으면 하단에 취소/확정 버튼이 뜬다(UnitInfoPanel). 실제 AP 는 확정한 행동이 성공한 뒤에 차감된다.
     /// 실행 가능 여부 판정은 GameSession(→ 코어)에 맡기고, 거부 이유 표시도 그쪽 이벤트로 처리된다.
     /// </summary>
@@ -54,6 +55,11 @@ namespace MiniChess.Client.Interaction
         private Unit _candidateTarget;
         private MovePreview _movePreview;
 
+        /// <summary>평타 버튼으로 들어간 기본 공격 지정 모드(사거리와 대상만 보이고, 대상을 누르면 공격 후보).</summary>
+        private bool _attackPending;
+        /// <summary>평타 버튼에 마우스를 올렸다(사거리 미리보기).</summary>
+        private bool _previewAttack;
+
         private string _pendingSkillId;
         /// <summary>마우스를 올린 스킬 버튼의 스킬(사거리 미리보기). 지정 중인 스킬이 있으면 그리지 않는다.</summary>
         private string _previewSkillId;
@@ -74,6 +80,9 @@ namespace MiniChess.Client.Interaction
 
         /// <summary>스킬 지정 중인 스킬 Id. 일반 모드면 null.</summary>
         public string PendingSkillId => _pendingSkillId;
+
+        /// <summary>평타 버튼으로 기본 공격 대상을 고르는 중인지.</summary>
+        public bool IsAttackPending => _attackPending;
 
         /// <summary>지정 중인 스킬의 범위를 회전할 수 있는지.</summary>
         public bool CanRotatePending => _pendingSkillId != null && _canRotate;
@@ -103,7 +112,7 @@ namespace MiniChess.Client.Interaction
                 {
                     case CandidateKind.Move: return _movePreview?.Cost ?? 0;
                     case CandidateKind.Attack:
-                    case CandidateKind.AttackObstacle: return _session.State?.Rules.ActionCost.BasicAttackCost ?? 0;
+                    case CandidateKind.AttackObstacle: return BasicAttackCost;
                     case CandidateKind.Skill: return GetSkillCost(_pendingSkillId);
                     default: return 0;
                 }
@@ -111,15 +120,29 @@ namespace MiniChess.Client.Interaction
         }
 
         /// <summary>
-        /// 하단 AP 게이지에 미리 보일 비용(쓸 AP): 후보 행동, 없으면 지정 중인 스킬, 없으면 마우스를 올린 스킬 버튼의 스킬. 없으면 0.
+        /// 하단 AP 게이지에 미리 보일 비용(쓸 AP): 후보 행동 → 평타/스킬 지정 중 → 마우스를 올린 스킬/평타 버튼 순. 없으면 0.
         /// 실제 AP 는 행동이 확정된 뒤에 차감된다.
         /// </summary>
-        public int PreviewApCost => Candidate != CandidateKind.None ? CandidateCost : GetSkillCost(_pendingSkillId ?? _previewSkillId);
+        public int PreviewApCost
+        {
+            get
+            {
+                if (Candidate != CandidateKind.None)
+                    return CandidateCost;
+                if (_attackPending)
+                    return BasicAttackCost;
+                if (_pendingSkillId != null || _previewSkillId != null)
+                    return GetSkillCost(_pendingSkillId ?? _previewSkillId);
+                return _previewAttack ? BasicAttackCost : 0;
+            }
+        }
 
         /// <summary>PreviewApCost 를 쓸 팀(미리보는 행동의 유닛 팀). 미리보기가 없으면 null.</summary>
         public Team? PreviewApTeam => PreviewApCost > 0
-            ? (Candidate != CandidateKind.None || _pendingSkillId != null ? _selected : Displayed)?.Team
+            ? (Candidate != CandidateKind.None || _pendingSkillId != null || _attackPending ? _selected : Displayed)?.Team
             : null;
+
+        private int BasicAttackCost => _session.State?.Rules.ActionCost.BasicAttackCost ?? 0;
 
         /// <summary>지금 후보를 확정할 수 있는지(조작할 차례이고 서버 결과 대기/행동 연출 중이 아님).</summary>
         public bool CanConfirm => Candidate != CandidateKind.None && AcceptsInput(_session.State);
@@ -184,6 +207,7 @@ namespace MiniChess.Client.Interaction
             }
 
             ClearActionCandidate();
+            _attackPending = false;
             _pendingSkillId = skillId;
             _chosenTargets.Clear();
             _skillTargets.Clear();
@@ -194,6 +218,49 @@ namespace MiniChess.Client.Interaction
             _rotation = AreaRotation.R0;
             Redraw();
             SelectionChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// 평타 버튼: 선택한 유닛의 기본 공격 지정 모드로 들어간다(이동 칸은 숨기고 사거리와 공격 대상만 보인다). 공격할 대상이 없으면 이유를 알리고 그대로 둔다.
+        /// 대상(적, 장애물)을 누르면 공격 후보가 되고, 확정 버튼으로 실행한다.
+        /// </summary>
+        public void BeginAttack()
+        {
+            if (_selected == null || _session.Game == null)
+                return;
+
+            if (_attackTargets.Count == 0 && _attackObstacles.Count == 0)
+            {
+                _session.ReportFailure(FailReasonText.Describe(AttackFailReason.InvalidTarget));
+                return;
+            }
+
+            ClearActionCandidate();
+            ClearSkillMode();
+            _attackPending = true;
+            Redraw();
+            SelectionChanged?.Invoke();
+        }
+
+        public void CancelAttack()
+        {
+            if (!_attackPending)
+                return;
+
+            _attackPending = false;
+            ClearActionCandidate();
+            Redraw();
+            SelectionChanged?.Invoke();
+        }
+
+        /// <summary>평타 버튼에 마우스를 올렸을 때 기본 공격 사거리를 미리 그린다(on = false 면 끈다).</summary>
+        public void PreviewAttack(bool on)
+        {
+            if (_previewAttack == on)
+                return;
+
+            _previewAttack = on;
+            Redraw();
         }
 
         /// <summary>지정 중인 스킬의 범위를 시계 방향 90도씩 steps 번 돌린다(음수면 반시계). 회전할 수 없으면 무시.</summary>
@@ -249,12 +316,18 @@ namespace MiniChess.Client.Interaction
             }
         }
 
-        /// <summary>후보 행동을 취소한다(취소 버튼). 유닛 선택은 그대로 두고, 스킬 지정 중이었으면 스킬 지정도 끝낸다.</summary>
+        /// <summary>후보 행동을 취소한다(취소 버튼). 유닛 선택은 그대로 두고, 스킬/평타 지정 중이었으면 그것도 끝낸다.</summary>
         public void CancelCandidate()
         {
             if (_pendingSkillId != null)
             {
                 CancelSkill();
+                return;
+            }
+
+            if (_attackPending)
+            {
+                CancelAttack();
                 return;
             }
 
@@ -324,6 +397,18 @@ namespace MiniChess.Client.Interaction
             if (occupant != null && occupant.Team == state.CurrentTeam)
             {
                 Select(occupant);
+                return;
+            }
+
+            // 평타 지정 중: 공격할 수 있는 적/장애물은 공격 후보, 그 밖의 칸은 평타 지정을 끝낸다(이동하지 않는다).
+            if (_attackPending)
+            {
+                if (occupant != null && _attackTargets.Contains(occupant))
+                    SetActionCandidate(CandidateKind.Attack, clicked.Value, occupant, null);
+                else if (cell.HasObstacle && _attackObstacles.Contains(clicked.Value))
+                    SetActionCandidate(CandidateKind.AttackObstacle, clicked.Value, null, null);
+                else
+                    CancelAttack();
                 return;
             }
 
@@ -477,7 +562,14 @@ namespace MiniChess.Client.Interaction
             }
             else if (_pendingSkillId != null)
                 CancelSkill();
-            else if (_actionCandidate != CandidateKind.None)
+            else if (_attackPending && _actionCandidate != CandidateKind.None)
+            {
+                // 평타 후보만 지우고 대상 고르기로 돌아간다.
+                ClearActionCandidate();
+                Redraw();
+                SelectionChanged?.Invoke();
+            }
+            else if (_actionCandidate != CandidateKind.None || _attackPending)
                 CancelCandidate();
             else
                 Deselect();
@@ -626,8 +718,10 @@ namespace MiniChess.Client.Interaction
             Redraw();
         }
 
+        /// <summary>지정 모드(스킬, 평타)를 끝낸다.</summary>
         private void ClearSkillMode()
         {
+            _attackPending = false;
             _pendingSkillId = null;
             _skillTargets.Clear();
             _chosenTargets.Clear();
@@ -652,8 +746,11 @@ namespace MiniChess.Client.Interaction
         {
             _boardView.ClearHighlights();
 
-            // 후보가 있으면 스킬 버튼 사거리 미리보기보다 후보를 먼저 보여준다.
-            if (_previewSkillId != null && _pendingSkillId == null && _actionCandidate == CandidateKind.None && DrawSkillPreview())
+            // 후보나 지정 모드가 있으면 버튼 사거리 미리보기보다 그것을 먼저 보여준다.
+            bool idle = _pendingSkillId == null && !_attackPending && _actionCandidate == CandidateKind.None;
+            if (idle && _previewSkillId != null && DrawSkillPreview())
+                return;
+            if (idle && _previewAttack && DrawAttackPreview())
                 return;
 
             if (_selected == null && _inspected != null && _inspected.IsPlaced)
@@ -673,8 +770,17 @@ namespace MiniChess.Client.Interaction
                 return;
             }
 
-            foreach (Position destination in _moveDestinations)
-                _boardView.Highlight(destination, CellHighlight.Move);
+            // 평타 지정 중에는 이동 칸을 숨기고 사거리만 옅게 깐다.
+            if (_attackPending)
+            {
+                foreach (Position cell in _session.Game.GetAttackReach(_selected.Id))
+                    _boardView.Highlight(cell, CellHighlight.AttackRange);
+            }
+            else
+            {
+                foreach (Position destination in _moveDestinations)
+                    _boardView.Highlight(destination, CellHighlight.Move);
+            }
             foreach (Unit target in _attackTargets)
                 _boardView.Highlight(target.Position.Value, CellHighlight.Attack);
             foreach (Position obstacle in _attackObstacles)
@@ -718,6 +824,29 @@ namespace MiniChess.Client.Interaction
                 _boardView.Highlight(chosen, CellHighlight.SkillChosen);
 
             HighlightPushPreview();
+        }
+
+        /// <summary>기본 공격 사거리(옅게)와, 내 유닛이면 지금 공격할 수 있는 대상(진하게). 보고 있는 유닛이 없으면 false.</summary>
+        private bool DrawAttackPreview()
+        {
+            Unit unit = Displayed;
+            GameController game = _session.Game;
+            if (unit == null || !unit.IsPlaced || game == null)
+                return false;
+
+            _boardView.Highlight(unit.Position.Value, CellHighlight.Selected);
+            foreach (Position cell in game.GetAttackReach(unit.Id))
+                _boardView.Highlight(cell, CellHighlight.AttackRange);
+
+            if (unit == _selected)
+            {
+                foreach (Unit target in _attackTargets)
+                    _boardView.Highlight(target.Position.Value, CellHighlight.Attack);
+                foreach (Position obstacle in _attackObstacles)
+                    _boardView.Highlight(obstacle, CellHighlight.Attack);
+            }
+
+            return true;
         }
 
         /// <summary>미리보기 스킬의 사거리(옅게)와, 내 유닛이면 지금 지정할 수 있는 칸(진하게). 보고 있는 유닛이 없으면 false.</summary>

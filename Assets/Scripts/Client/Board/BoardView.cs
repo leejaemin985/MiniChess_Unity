@@ -290,6 +290,7 @@ namespace MiniChess.Client.Board
                 case CellHighlight.SkillArea: return Style(skillAreaColor, 1.1f, 0.22f, true);
                 case CellHighlight.SkillChosen: return Style(skillChosenColor, 1.5f, 0.35f, true);
                 case CellHighlight.PushDestination: return Style(pushDestinationColor, 1.3f, 0.28f, true);
+                case CellHighlight.AttackRange: return Style(attackColor, 0.8f, 0.08f, false);
                 case CellHighlight.Path: return Style(pathColor, 1.4f, 0.32f, true);
                 case CellHighlight.Candidate: return Style(candidateColor, 1.7f, 0.4f, true);
                 default: return Style(Color.white, 1f, 0.1f, false);

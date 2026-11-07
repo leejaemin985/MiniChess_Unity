@@ -21,6 +21,9 @@ namespace MiniChess.Client.Board
         /// <summary>미는 스킬로 대상이 밀려 도착할 칸(미리보기).</summary>
         PushDestination,
 
+        /// <summary>기본 공격이 닿는 사거리(대상 유무와 무관, 평타 버튼 미리보기/평타 지정 중).</summary>
+        AttackRange,
+
         /// <summary>확정 전 이동 후보가 지나갈 칸.</summary>
         Path,
 

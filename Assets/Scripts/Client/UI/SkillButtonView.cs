@@ -26,6 +26,7 @@ namespace MiniChess.Client.UI
         {
             nameText.text = skillName;
             costText.text = cost;
+            costText.gameObject.SetActive(!string.IsNullOrEmpty(cost)); // 평타 버튼은 비용 글자 없이 아이콘 + 이름
             background.color = backgroundColor;
             if (frame != null)
                 frame.color = frameColor;

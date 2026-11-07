@@ -84,6 +84,8 @@ namespace MiniChess.Client.UI
         [SerializeField] private Color activeBorderColor = new Color(0.95f, 0.75f, 0.35f, 1f);
         [Tooltip("스킬 설명(지정 중인 스킬 버튼 위 말풍선). 비우면 Resources/SkillDescriptionCatalog 를 불러온다.")]
         [SerializeField] private SkillDescriptionCatalog skillDescriptions;
+        [Tooltip("평타 버튼 폭(스킬 버튼보다 좁게, 아이콘 + \"평타\").")]
+        [SerializeField, Min(0f)] private float attackButtonWidth = 120f;
 
         private GameSession _session;
         private SelectionController _selection;
@@ -93,6 +95,8 @@ namespace MiniChess.Client.UI
         private readonly List<SkillButtonView> _skillButtons = new List<SkillButtonView>();
         private readonly List<string> _skillIds = new List<string>();
         private readonly List<string> _chipStatusIds = new List<string>();
+        /// <summary>스킬 버튼 줄 맨 앞의 평타(기본 공격) 버튼. 스킬 버튼 템플릿을 복제해 만든다.</summary>
+        private SkillButtonView _attackButton;
         private InfoBubbleView _tooltip;
         /// <summary>마우스가 올라와 있는 스킬 버튼/상태 칸 순번. 없으면 -1.</summary>
         private int _hoverSkill = -1;
@@ -113,6 +117,7 @@ namespace MiniChess.Client.UI
 
             KoreanFont.ApplyToDefaultTexts(gameObject);
             skillTemplate.gameObject.SetActive(false);
+            CreateAttackButton();
             _tooltip = InfoBubbleView.Create(transform);
             cancelButton.onClick.AddListener(_selection.CancelCandidate);
             confirmButton.onClick.AddListener(_selection.ConfirmCandidate);
@@ -271,8 +276,10 @@ namespace MiniChess.Client.UI
         private void RefreshSkills(Unit unit)
         {
             List<SkillInfo> skills = _session.Game.GetSkills(unit.Id);
+            // 평타 버튼이 늘 있으므로 스킬이 없어도 버튼 줄을 보인다.
             if (skillSection != null)
-                skillSection.SetActive(skills.Count > 0);
+                skillSection.SetActive(true);
+            RefreshAttackButton(unit);
 
             int before = _skillButtons.Count;
             Ensure(_skillButtons, skillTemplate, skillContainer, skills.Count);
@@ -307,6 +314,43 @@ namespace MiniChess.Client.UI
             }
 
             RefreshTooltip();
+        }
+
+        /// <summary>스킬 버튼 템플릿을 복제해 버튼 줄 맨 앞에 평타 버튼을 만든다(아이콘 = 기본 공격 아이콘, 글자 "평타").</summary>
+        private void CreateAttackButton()
+        {
+            _attackButton = Instantiate(skillTemplate, skillContainer);
+            _attackButton.name = "BasicAttack";
+            _attackButton.transform.SetAsFirstSibling();
+            _attackButton.gameObject.SetActive(true);
+            var size = _attackButton.GetComponent<LayoutElement>();
+            if (size != null)
+                size.minWidth = size.preferredWidth = attackButtonWidth;
+
+            _attackButton.Button.onClick.AddListener(OnAttackClicked);
+            HoverRelay relay = HoverRelay.Attach(_attackButton.gameObject);
+            relay.Entered += () => _selection.PreviewAttack(true);
+            relay.Exited += () => _selection.PreviewAttack(false);
+        }
+
+        /// <summary>평타 버튼: 내 유닛이면 누를 수 있고, 공격할 대상이 있으면 사용 가능 색, 평타 지정 중이면 강조. 비용은 AP 게이지 미리보기로 보인다.</summary>
+        private void RefreshAttackButton(Unit unit)
+        {
+            bool own = unit == _selection.Selected;
+            GameController game = _session.Game;
+            bool usable = own && (game.GetAttackTargets(unit.Id).Count > 0 || game.GetAttackableObstacles(unit.Id).Count > 0);
+            bool active = own && _selection.IsAttackPending;
+            _attackButton.Button.interactable = own;
+            _attackButton.Set("평타", string.Empty, _session.CharacterVisuals?.BasicAttackIcon,
+                active ? activeColor : usable ? usableColor : unusableColor, active ? activeBorderColor : borderColor);
+        }
+
+        private void OnAttackClicked()
+        {
+            if (_selection.IsAttackPending)
+                _selection.CancelAttack();
+            else
+                _selection.BeginAttack();
         }
 
         /// <summary>
