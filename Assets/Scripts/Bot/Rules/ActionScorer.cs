@@ -57,7 +57,7 @@ namespace MiniChess.Bot.Rules
                 return false;
 
             Unit unit = _a.State.FindUnit(action.UnitId);
-            int cost = Math.Max(1, _a.State.Board.GetStraightPath(unit.Position.Value, action.Cell).Count) * _a.MoveCostPerCell;
+            int cost = Math.Max(1, _a.State.Board.GetStraightPath(unit.Position.Value, action.Cell).Count) * _a.MoveCostPerCell(unit);
             return BoardAnalysis.CanStillFight(unit) && BestOffenseFrom(unit, action.Cell, _a.Ap - cost) > 0;
         }
 
@@ -223,7 +223,7 @@ namespace MiniChess.Bot.Rules
             Unit unit = _a.State.FindUnit(action.UnitId);
             Position from = unit.Position.Value;
             IReadOnlyList<Position> path = _a.State.Board.GetStraightPath(from, action.Cell);
-            int cost = Math.Max(1, path.Count) * _a.MoveCostPerCell;
+            int cost = Math.Max(1, path.Count) * _a.MoveCostPerCell(unit);
 
             return Relocation(unit, action.Cell, _a.Ap - cost, BoardAnalysis.CanStillFight(unit))
                 + PathHazard(path)

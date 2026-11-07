@@ -90,7 +90,8 @@ namespace MiniChess.Bot.Rules
 
         public int Ap => State.GetPlayer(Team).Ap.Current;
         public int AttackCost => State.Rules.ActionCost.BasicAttackCost;
-        public int MoveCostPerCell => State.Rules.ActionCost.MoveCostPerCell;
+        /// <summary>이 유닛이 한 칸 걷는 AP(칸당 AP × 유닛의 이동 AP 배율, 분신은 0).</summary>
+        public int MoveCostPerCell(Unit unit) => State.Rules.ActionCost.MoveCostPerCell * unit.Stats.Base.MoveCostMultiplier;
 
         public SkillDefinition FindSkill(string skillId) => State.Skills.Find(skillId);
 
@@ -518,14 +519,13 @@ namespace MiniChess.Bot.Rules
             // 닿는 공격을 큰 피해부터(_enemyHits 는 피해 순으로 정렬돼 있다) 상대 AP 안에서 더한다.
             double total = 0;
             int ap = _enemyApNext.Value;
-            int moveCost = MoveCostPerCell;
             foreach (EnemyHit hit in _enemyHits)
             {
                 int distance = RangeCalculator.GetDistance(hit.From, position);
                 if (distance > hit.Mobility + hit.Reach)
                     continue;
 
-                int cost = hit.Cost + (distance > hit.Reach ? moveCost : 0);
+                int cost = hit.Cost + (distance > hit.Reach ? hit.MoveCost : 0);
                 if (cost > ap)
                     continue;
                 total += hit.Damage;
@@ -553,6 +553,9 @@ namespace MiniChess.Bot.Rules
             public int Reach;
             public double Damage;
             public int Cost;
+
+            /// <summary>다가가야 닿을 때 더하는 이동 1칸 AP(그 적의 칸당 이동 AP).</summary>
+            public int MoveCost;
         }
 
         private List<EnemyHit> _enemyHits;
@@ -581,13 +584,14 @@ namespace MiniChess.Bot.Rules
                 }
 
                 Position from = enemy.Position.Value;
+                int moveCost = MoveCostPerCell(enemy);
                 if (!IsInstalled(enemy))
-                    hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = enemy.Stats.AttackRange, Damage = BasicAttackDamage(enemy), Cost = AttackCost });
+                    hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = enemy.Stats.AttackRange, Damage = BasicAttackDamage(enemy), Cost = AttackCost, MoveCost = moveCost });
 
                 foreach (SkillFacts facts in skills)
                 {
                     if (facts.EnemyDamage > 0)
-                        hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = facts.Reach, Damage = facts.EnemyDamage, Cost = facts.Skill.ApCost ?? 0 });
+                        hits.Add(new EnemyHit { From = from, Mobility = mobility, Reach = facts.Reach, Damage = facts.EnemyDamage, Cost = facts.Skill.ApCost ?? 0, MoveCost = moveCost });
                 }
             }
 
