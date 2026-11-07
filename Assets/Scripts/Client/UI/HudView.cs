@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using MiniChess.Client.Bootstrap;
+using MiniChess.Client.Common;
 using MiniChess.Client.Interaction;
 using MiniChess.Client.Visuals;
 using MiniChess.Core.Capture;
@@ -19,14 +20,20 @@ namespace MiniChess.Client.UI
     /// </summary>
     public class HudView : MonoBehaviour
     {
-        /// <summary>턴 종료 버튼(과 전투 정보 창)의 위쪽 끝. 위 정보 바(TopBar 프리팹, 높이 170) 바로 아래.</summary>
-        private const float EndTurnTop = 186f;
+        /// <summary>위 정보 바(TopBar 프리팹의 Bar)와 하단 HUD(UnitInfoPanel 프리팹의 Bottom) 높이. 보드 카메라가 그 사이에 보드를 맞춘다.</summary>
+        private const float TopBarHeight = 170f;
+        private const float BottomHudHeight = 470f;
+
+        /// <summary>턴 종료 버튼(과 전투 정보 창)의 위쪽 끝. 위 정보 바 바로 아래.</summary>
+        private const float EndTurnTop = TopBarHeight + 16f;
 
         [SerializeField] private float toastDuration = 1.5f;
 
         private GameSession _session;
         private Func<Team, Color> _teamColor;
 
+        private Canvas _canvas;
+        private BoardCameraRig _cameraRig;
         private Button _endTurnButton;
         private CanvasGroup _toastGroup;
         private TextMeshProUGUI _toastText;
@@ -56,6 +63,18 @@ namespace MiniChess.Client.UI
         private void OnDestroy()
         {
             Unbind();
+        }
+
+        /// <summary>화면 크기가 바뀌어도(창 크기, 회전) 보드가 HUD 사이에 들어오도록 카메라에 가림 비율을 알린다.</summary>
+        private void LateUpdate()
+        {
+            if (_cameraRig == null)
+                _cameraRig = FindObjectOfType<BoardCameraRig>();
+            if (_cameraRig == null || _canvas == null || Screen.height <= 0)
+                return;
+
+            float scale = _canvas.scaleFactor / Screen.height;
+            _cameraRig.SetScreenInsets(TopBarHeight * scale, BottomHudHeight * scale);
         }
 
         private void Unbind()
@@ -160,6 +179,7 @@ namespace MiniChess.Client.UI
         {
             UiFactory.EnsureEventSystem();
             Canvas canvas = UiFactory.CreateCanvas(transform, "HudCanvas");
+            _canvas = canvas;
             Transform root = canvas.transform;
 
             // 하단은 유닛 패널과 AP 게이지가 쓰므로 턴 종료는 오른쪽 위(정보 바 아래)에 둔다.

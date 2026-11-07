@@ -9,6 +9,7 @@ namespace MiniChess.Client.Common
     ///   - 확대는 가리킨 지점을 향해 당긴다(그 지점이 화면에서 그 자리에 남는다). 가장 멀리는 보드 전체가 들어오는 거리.
     ///   - 초점은 판 안에서만 움직이고, 멀어질수록 판 중심으로 모인다(가장 멀리서는 판 중심) → 판을 화면 밖으로 잃지 않는다.
     /// yaw 0 은 Player1 쪽(-z)에서 +z 를 바라보는 방향이고, 180 이면 반대편에서 본다.
+    /// HUD 가 화면 위/아래를 가리면(SetScreenInsets) 그 사이 영역을 화면처럼 쓴다(투영 중심을 옮기고 그 영역에 맞춰 거리를 구한다).
     /// </summary>
     public class BoardCameraRig : MonoBehaviour
     {
@@ -22,6 +23,9 @@ namespace MiniChess.Client.Common
         private float _minDistance;
         /// <summary>가장 멀리: 보드 전체가 화면에 들어오는 거리.</summary>
         private float _maxDistance;
+        /// <summary>HUD 가 가리는 화면 위/아래(화면 높이 대비 0~1). 보드는 그 사이 영역의 가운데에 맞춘다.</summary>
+        private float _insetTop;
+        private float _insetBottom;
 
         private struct View
         {
@@ -52,30 +56,60 @@ namespace MiniChess.Client.Common
             if (settings.FieldOfView > 0f)
                 targetCamera.fieldOfView = settings.FieldOfView;
 
-            Vector2 size = coordinates.Size;
-            float radius = Mathf.Sqrt(size.x * size.x + size.y * size.y) * 0.5f * settings.Padding;
-
-            // 세로/가로 화면 중 좁은 쪽 시야각에 맞춘다
-            float verticalHalfFov = targetCamera.fieldOfView * 0.5f * Mathf.Deg2Rad;
-            float horizontalHalfFov = Mathf.Atan(Mathf.Tan(verticalHalfFov) * targetCamera.aspect);
-            float narrowHalfFov = Mathf.Min(verticalHalfFov, horizontalHalfFov);
-            float distance = radius / Mathf.Sin(narrowHalfFov);
-
-            // 가장 가까이: 좁은 쪽에 칸 MinVisibleCells 개가 들어오는 거리
-            _maxDistance = distance;
-            _minDistance = Mathf.Min(distance, settings.MinVisibleCells * coordinates.CellSize * 0.5f / Mathf.Tan(narrowHalfFov));
-
             _home = new View
             {
                 Focus = coordinates.Center,
                 Yaw = yaw,
                 Pitch = Mathf.Clamp(settings.Pitch, settings.MinPitch, settings.MaxPitch),
-                Distance = Mathf.Clamp(distance * settings.HomeDistance, _minDistance, _maxDistance),
             };
+            UpdateDistances();
             _target = _home;
             _current = _home;
             Apply(_current);
         }
+
+        /// <summary>
+        /// HUD 가 가리는 화면 위/아래 비율(화면 높이 대비 0~1)을 정한다. 보드는 그 사이 영역(보이는 영역)의 가운데에, 그 영역에 다 들어오게 맞춘다.
+        /// 바뀌면 거리 범위와 기본 시점을 다시 구한다(지금 시점은 새 범위 안으로만 당긴다).
+        /// </summary>
+        public void SetScreenInsets(float top, float bottom)
+        {
+            top = Mathf.Clamp(top, 0f, 0.45f);
+            bottom = Mathf.Clamp(bottom, 0f, 0.45f);
+            if (Mathf.Approximately(top, _insetTop) && Mathf.Approximately(bottom, _insetBottom))
+                return;
+
+            _insetTop = top;
+            _insetBottom = bottom;
+            if (!IsFramed)
+                return;
+
+            UpdateDistances();
+            _target.Distance = Mathf.Clamp(_target.Distance, _minDistance, _maxDistance);
+            ClampFocus();
+        }
+
+        /// <summary>보이는 영역(HUD 사이)의 좁은 쪽 시야각에 맞춰 가장 멀리/가까이 거리와 기본 거리를 구한다.</summary>
+        private void UpdateDistances()
+        {
+            Vector2 size = _coordinates.Size;
+            float radius = Mathf.Sqrt(size.x * size.x + size.y * size.y) * 0.5f * _settings.Padding;
+
+            // 세로/가로 중 좁은 쪽 시야각에 맞춘다. 세로는 HUD 가 가린 만큼 좁다.
+            float verticalHalfFov = targetCamera.fieldOfView * 0.5f * Mathf.Deg2Rad;
+            float horizontalHalfFov = Mathf.Atan(Mathf.Tan(verticalHalfFov) * targetCamera.aspect);
+            float visibleHalfFov = Mathf.Atan(Mathf.Tan(verticalHalfFov) * VisibleHeight);
+            float narrowHalfFov = Mathf.Min(visibleHalfFov, horizontalHalfFov);
+            float distance = radius / Mathf.Sin(narrowHalfFov);
+
+            // 가장 가까이: 좁은 쪽에 칸 MinVisibleCells 개가 들어오는 거리
+            _maxDistance = distance;
+            _minDistance = Mathf.Min(distance, _settings.MinVisibleCells * _coordinates.CellSize * 0.5f / Mathf.Tan(narrowHalfFov));
+            _home.Distance = Mathf.Clamp(distance * _settings.HomeDistance, _minDistance, _maxDistance);
+        }
+
+        /// <summary>HUD 사이 보이는 영역의 높이(화면 높이 대비).</summary>
+        private float VisibleHeight => Mathf.Max(0.1f, 1f - _insetTop - _insetBottom);
 
         /// <summary>기본 시점으로 돌아간다(지금 방향에서 가까운 쪽으로 돈다).</summary>
         public void ResetView()
@@ -161,6 +195,16 @@ namespace MiniChess.Client.Common
             Transform cameraTransform = targetCamera.transform;
             cameraTransform.rotation = rotation;
             cameraTransform.position = view.Focus - rotation * Vector3.forward * view.Distance;
+
+            // 화면 중심을 HUD 사이 보이는 영역의 가운데로 옮긴다(투영 중심 이동). 위/아래 가림이 같으면 그대로.
+            targetCamera.ResetProjectionMatrix();
+            float shift = _insetTop - _insetBottom;
+            if (!Mathf.Approximately(shift, 0f))
+            {
+                Matrix4x4 projection = targetCamera.projectionMatrix;
+                projection.m12 += shift;
+                targetCamera.projectionMatrix = projection;
+            }
         }
 
         /// <summary>화면 점 아래 판 높이(y = 0) 평면 위의 점.</summary>
