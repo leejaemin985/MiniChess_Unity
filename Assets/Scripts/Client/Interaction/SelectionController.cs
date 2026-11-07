@@ -62,8 +62,20 @@ namespace MiniChess.Client.Interaction
         /// <summary>지정 중인 스킬의 범위 회전(시계 방향).</summary>
         public AreaRotation PendingRotation => _rotation;
 
+        /// <summary>
+        /// 하단 AP 게이지에 미리 보일 비용(쓸 AP). 지정 중인 스킬, 없으면 마우스를 올린 스킬 버튼의 스킬. 없으면 0.
+        /// 실제 AP 는 행동이 확정된 뒤에 차감된다.
+        /// </summary>
+        public int PreviewApCost => GetSkillCost(_pendingSkillId ?? _previewSkillId);
+
+        /// <summary>PreviewApCost 를 쓸 팀(미리보는 행동의 유닛 팀). 미리보기가 없으면 null.</summary>
+        public Team? PreviewApTeam => PreviewApCost > 0 ? (_pendingSkillId != null ? _selected : Displayed)?.Team : null;
+
         /// <summary>선택 유닛 또는 스킬 지정 모드가 바뀌었다.</summary>
         public event Action SelectionChanged;
+
+        /// <summary>하이라이트(미리보기)를 다시 그렸다. AP 미리보기(PreviewApCost)가 바뀌었을 수 있다.</summary>
+        public event Action PreviewChanged;
 
         public void Initialize(GameSession session, BoardInput input, BoardView boardView)
         {
@@ -444,7 +456,18 @@ namespace MiniChess.Client.Interaction
             _rotation = AreaRotation.R0;
         }
 
+        private int GetSkillCost(string skillId)
+        {
+            return skillId != null ? _session.State?.Skills.Find(skillId)?.ApCost ?? 0 : 0;
+        }
+
         private void Redraw()
+        {
+            DrawHighlights();
+            PreviewChanged?.Invoke();
+        }
+
+        private void DrawHighlights()
         {
             _boardView.ClearHighlights();
 

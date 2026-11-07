@@ -30,6 +30,10 @@ namespace MiniChess.Client.UI
         public const string ResourcePath = "UI/UnitInfoPanel";
         public const string StatusChipPrefabPath = "UI/StatusChip";
 
+        [Tooltip("하단 HUD 바탕. 전투 중에만 보인다(배치 단계는 배치 패널이 아래를 쓴다).")]
+        [SerializeField] private GameObject bottom;
+        [Tooltip("팀 공용 AP 게이지. 유닛 선택과 상관없이 같은 자리에 보인다.")]
+        [SerializeField] private ApGaugeView apGauge;
         [Tooltip("유닛을 골랐을 때만 보이는 부분.")]
         [SerializeField] private GameObject content;
 
@@ -68,6 +72,9 @@ namespace MiniChess.Client.UI
         [SerializeField] private Color usableColor = new Color(0.2f, 0.25f, 0.35f, 1f);
         [SerializeField] private Color unusableColor = new Color(0.16f, 0.17f, 0.2f, 0.8f);
         [SerializeField] private Color activeColor = new Color(0.95f, 0.55f, 0.1f, 1f);
+        [Tooltip("스킬 버튼 테두리: 평소 / 지정 중.")]
+        [SerializeField] private Color borderColor = new Color(1f, 1f, 1f, 0.12f);
+        [SerializeField] private Color activeBorderColor = new Color(0.95f, 0.75f, 0.35f, 1f);
         [Tooltip("스킬 설명(지정 중인 스킬 버튼 위 말풍선). 비우면 Resources/SkillDescriptionCatalog 를 불러온다.")]
         [SerializeField] private SkillDescriptionCatalog skillDescriptions;
 
@@ -102,13 +109,18 @@ namespace MiniChess.Client.UI
             _tooltip = InfoBubbleView.Create(transform);
 
             _selection.SelectionChanged += Refresh;
+            _selection.PreviewChanged += RefreshGauge;
             _session.StateChanged += Refresh;
             Refresh();
         }
 
         private void OnDestroy()
         {
-            if (_selection != null) _selection.SelectionChanged -= Refresh;
+            if (_selection != null)
+            {
+                _selection.SelectionChanged -= Refresh;
+                _selection.PreviewChanged -= RefreshGauge;
+            }
             if (_session != null) _session.StateChanged -= Refresh;
         }
 
@@ -117,6 +129,7 @@ namespace MiniChess.Client.UI
             // 선택한 유닛, 없으면 정보만 보는 유닛(상대 유닛 등).
             Unit unit = _selection.Displayed;
             GameState state = _session.State;
+            RefreshGauge();
 
             bool visible = unit != null && state != null && !state.IsGameOver && unit.IsPlaced;
             content.SetActive(visible);
@@ -129,6 +142,24 @@ namespace MiniChess.Client.UI
             RefreshUnit(unit);
             RefreshStatuses(unit);
             RefreshSkills(unit);
+        }
+
+        /// <summary>
+        /// 하단 바탕과 팀 공용 AP 게이지. 이 화면이 조작하는 팀(한 화면 교대면 지금 턴인 팀)의 AP 를 보이고,
+        /// 그 팀 유닛의 행동을 미리보는 중이면 비용만큼 사선으로 칠한다.
+        /// </summary>
+        private void RefreshGauge()
+        {
+            GameState state = _session.State;
+            bool battle = state != null && state.Phase == GamePhase.Battle && !state.IsGameOver;
+            bottom.SetActive(battle);
+            if (!battle)
+                return;
+
+            Team team = TeamNames.Viewing(_session, state.CurrentTeam);
+            ApPool ap = state.GetPlayer(team).Ap;
+            int preview = _selection.PreviewApTeam == team ? _selection.PreviewApCost : 0;
+            apGauge.Show(ap.Current, ap.Max, preview);
         }
 
         private void RefreshUnit(Unit unit)
@@ -233,10 +264,10 @@ namespace MiniChess.Client.UI
                 bool usable = own && skill.Usable == SkillFailReason.None;
                 bool active = own && _selection.PendingSkillId == skill.Id;
                 _skillButtons[i].Button.interactable = own;
-                string cost = skill.Definition?.ApCost != null ? $"{skill.Definition.ApCost} AP" : "TBD";
+                string cost = skill.Definition?.ApCost != null ? HudPalette.Ap(skill.Definition.ApCost.Value) : $"{HudPalette.Diamond} ?";
 
                 _skillButtons[i].Set(DisplayName(unit, skill.Id, skill.Definition), cost, null,
-                    active ? activeColor : usable ? usableColor : unusableColor);
+                    active ? activeColor : usable ? usableColor : unusableColor, active ? activeBorderColor : borderColor);
             }
 
             RefreshTooltip();
