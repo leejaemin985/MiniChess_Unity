@@ -19,6 +19,9 @@ namespace MiniChess.Client.UI
     /// </summary>
     public class HudView : MonoBehaviour
     {
+        /// <summary>턴 종료 버튼(과 전투 정보 창)의 위쪽 끝. 위 정보 바(TopBar 프리팹, 높이 170) 바로 아래.</summary>
+        private const float EndTurnTop = 186f;
+
         [SerializeField] private float toastDuration = 1.5f;
 
         private GameSession _session;
@@ -115,7 +118,7 @@ namespace MiniChess.Client.UI
         /// <summary>"PLAYER 1", 봇 팀이면 "PLAYER 2 (BOT)".</summary>
         private string TeamLabel(Team team)
         {
-            string label = team == Team.Player1 ? "PLAYER 1" : "PLAYER 2";
+            string label = TeamNames.Name(team);
             return _session.IsBot(team) ? $"{label} (BOT)" : label;
         }
 
@@ -159,18 +162,39 @@ namespace MiniChess.Client.UI
             Canvas canvas = UiFactory.CreateCanvas(transform, "HudCanvas");
             Transform root = canvas.transform;
 
-            _endTurnButton = UiFactory.CreateButton(root, "EndTurn", "END TURN", new Color(0.15f, 0.15f, 0.18f, 0.9f), OnEndTurnClicked);
-            // 하단은 유닛 패널이 쓰므로 턴 종료는 오른쪽 위(정보 바 아래)에 둔다.
-            UiFactory.Place((RectTransform)_endTurnButton.transform, new Vector2(1f, 1f), new Vector2(-40f, -160f), new Vector2(280f, 80f));
-            // 상태이상 설명 창 버튼은 턴 종료 바로 아래.
-            StatusGuideView.Create(root, Resources.Load<StatusVisualCatalog>(StatusVisualCatalog.ResourcePath), new Vector2(-40f, -256f));
+            // 하단은 유닛 패널과 AP 게이지가 쓰므로 턴 종료는 오른쪽 위(정보 바 아래)에 둔다.
+            _endTurnButton = CreateFramedButton(root, "EndTurn", "턴 종료", 40f, OnEndTurnClicked);
+            UiFactory.Place((RectTransform)_endTurnButton.transform, new Vector2(1f, 1f), new Vector2(-24f, -EndTurnTop), new Vector2(300f, 96f));
+            // 전투 정보 창은 정보 바의 버튼으로 여닫고, 열리면 턴 종료 버튼 위를 덮는다.
+            BattleInfoView battleInfo = BattleInfoView.Create(root, _session, _teamColor,
+                Resources.Load<StatusVisualCatalog>(StatusVisualCatalog.ResourcePath), new Vector2(-24f, -EndTurnTop));
 
-            CreatePrefabPanel<TopBarView>(TopBarView.ResourcePath)?.Bind(_session, _teamColor);
+            TopBarView topBar = CreatePrefabPanel<TopBarView>(TopBarView.ResourcePath);
+            if (topBar != null)
+            {
+                topBar.Bind(_session);
+                topBar.InfoClicked += battleInfo.Toggle;
+            }
             CreatePrefabPanel<UnitInfoPanel>(UnitInfoPanel.ResourcePath)?.Bind(_session, _teamColor);
             PlacementPanelView.Create(root, _session, _session.Placement);
             BuildToast(root);
             BuildGameOverPanel(root);
             CreatePrefabPanel<ConnectPanelView>(ConnectPanelView.ResourcePath)?.Bind(_session);
+        }
+
+        /// <summary>어두운 바탕 + 옅은 둥근 테두리 버튼(위 정보 바의 버튼과 같은 모양).</summary>
+        private static Button CreateFramedButton(Transform parent, string name, string label, float fontSize, UnityEngine.Events.UnityAction onClick)
+        {
+            Button button = UiFactory.CreateButton(parent, name, label, HudPalette.ButtonFill, onClick);
+            button.targetGraphic.gameObject.AddComponent<RoundedFrame>().Thickness = 0f;
+            button.GetComponentInChildren<TextMeshProUGUI>().fontSize = fontSize;
+
+            Image border = UiFactory.CreatePanel(button.transform, "Border", HudPalette.ButtonBorder);
+            border.raycastTarget = false;
+            UiFactory.Stretch(border.rectTransform);
+            border.gameObject.AddComponent<RoundedFrame>().Thickness = 2f;
+            border.transform.SetAsFirstSibling();
+            return button;
         }
 
         /// <summary>Resources 의 패널 프리팹을 띄운다. 프리팹은 자체 캔버스라 HUD 캔버스 밖(Hud 오브젝트 아래)에 둔다. 없으면 null.</summary>
