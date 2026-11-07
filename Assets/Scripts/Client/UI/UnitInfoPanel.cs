@@ -37,6 +37,13 @@ namespace MiniChess.Client.UI
         [Tooltip("유닛을 골랐을 때만 보이는 부분.")]
         [SerializeField] private GameObject content;
 
+        [Header("Confirm (확정 전 후보가 있을 때만)")]
+        [SerializeField] private GameObject confirmBar;
+        [SerializeField] private Button cancelButton;
+        [SerializeField] private Button confirmButton;
+        [Tooltip("\"돌진 확정 · ◆ 3\".")]
+        [SerializeField] private TMP_Text confirmText;
+
         [Header("Unit")]
         [SerializeField] private Image portrait;
         [Tooltip("팀 색으로 칠할 얼굴 테두리/배경. 비워도 된다.")]
@@ -107,6 +114,8 @@ namespace MiniChess.Client.UI
             KoreanFont.ApplyToDefaultTexts(gameObject);
             skillTemplate.gameObject.SetActive(false);
             _tooltip = InfoBubbleView.Create(transform);
+            cancelButton.onClick.AddListener(_selection.CancelCandidate);
+            confirmButton.onClick.AddListener(_selection.ConfirmCandidate);
 
             _selection.SelectionChanged += Refresh;
             _selection.PreviewChanged += RefreshGauge;
@@ -160,6 +169,33 @@ namespace MiniChess.Client.UI
             ApPool ap = state.GetPlayer(team).Ap;
             int preview = _selection.PreviewApTeam == team ? _selection.PreviewApCost : 0;
             apGauge.Show(ap.Current, ap.Max, preview);
+            RefreshConfirm();
+        }
+
+        /// <summary>후보 행동이 있으면 취소/확정 버튼("돌진 확정 · ◆ 3"). 서버 결과 대기/행동 연출 중에는 누를 수 없다.</summary>
+        private void RefreshConfirm()
+        {
+            SelectionController.CandidateKind kind = _selection.Candidate;
+            confirmBar.SetActive(kind != SelectionController.CandidateKind.None);
+            if (kind == SelectionController.CandidateKind.None)
+                return;
+
+            confirmText.text = $"{CandidateLabel(kind)} 확정 · {HudPalette.Ap(_selection.CandidateCost)}";
+            confirmButton.interactable = _selection.CanConfirm;
+        }
+
+        private string CandidateLabel(SelectionController.CandidateKind kind)
+        {
+            switch (kind)
+            {
+                case SelectionController.CandidateKind.Move: return "이동";
+                case SelectionController.CandidateKind.Attack:
+                case SelectionController.CandidateKind.AttackObstacle: return "공격";
+                default:
+                    Unit unit = _selection.Selected;
+                    string skillId = _selection.PendingSkillId;
+                    return unit != null && skillId != null ? DisplayName(unit, skillId, _session.State?.Skills.Find(skillId)) : "스킬";
+            }
         }
 
         private void RefreshUnit(Unit unit)

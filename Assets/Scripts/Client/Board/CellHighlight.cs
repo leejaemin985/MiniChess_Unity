@@ -20,5 +20,11 @@ namespace MiniChess.Client.Board
 
         /// <summary>미는 스킬로 대상이 밀려 도착할 칸(미리보기).</summary>
         PushDestination,
+
+        /// <summary>확정 전 이동 후보가 지나갈 칸.</summary>
+        Path,
+
+        /// <summary>확정 전 후보 칸(이동 도착 칸, 공격 대상).</summary>
+        Candidate,
     }
 }

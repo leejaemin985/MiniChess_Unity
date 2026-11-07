@@ -41,6 +41,10 @@ namespace MiniChess.Client.Board
         [SerializeField] private Color skillAreaColor = new Color(1f, 0.55f, 0.1f);
         [SerializeField] private Color skillChosenColor = new Color(0.75f, 0.35f, 0.95f);
         [SerializeField] private Color pushDestinationColor = new Color(1f, 0.25f, 0.6f);
+        [Tooltip("확정 전 이동 후보가 지나갈 경로.")]
+        [SerializeField] private Color pathColor = new Color(0.45f, 1f, 0.92f);
+        [Tooltip("확정 전 후보 칸(이동 도착 칸, 공격 대상).")]
+        [SerializeField] private Color candidateColor = new Color(0.95f, 0.71f, 0.37f);
         [Tooltip("영역 경계에 세우는 막의 높이(칸 크기 대비).")]
         [SerializeField, Min(0f)] private float curtainHeight = 0.62f;
 
@@ -286,6 +290,8 @@ namespace MiniChess.Client.Board
                 case CellHighlight.SkillArea: return Style(skillAreaColor, 1.1f, 0.22f, true);
                 case CellHighlight.SkillChosen: return Style(skillChosenColor, 1.5f, 0.35f, true);
                 case CellHighlight.PushDestination: return Style(pushDestinationColor, 1.3f, 0.28f, true);
+                case CellHighlight.Path: return Style(pathColor, 1.4f, 0.32f, true);
+                case CellHighlight.Candidate: return Style(candidateColor, 1.7f, 0.4f, true);
                 default: return Style(Color.white, 1f, 0.1f, false);
             }
         }
