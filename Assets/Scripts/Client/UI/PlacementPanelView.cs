@@ -38,8 +38,10 @@ namespace MiniChess.Client.UI
         private const float ButtonHeight = 90f;
         private const float ButtonSpacing = 200f;
         private const float RowSpacing = 100f;
-        private const int MaxPerRow = 8;
-        private const float BottomMargin = 30f;
+        // 세로 화면(폭 1080)에 한 줄 5개.
+        private const int MaxPerRow = 5;
+        // 맨 아래는 배치 확정 버튼 자리.
+        private const float BottomMargin = 140f;
         private const float TabWidth = 220f;
         private const float TabHeight = 60f;
         private const float TabSpacing = 230f;
@@ -74,6 +76,7 @@ namespace MiniChess.Client.UI
             _root = root;
 
             _title = UiFactory.CreateText(root, "Title", 34f, TextAlignmentOptions.Bottom);
+            _title.enableWordWrapping = true; // 세로 화면에서 안내 문구가 두 줄로 넘어간다
 
             for (int i = 0; i < Roles.Length; i++)
             {
@@ -85,7 +88,7 @@ namespace MiniChess.Client.UI
             }
 
             _confirmButton = UiFactory.CreateButton(root, "Confirm", "배치 확정", SelectedColor, () => _placement.Confirm());
-            UiFactory.Place((RectTransform)_confirmButton.transform, new Vector2(1f, 0f), new Vector2(-40f, 150f), new Vector2(280f, 90f));
+            UiFactory.Place((RectTransform)_confirmButton.transform, new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(400f, 90f));
         }
 
         private void Bind(GameSession session, PlacementController placement)
@@ -120,7 +123,7 @@ namespace MiniChess.Client.UI
             float gridTop = LayoutCharacterButtons();
             float tabsY = gridTop + 10f;
             LayoutTabs(tabsY);
-            UiFactory.Place(_title.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, tabsY + TabHeight + 10f), new Vector2(1800f, 90f));
+            UiFactory.Place(_title.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, tabsY + TabHeight + 10f), new Vector2(1000f, 130f));
 
             string teamLabel = team.Value == Team.Player1 ? "PLAYER 1" : "PLAYER 2";
             _title.text = $"{teamLabel} 배치  ({_placement.Pending.Count}/{_placement.RequiredCount})\n"

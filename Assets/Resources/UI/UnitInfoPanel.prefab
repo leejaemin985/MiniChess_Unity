@@ -1348,8 +1348,8 @@ MonoBehaviour:
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 1920, y: 1080}
-  m_ScreenMatchMode: 0
+  m_ReferenceResolution: {x: 1080, y: 1920}
+  m_ScreenMatchMode: 1
   m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
@@ -1405,6 +1405,7 @@ MonoBehaviour:
   usableColor: {r: 0.2, g: 0.25, b: 0.35, a: 1}
   unusableColor: {r: 0.16, g: 0.17, b: 0.2, a: 0.8}
   activeColor: {r: 0.95, g: 0.55, b: 0.1, a: 1}
+  skillDescriptions: {fileID: 0}
 --- !u!1 &6182789313605450219
 GameObject:
   m_ObjectHideFlags: 0

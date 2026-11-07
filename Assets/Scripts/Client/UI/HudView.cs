@@ -207,7 +207,9 @@ namespace MiniChess.Client.UI
             _gameOverPanel = overlay.gameObject;
 
             _gameOverText = UiFactory.CreateText(overlay.transform, "Result", 96f, TextAlignmentOptions.Center);
-            UiFactory.Place(_gameOverText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 80f), new Vector2(1200f, 140f));
+            UiFactory.Place(_gameOverText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 80f), new Vector2(1000f, 140f));
+            _gameOverText.enableAutoSizing = true;
+            _gameOverText.fontSizeMax = 96f;
             _gameOverText.fontStyle = FontStyles.Bold;
 
             Button restart = UiFactory.CreateButton(overlay.transform, "Restart", "RESTART", new Color(0.2f, 0.5f, 0.3f, 1f), OnRestartClicked);

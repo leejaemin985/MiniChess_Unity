@@ -10,6 +10,12 @@ namespace MiniChess.Client.UI
     /// <summary>프로토타입용 uGUI 요소를 코드로 만드는 헬퍼. 프리팹 없이 HUD 를 구성한다.</summary>
     public static class UiFactory
     {
+        /// <summary>
+        /// 세로 화면 기준 해상도. 모든 HUD 캔버스(코드로 만든 것, 패널 프리팹)가 같은 값을 쓴다.
+        /// Expand 라 기준 영역(1080 x 1920)이 어떤 화면비에서도 다 들어오고, 남는 쪽(긴 폰의 세로, 가로 창의 가로)으로 늘어난다.
+        /// </summary>
+        public static readonly Vector2 ReferenceResolution = new Vector2(1080f, 1920f);
+
         public static Canvas CreateCanvas(Transform parent, string name)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -18,13 +24,18 @@ namespace MiniChess.Client.UI
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
-            var scaler = go.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
+            ConfigureScaler(go.AddComponent<CanvasScaler>());
 
             go.AddComponent<GraphicRaycaster>();
             return canvas;
+        }
+
+        /// <summary>캔버스 스케일러를 세로 기준 해상도(ReferenceResolution, Expand)로 맞춘다.</summary>
+        public static void ConfigureScaler(CanvasScaler scaler)
+        {
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = ReferenceResolution;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
         }
 
         /// <summary>씬에 EventSystem 이 없으면 만든다(버튼 클릭에 필요).</summary>
