@@ -4,13 +4,13 @@ using MiniChess.Client.Common;
 using MiniChess.Client.Visuals;
 using MiniChess.Core.State;
 using MiniChess.Core.Statuses;
-using TMPro;
 using UnityEngine;
 
 namespace MiniChess.Client.Units
 {
     /// <summary>
-    /// 유닛 하나의 표시(몸체 + 발밑 팀 고리 + 얼굴 + 이름/HP 라벨). 몸체는 캐릭터 모델 프리팹이 있으면 그것을, 없으면 캡슐을 쓴다(UnitBody).
+    /// 유닛 하나의 표시(몸체 + 발밑 팀 고리 + 머리 위 작은 얼굴, HP 바, 상태 아이콘). 몸체는 캐릭터 모델 프리팹이 있으면 그것을, 없으면 캡슐을 쓴다(UnitBody).
+    /// 이름과 정확한 HP 숫자는 머리 위에 띄우지 않고 하단 유닛 카드에서 본다.
     /// 모델 몸체는 팀 색을 칠하지 않으므로 팀은 발밑 고리로 구분하고, 이번 턴 행동을 마치면 고리를 어둡게 한다. 몸체는 상대 진영 쪽(facingYaw)을 본다.
     /// 얼굴은 시각 데이터가 있을 때만 몸체 위에 띄운다. 코어 Unit 을 읽기만 하며, Sync 로 상태를 그대로 반영한다.
     /// 상태 표시 데이터에 몸체 머티리얼이 있는 상태(봉인 등)에 걸려 있으면 몸체 머티리얼을 그것으로 바꾼다.
@@ -22,10 +22,13 @@ namespace MiniChess.Client.Units
         /// <summary>소환물(분신)은 본체보다 작게 그린다.</summary>
         private const float SummonScale = 0.75f;
         /// <summary>얼굴 한 변 길이와 테두리 두께(월드 단위).</summary>
-        private const float FaceSize = 0.6f;
+        private const float FaceSize = 0.2f;
         private const float FaceFrame = 0.05f;
-        /// <summary>캡슐 꼭대기와 얼굴 사이, 얼굴과 라벨 사이 간격.</summary>
+        /// <summary>캡슐 꼭대기와 얼굴 사이, 얼굴과 HP 바 사이 간격.</summary>
         private const float FaceGap = 0.08f;
+        /// <summary>머리 위 HP 바 크기(월드 단위).</summary>
+        private const float HpBarWidth = 0.42f;
+        private const float HpBarHeight = 0.06f;
         /// <summary>행동 아이콘 한 변 길이(월드 단위)와 등장/사라짐 시간.</summary>
         private const float IconSize = 0.55f;
         private const float IconPopTime = 0.12f;
@@ -44,11 +47,11 @@ namespace MiniChess.Client.Units
         private StatusVisualCatalog _statusVisuals;
         /// <summary>지금 몸체 머티리얼을 정한 상태 표시(없으면 null). 바뀔 때 굳기/깨지기 연출 시간을 여기서 읽는다.</summary>
         private StatusVisual _bodyStatus;
-        private TextMeshPro _label;
+        private UnitHpBar _hpBar;
         private FaceBadge _face;
         private StatusBadgeRow _statuses;
-        /// <summary>상태가 없을 때 라벨(이름/HP) 아래끝 높이. 상태가 있으면 그 사이에 상태 아이콘 줄이 들어가고 라벨이 올라간다.</summary>
-        private float _labelBaseHeight;
+        /// <summary>머리 위 표시(HP 바 → 상태 아이콘 줄)가 시작되는 높이(얼굴 위).</summary>
+        private float _overheadHeight;
         private Transform _iconRoot;
         private SpriteRenderer _icon;
         private Coroutine _iconRoutine;
@@ -121,10 +124,11 @@ namespace MiniChess.Client.Units
                 labelHeight += view._face.OuterSize + FaceGap;
             }
 
-            // 아래부터 캡슐 → 얼굴 → 상태 아이콘 줄(상태가 있을 때만) → 이름/HP.
-            view._labelBaseHeight = labelHeight;
+            // 아래부터 캡슐 → 얼굴 → HP 바 → 상태 아이콘 줄(상태가 있을 때만).
+            view._overheadHeight = labelHeight;
+            view._hpBar = UnitHpBar.Create(root.transform, HpBarWidth * scale, HpBarHeight);
+            view._hpBar.transform.localPosition = Vector3.up * (labelHeight + HpBarHeight * 0.5f);
             view._statuses = StatusBadgeRow.Create(root.transform, statusVisuals, statusStyle);
-            view._label = CreateLabel(root.transform, labelHeight);
 
             return view;
         }
@@ -212,11 +216,8 @@ namespace MiniChess.Client.Units
 
             _statuses.Sync(Unit.Statuses);
             _body.SyncStatuses(Unit.Statuses);
-            float badgeSize = _statuses.BadgeSize;
-            _statuses.transform.localPosition = Vector3.up * (_labelBaseHeight + badgeSize * 0.5f);
-            float statusRow = Unit.Statuses.Count > 0 ? badgeSize + FaceGap : 0f;
-            _label.transform.localPosition = Vector3.up * (_labelBaseHeight + statusRow);
-            _label.text = $"<size=70%>{Unit.Stats.Base.Name}</size>\n{Unit.Stats.CurrentHp}/{Unit.Stats.MaxHp}{FormatShield()}";
+            _hpBar.Set(Unit.Stats.CurrentHp, Unit.Stats.MaxHp, Unit.Stats.Shield);
+            _statuses.transform.localPosition = Vector3.up * (_overheadHeight + _hpBar.Height + FaceGap * 0.5f + _statuses.BadgeSize * 0.5f);
         }
 
         /// <summary>
@@ -378,13 +379,6 @@ namespace MiniChess.Client.Units
             root.SetActive(false);
         }
 
-        /// <summary>보호막이 있으면 HP 옆에 " +3" 형태(하늘색)로 붙인다.</summary>
-        private string FormatShield()
-        {
-            int shield = Unit.Stats.Shield;
-            return shield > 0 ? $" <color=#7FD4FF>+{shield}</color>" : string.Empty;
-        }
-
         /// <summary>
         /// 몸체 머티리얼을 걸린 상태대로 맞춘다. 원래 모습 → 상태 머티리얼은 굳기(BodyApplyTime), 상태 머티리얼 → 원래 모습은 깨지기(BodyRemoveTime)로 연출하고,
         /// 상태 머티리얼끼리 바뀌면 바로 바꾼다.
@@ -419,27 +413,6 @@ namespace MiniChess.Client.Units
             }
 
             return null;
-        }
-
-        private static TextMeshPro CreateLabel(Transform parent, float height)
-        {
-            var go = new GameObject("Label");
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = Vector3.up * height;
-            go.AddComponent<Billboard>();
-
-            var label = go.AddComponent<TextMeshPro>();
-            KoreanFont.Apply(label);
-            label.fontSize = 3f;
-            label.alignment = TextAlignmentOptions.Bottom;
-            label.enableWordWrapping = false;
-            label.color = Color.white;
-            label.outlineWidth = 0.25f;
-            label.outlineColor = Color.black;
-            label.rectTransform.pivot = new Vector2(0.5f, 0f);
-            label.rectTransform.sizeDelta = new Vector2(2.5f, 1.5f);
-
-            return label;
         }
     }
 }
