@@ -49,18 +49,12 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField, Min(0f)] private float botActionDelay = 0.5f;
         [Tooltip("봇 무작위 시드. 0 이면 매 경기 다르게.")]
         [SerializeField] private int botSeed;
-        [Tooltip("봇 종류. Engine = 엔진 봇(레벨 1~10), Legacy = 이전 봇(쉬움/보통/어려움, 비교용). 경기 시작 때의 값을 그 경기 동안 쓴다.")]
-        [SerializeField] private BotMode player1BotMode = BotMode.Engine;
-        [Tooltip("봇 레벨(1~10, 엔진 봇 BotLevels). 1~6 = 이번 턴만 읽음(낮을수록 자주 실수), 7~10 = 상대 응수와 그 뒤 내 턴까지 읽음(높을수록 오래 생각).")]
-        [SerializeField, ShowIf(nameof(player1BotMode), BotMode.Engine, 1, 10)] private int player1BotLevel = 5;
-        [Tooltip("이전 봇 난이도. 쉬움 = 규칙 봇(가끔 실수), 보통 = 이번 턴 행동 순서까지, 어려움 = 상대 응수까지.")]
-        [SerializeField, ShowIf(nameof(player1BotMode), BotMode.Legacy)] private LegacyBotDifficulty player1BotDifficulty = LegacyBotDifficulty.Normal;
-        [Tooltip("봇 종류. Engine = 엔진 봇(레벨 1~10), Legacy = 이전 봇(쉬움/보통/어려움, 비교용). 경기 시작 때의 값을 그 경기 동안 쓴다.")]
-        [SerializeField] private BotMode player2BotMode = BotMode.Engine;
-        [Tooltip("봇 레벨(1~10, 엔진 봇 BotLevels). 1~6 = 이번 턴만 읽음(낮을수록 자주 실수), 7~10 = 상대 응수와 그 뒤 내 턴까지 읽음(높을수록 오래 생각).")]
-        [SerializeField, ShowIf(nameof(player2BotMode), BotMode.Engine, 1, 10)] private int player2BotLevel = 5;
-        [Tooltip("이전 봇 난이도. 쉬움 = 규칙 봇(가끔 실수), 보통 = 이번 턴 행동 순서까지, 어려움 = 상대 응수까지.")]
-        [SerializeField, ShowIf(nameof(player2BotMode), BotMode.Legacy)] private LegacyBotDifficulty player2BotDifficulty = LegacyBotDifficulty.Normal;
+        [Tooltip("봇 난이도(수를 읽는 깊이). 쉬움 = 깊이 0(가끔 실수), 보통 = 이번 턴 행동 순서까지, 어려움 = 상대 응수까지, Custom = 아래 설정.")]
+        [SerializeField] private BotDifficulty player1BotDifficulty = BotDifficulty.Normal;
+        [SerializeField] private BotDifficulty player2BotDifficulty = BotDifficulty.Normal;
+        [Tooltip("난이도가 Custom 일 때의 탐색 설정. 깊이별 연산량은 BotSearchConfig 주석 참고.")]
+        [SerializeField] private BotSearchConfig player1BotSearch = new BotSearchConfig();
+        [SerializeField] private BotSearchConfig player2BotSearch = new BotSearchConfig();
 
         [Header("Online (켜면 서버에 접속해 상대와 대전. 봇/Quick Start 는 쓰지 않는다)")]
         [Tooltip("시작 화면의 접속 패널에서 고른 방식으로 바뀐다(연결 = 켬, 로컬 플레이 = 끔).")]
@@ -175,22 +169,15 @@ namespace MiniChess.Client.Bootstrap
         public float BotActionDelay => botActionDelay;
         public int BotSeed => botSeed;
 
-        /// <summary>팀의 봇 종류.</summary>
-        public BotMode GetBotMode(Team team)
-        {
-            return team == Team.Player1 ? player1BotMode : player2BotMode;
-        }
-
-        /// <summary>봇 종류가 Engine 일 때의 레벨(1~10).</summary>
-        public int GetBotLevel(Team team)
-        {
-            return team == Team.Player1 ? player1BotLevel : player2BotLevel;
-        }
-
-        /// <summary>봇 종류가 Legacy 일 때의 난이도.</summary>
-        public LegacyBotDifficulty GetLegacyBotDifficulty(Team team)
+        public BotDifficulty GetBotDifficulty(Team team)
         {
             return team == Team.Player1 ? player1BotDifficulty : player2BotDifficulty;
+        }
+
+        /// <summary>난이도가 Custom 일 때 쓰는 팀의 탐색 설정.</summary>
+        public BotSearchConfig GetBotSearch(Team team)
+        {
+            return team == Team.Player1 ? player1BotSearch : player2BotSearch;
         }
 
         /// <summary>서버에 접속해 대전하는 중인지.</summary>

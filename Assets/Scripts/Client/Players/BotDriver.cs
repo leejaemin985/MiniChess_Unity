@@ -176,10 +176,7 @@ namespace MiniChess.Client.Players
             if (!_bots.TryGetValue(team, out BotPlayer bot))
             {
                 int seed = _session.BotSeed != 0 ? _session.BotSeed + (int)team : Random.Range(int.MinValue, int.MaxValue);
-                // 봇은 경기마다 처음 필요할 때 만든다(경기 시작 때의 설정을 그 경기 동안 쓴다).
-                bot = _session.GetBotMode(team) == BotMode.Legacy
-                    ? BotFactory.Create((BotDifficulty)_session.GetLegacyBotDifficulty(team), seed)
-                    : BotFactory.Create(BotDifficulty.Level, seed, level: _session.GetBotLevel(team));
+                bot = BotFactory.Create(_session.GetBotDifficulty(team), seed, _session.GetBotSearch(team).ToSettings());
                 _bots[team] = bot;
             }
 
