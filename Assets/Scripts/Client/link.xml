@@ -1,0 +1,16 @@
+<!--
+  IL2CPP 코드 제거(웹/모바일 빌드)에서 지킬 타입.
+  - 서버 메시지와 게임 이벤트는 ProtocolJson(Newtonsoft)이 리플렉션으로 만들고 채운다. 코드에서 직접 쓰지 않는 생성자/속성이 제거되면
+    기기에서만 메시지가 비거나 연출이 깨진다.
+  - MeshCollider: 실행 중 만드는 기본 도형(Quad/Plane)이 붙이는 콜라이더. 코드에서 쓰지 않아 엔진 코드 제거로 빠지면
+    "Can't add component because class 'MeshCollider' doesn't exist!" 오류가 난다(곧바로 지우지만 오류는 남는다).
+-->
+<linker>
+  <assembly fullname="MiniChess.Protocol" preserve="all" />
+  <assembly fullname="MiniChess.Core">
+    <namespace fullname="MiniChess.Core.Events" preserve="all" />
+  </assembly>
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.MeshCollider" preserve="all" />
+  </assembly>
+</linker>

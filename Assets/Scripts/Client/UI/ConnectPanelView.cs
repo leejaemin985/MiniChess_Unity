@@ -1,5 +1,6 @@
 using MiniChess.Client.Bootstrap;
 using MiniChess.Client.Common;
+using MiniChess.Client.Network;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,7 +18,7 @@ namespace MiniChess.Client.UI
 
         [Tooltip("보이고 숨길 묶음(캔버스 아래 패널).")]
         [SerializeField] private GameObject panel;
-        [Tooltip("서버 주소 \"IP:포트\"(예: 192.168.100.23:5055). 입력칸에서 Enter 로도 연결한다.")]
+        [Tooltip("서버 주소 \"IP:포트\"(예: 192.168.100.23:5055) 또는 전체 주소(wss://.../ws). 입력칸에서 Enter 로도 연결한다.")]
         [SerializeField] private TMP_InputField ipInput;
         [SerializeField] private Button connectButton;
         [Tooltip("비우면 로컬 플레이 버튼 없이 쓴다.")]
@@ -30,6 +31,12 @@ namespace MiniChess.Client.UI
             _session = session;
 
             KoreanFont.ApplyToDefaultTexts(gameObject);
+
+            // 웹 빌드: 페이지 주소의 ?server=wss://... 를 미리 채운다(브라우저에서는 입력칸 붙여넣기가 불편하다).
+            string server = ServerConnection.GetPageQueryParam("server");
+            if (!string.IsNullOrEmpty(server))
+                ipInput.text = server;
+
             connectButton.onClick.AddListener(OnConnectClicked);
             ipInput.onSubmit.AddListener(_ => OnConnectClicked());
             if (localButton != null)

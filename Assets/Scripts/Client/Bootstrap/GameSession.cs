@@ -304,12 +304,21 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>
         /// 입력한 서버 주소로 접속해 온라인 경기를 시작한다. "IP:포트"(예: 192.168.100.23:5055) 또는 "IP"(포트는 serverUrl 의 것).
-        /// 경로(/ws)와 스킴은 serverUrl 을 따른다.
+        /// 경로(/ws)와 스킴은 serverUrl 을 따른다. "ws://" / "wss://" 로 시작하는 전체 주소(예: 터널 주소)는 그대로 쓴다.
         /// </summary>
         public void StartOnline(string address)
         {
             try
             {
+                if (address.StartsWith("ws://", StringComparison.OrdinalIgnoreCase) || address.StartsWith("wss://", StringComparison.OrdinalIgnoreCase))
+                {
+                    serverUrl = new Uri(address).ToString();
+                    online = true;
+                    IsModeChosen = true;
+                    StartNewGame();
+                    return;
+                }
+
                 var builder = new UriBuilder(serverUrl);
                 string[] parts = address.Split(':');
                 if (parts.Length > 2 || parts[0].Length == 0)
@@ -347,7 +356,10 @@ namespace MiniChess.Client.Bootstrap
         private void Update()
         {
             if (_connection != null)
+            {
+                _connection.Tick();
                 PollServer();
+            }
 
             // 죽은 유닛의 이펙트 풀은 남은 이펙트(장판 등)가 모두 사라진 뒤 지운다.
             if (State != null)

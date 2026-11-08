@@ -130,7 +130,12 @@ namespace MiniChess.Client.Players
                 // 경기가 바뀌면(새 경기, 다시 시작) 코루틴은 멈추고 이 판단은 취소되어 일찍 끝난다(결과는 버린다).
                 _thinking = new CancellationTokenSource();
                 CancellationToken cancellation = _thinking.Token;
+#if UNITY_WEBGL && !UNITY_EDITOR
+                // 웹 빌드는 스레드가 없어 메인 스레드에서 바로 판단한다(그동안 화면이 잠깐 멈출 수 있다).
+                Task<BotAction> decision = Decide(bot, game, team, cancellation);
+#else
                 Task<BotAction> decision = Task.Run(() => bot.DecideNext(game, team, cancellation));
+#endif
                 while (!decision.IsCompleted)
                     yield return null;
                 _thinking = null;
@@ -162,6 +167,21 @@ namespace MiniChess.Client.Players
 
             Finish(game);
         }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        /// <summary>판단을 지금 스레드에서 하고, 결과(오류 포함)를 Task.Run 과 같은 모양으로 돌려준다.</summary>
+        private static Task<BotAction> Decide(BotPlayer bot, GameController game, Team team, CancellationToken cancellation)
+        {
+            try
+            {
+                return Task.FromResult(bot.DecideNext(game, team, cancellation));
+            }
+            catch (System.Exception e)
+            {
+                return Task.FromException<BotAction>(e);
+            }
+        }
+#endif
 
         /// <summary>진행을 끝내고, 같은 경기에서 이어서 봇 차례가 있으면(봇끼리 대전 등) 다시 시작한다.</summary>
         private void Finish(GameController game)
