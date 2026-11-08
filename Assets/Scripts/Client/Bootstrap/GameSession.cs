@@ -692,10 +692,19 @@ namespace MiniChess.Client.Bootstrap
                 return;
             }
 
-            float hitDelay = PlayActionStart(events);
+            float hitDelay = 0f;
+            try
+            {
+                hitDelay = PlayActionStart(events);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+
             if (hitDelay <= 0f)
             {
-                PlayEvents(events);
+                PlayEventsSafely(events);
                 apply();
                 return;
             }
@@ -710,11 +719,27 @@ namespace MiniChess.Client.Bootstrap
             yield return new WaitForSeconds(delay);
 
             _presentRoutine = null;
-            PlayEvents(events);
+            PlayEventsSafely(events);
             _presenting = false;
             apply();
             if (_presentQueue.Count > 0)
                 _presentQueue.Dequeue()();
+        }
+
+        /// <summary>
+        /// 연출 중 예외가 나도 상태 반영(apply)과 대기 중인 갱신은 이어지게 한다.
+        /// 연출이 예외로 끊기면 화면이 서버와 어긋난 채 멈춰, 이미 쓴 스킬/지난 턴을 다시 요청하게 된다(웹 빌드에서 겪음).
+        /// </summary>
+        private void PlayEventsSafely(IReadOnlyList<GameEvent> events)
+        {
+            try
+            {
+                PlayEvents(events);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
         }
 
         /// <summary>진행 중인 연출과 대기 중인 갱신을 버린다(새 경기).</summary>
