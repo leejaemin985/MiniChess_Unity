@@ -26,8 +26,11 @@ namespace MiniChess.Client.Units
         private const float FaceFrame = 0.05f;
         /// <summary>캡슐 꼭대기와 얼굴 사이, 얼굴과 HP 바 사이 간격.</summary>
         private const float FaceGap = 0.08f;
-        /// <summary>탭으로 유닛을 고르는 몸통 원기둥의 반지름(월드 단위). 이웃 칸 유닛과 겹치지 않게 칸 크기의 절반보다 작게.</summary>
-        private const float PickRadius = 0.32f;
+        /// <summary>
+        /// 탭으로 유닛을 고르는 몸통 원기둥의 반지름(월드 단위). 실제 캐릭터 실루엣에 맞춰 가늘게 잡는다
+        /// (두꺼우면 비스듬한 시점에서 뒤 칸을 많이 가린다).
+        /// </summary>
+        private const float PickRadius = 0.25f;
         /// <summary>머리 위 HP 바 크기(월드 단위).</summary>
         private const float HpBarWidth = 0.42f;
         private const float HpBarHeight = 0.06f;
@@ -54,6 +57,10 @@ namespace MiniChess.Client.Units
         private StatusBadgeRow _statuses;
         /// <summary>머리 위 표시(HP 바 → 상태 아이콘 줄)가 시작되는 높이(얼굴 위).</summary>
         private float _overheadHeight;
+        /// <summary>탭 판정: 몸통 원기둥 높이(몸 꼭대기), 머리 위 얼굴 구의 중심 높이와 반지름(얼굴이 없으면 반지름 0).</summary>
+        private float _pickBodyTop;
+        private float _pickFaceHeight;
+        private float _pickFaceRadius;
         private Transform _iconRoot;
         private SpriteRenderer _icon;
         private Coroutine _iconRoutine;
@@ -110,6 +117,7 @@ namespace MiniChess.Client.Units
             view._body = UnitBody.Create(root.transform, bodyPrefab, BodyHeight, BodyWidth, scale);
             view._body.transform.localRotation = Quaternion.Euler(0f, facingYaw, 0f) * view._body.transform.localRotation;
             view.CreateTeamRing();
+            view._pickBodyTop = BodyHeight * scale;
             float labelHeight = BodyHeight * scale + FaceGap;
             view._iconHeight = labelHeight + IconSize * 0.5f;
 
@@ -118,6 +126,8 @@ namespace MiniChess.Client.Units
                 view._face = FaceBadge.Create(root.transform, face, teamColor, FaceSize * scale, FaceFrame, faceMask, frameShape);
                 view._face.transform.localPosition = Vector3.up * (labelHeight + view._face.OuterSize * 0.5f);
                 view._iconHeight = labelHeight + view._face.OuterSize * 0.5f;
+                view._pickFaceHeight = view._iconHeight;
+                view._pickFaceRadius = view._face.OuterSize * 0.5f;
 
                 // 소환물(분신)은 소환자 얼굴을 옅게 쓴다.
                 if (unit.IsSummon)
@@ -152,7 +162,8 @@ namespace MiniChess.Client.Units
         }
 
         /// <summary>
-        /// 화면 탭의 레이가 이 유닛의 몸통(발밑부터 머리 위 얼굴까지의 세로 원기둥)에 맞는지. 맞으면 레이 위 거리.
+        /// 화면 탭의 레이가 이 유닛에 맞는지. 맞으면 레이 위 거리.
+        /// 판정은 실제 몸(발밑부터 몸 꼭대기까지의 가는 세로 원기둥)과 머리 위 얼굴(작은 구)만이다. 그 사이 간격, HP 바, 상태 아이콘은 판정이 없다.
         /// 콜라이더 없이 계산하므로 비스듬한 시점에서 상반신/얼굴을 눌러도 그 뒤 칸이 아니라 이 유닛을 고른다. 숨긴 유닛은 맞지 않는다.
         /// </summary>
         public bool TryPick(Ray ray, out float distance)
@@ -162,7 +173,18 @@ namespace MiniChess.Client.Units
                 return false;
 
             Vector3 foot = transform.position;
-            float top = foot.y + _overheadHeight;
+            if (_pickFaceRadius > 0f)
+            {
+                // 얼굴 구: 레이 위에서 구 중심에 가장 가까운 점이 반지름 안이면 맞음(앞쪽 교차 거리).
+                Vector3 toFace = foot + Vector3.up * _pickFaceHeight - ray.origin;
+                float along = Vector3.Dot(toFace, ray.direction);
+                float squared = toFace.sqrMagnitude - along * along;
+                float radius = _pickFaceRadius * _pickFaceRadius;
+                if (along >= 0f && squared <= radius)
+                    distance = along - Mathf.Sqrt(radius - squared);
+            }
+
+            float top = foot.y + _pickBodyTop;
             Vector2 origin = new Vector2(ray.origin.x - foot.x, ray.origin.z - foot.z);
             Vector2 direction = new Vector2(ray.direction.x, ray.direction.z);
 
@@ -175,11 +197,11 @@ namespace MiniChess.Client.Units
             {
                 float enter = (-b - Mathf.Sqrt(discriminant)) / (2f * a);
                 float y = ray.origin.y + ray.direction.y * enter;
-                if (enter >= 0f && y >= foot.y && y <= top)
+                if (enter >= 0f && enter < distance && y >= foot.y && y <= top)
                     distance = enter;
             }
 
-            // 윗면: 위에서 내려다보면 머리 위 원판으로 들어온다.
+            // 윗면: 위에서 내려다보면 몸 꼭대기 원판으로 들어온다.
             if (Mathf.Abs(ray.direction.y) > 1e-6f)
             {
                 float enter = (top - ray.origin.y) / ray.direction.y;

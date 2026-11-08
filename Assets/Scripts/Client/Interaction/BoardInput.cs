@@ -10,7 +10,8 @@ namespace MiniChess.Client.Interaction
     /// <summary>
     /// 탭/클릭을 보드 칸 좌표로 바꿔 알린다. 게임 규칙은 모른다.
     /// 칸은 콜라이더가 아니라 레이와 판 평면(칸 윗면 높이)의 교차점으로 정한다. 그래서 비스듬히 볼 때 벽 같은 높은 것에 가려진 칸도 눌린다.
-    /// 그보다 먼저 유닛 몸통(UnitsView.TryPickUnit)을 검사해, 캐릭터 상반신/얼굴을 누르면 그 뒤 칸이 아니라 그 유닛의 칸으로 본다.
+    /// 유닛 몸통(UnitsView.TryPickUnit)도 함께 검사해, 캐릭터 상반신/얼굴을 누르면 그 뒤 칸이 아니라 그 유닛의 칸으로 본다.
+    /// 유닛과 그 뒤 바닥 칸이 함께 걸리면 어느 쪽을 쓸지는 ResolveOverlap(SelectionController)이 지금 할 수 있는 행동을 보고 정한다.
     /// 누른 뒤 거의 움직이지 않고 뗐을 때만 탭으로 본다(DragThreshold 이상 끌면 카메라 조작이라 BoardCameraInput 이 처리).
     /// 모바일은 첫 손가락 하나만 탭이 되고, 두 손가락이 닿은 터치는 탭이 아니다.
     /// </summary>
@@ -53,6 +54,12 @@ namespace MiniChess.Client.Interaction
         public event Action<Position?> HoverChanged;
 
         public bool InputEnabled { get; set; } = true;
+
+        /// <summary>
+        /// 탭이 유닛 몸통(첫 인자: 그 유닛의 칸)과 그 뒤 바닥 칸(둘째 인자)에 함께 걸렸을 때 쓸 칸을 고른다(게임 규칙을 아는 쪽이 정한다).
+        /// 비워 두면 유닛 칸.
+        /// </summary>
+        public Func<Position, Position, Position> ResolveOverlap { get; set; }
 
         public Position? HoveredCell { get; private set; }
 
@@ -182,13 +189,24 @@ namespace MiniChess.Client.Interaction
             HoverChanged?.Invoke(cell);
         }
 
-        /// <summary>화면 점이 가리키는 칸: 유닛 몸통에 맞으면 그 유닛의 칸, 아니면 판 평면과 만나는 칸. 보드 밖이면 null.</summary>
+        /// <summary>
+        /// 화면 점이 가리키는 칸: 유닛 몸통에 맞은 칸과 판 평면과 만나는 칸 중 하나. 둘이 다르면 ResolveOverlap 이 고르고(없으면 유닛), 보드 밖이면 null.
+        /// </summary>
         private Position? RaycastCell(Vector2 screenPosition)
         {
             Ray ray = _camera.ScreenPointToRay(screenPosition);
-            if (_units != null && _units.TryPickUnit(ray, out Position unitCell))
-                return unitCell;
+            Position? unitCell = _units != null && _units.TryPickUnit(ray, out Position picked) ? picked : (Position?)null;
+            Position? floorCell = RaycastFloor(ray);
 
+            if (unitCell.HasValue && floorCell.HasValue && !unitCell.Value.Equals(floorCell.Value) && ResolveOverlap != null)
+                return ResolveOverlap(unitCell.Value, floorCell.Value);
+
+            return unitCell ?? floorCell;
+        }
+
+        /// <summary>레이와 판 평면(칸 윗면 높이)이 만나는 칸. 보드 밖이면 null.</summary>
+        private Position? RaycastFloor(Ray ray)
+        {
             var board = new Plane(Vector3.up, _coordinates.Center);
             if (!board.Raycast(ray, out float enter) || enter > maxRayDistance)
                 return null;

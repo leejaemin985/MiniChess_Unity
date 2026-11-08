@@ -166,6 +166,7 @@ namespace MiniChess.Client.Interaction
             _input.CellClicked += OnCellClicked;
             _input.CancelClicked += OnCancelClicked;
             _input.HoverChanged += OnHoverChanged;
+            _input.ResolveOverlap = ResolveOverlap;
             _session.StateChanged += OnStateChanged;
         }
 
@@ -351,6 +352,7 @@ namespace MiniChess.Client.Interaction
                 _input.CellClicked -= OnCellClicked;
                 _input.CancelClicked -= OnCancelClicked;
                 _input.HoverChanged -= OnHoverChanged;
+                _input.ResolveOverlap = null;
             }
 
             if (_session != null)
@@ -573,6 +575,52 @@ namespace MiniChess.Client.Interaction
                 CancelCandidate();
             else
                 Deselect();
+        }
+
+        /// <summary>
+        /// 탭이 유닛 몸통(unitCell)과 그 뒤 바닥 칸(floorCell)에 함께 걸렸을 때 쓸 칸(BoardInput.ResolveOverlap).
+        /// 유닛이 지금 행동 대상이면 유닛, 아니면 바닥 칸이 행동 대상일 때 바닥, 둘 다 아니면 유닛(선택/정보 보기).
+        /// 예: 선택한 유닛 자신이나 공격할 수 없는 적의 머리가 이동 칸을 가리면 이동 칸이 눌린다.
+        /// </summary>
+        private Position ResolveOverlap(Position unitCell, Position floorCell)
+        {
+            if (IsActionable(unitCell, isUnit: true))
+                return unitCell;
+            if (IsActionable(floorCell, isUnit: false))
+                return floorCell;
+            return unitCell;
+        }
+
+        /// <summary>
+        /// 지금 누르면 행동(후보 고르기, 지정, 다른 아군 선택)이 되는 칸인지. 선택한 유닛이 없거나 조작할 차례가 아니면 어느 칸도 아니다.
+        /// isUnit 이면 그 칸의 유닛을 누른 것: 다른 아군은 선택 전환 대상이다(선택한 유닛 자신은 아니다).
+        /// </summary>
+        private bool IsActionable(Position cell, bool isUnit)
+        {
+            GameState state = _session.State;
+            if (!AcceptsInput(state) || state.IsGameOver || _selected == null || !_selected.IsPlaced)
+                return false;
+
+            if (_pendingSkillId != null)
+            {
+                if (_confirmSelf)
+                    return cell == _selected.Position.Value || GetSelfPreview().Contains(cell);
+                if (_skillTargets.Contains(cell))
+                    return true;
+                return IsSkillComplete && _targetCount > 1 && _session.Game.GetSkillTargets(_selected.Id, _pendingSkillId).Contains(cell);
+            }
+
+            bool attackable = _attackTargets.Exists(target => target.Position == cell) || _attackObstacles.Contains(cell);
+            if (_attackPending || attackable)
+                return attackable;
+
+            if (isUnit)
+            {
+                Unit occupant = state.Board.GetCell(cell).Occupant;
+                return occupant != null && occupant.Team == state.CurrentTeam && occupant != _selected;
+            }
+
+            return _moveDestinations.Contains(cell);
         }
 
         /// <summary>
