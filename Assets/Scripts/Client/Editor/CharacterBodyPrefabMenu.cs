@@ -83,7 +83,7 @@ namespace MiniChess.Client.Editor
                     : AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(UnitControllerPath);
                 animator.applyRootMotion = false;
                 animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
-                CharacterWeapon weapon = AddHandRig(animator, visual != null ? visual.WeaponPrefab : null);
+                CharacterWeapon weapon = AddHandRig(animator, visual != null ? visual.WeaponPrefab : null, visual != null ? visual.OffHandWeaponPrefab : null);
                 if (visual != null)
                     AddStatusStance(root.transform, animator, weapon, visual.StatusStance);
             }
@@ -96,21 +96,34 @@ namespace MiniChess.Client.Editor
             return prefab;
         }
 
-        /// <summary>양손 소켓을 만들고, 무기가 있으면 쥐는 손 소켓에 붙인다(반대손 IK 는 CharacterHandRig 가 런타임에 건다).</summary>
-        private static CharacterWeapon AddHandRig(Animator animator, CharacterWeapon weaponPrefab)
+        /// <summary>
+        /// 양손 소켓을 만들고, 무기가 있으면 쥐는 손 소켓에 붙인다(반대손 IK 는 CharacterHandRig 가 런타임에 건다).
+        /// 반대손 무기(offHandWeaponPrefab)는 그 프리팹의 쥐는 손 소켓에 붙이기만 한다(IK 없음, 주 무기와 같은 손이면 붙이지 않는다).
+        /// </summary>
+        private static CharacterWeapon AddHandRig(Animator animator, CharacterWeapon weaponPrefab, CharacterWeapon offHandWeaponPrefab)
         {
             Transform right = CharacterHandRig.CreateSocket(animator, WeaponHand.Right);
             Transform left = CharacterHandRig.CreateSocket(animator, WeaponHand.Left);
 
-            CharacterWeapon weapon = null;
-            Transform socket = weaponPrefab == null ? null : weaponPrefab.Hand == WeaponHand.Right ? right : left;
-            if (socket != null)
-            {
-                weapon = ((GameObject)PrefabUtility.InstantiatePrefab(weaponPrefab.gameObject, socket)).GetComponent<CharacterWeapon>();
-                weapon.name = "Weapon";
-            }
+            CharacterWeapon weapon = AttachWeapon(weaponPrefab, right, left, "Weapon");
+            if (offHandWeaponPrefab != null && (weaponPrefab == null || offHandWeaponPrefab.Hand != weaponPrefab.Hand))
+                AttachWeapon(offHandWeaponPrefab, right, left, "OffHandWeapon");
+            else if (offHandWeaponPrefab != null)
+                Debug.LogWarning($"[CharacterBodyPrefabMenu] {offHandWeaponPrefab.name}: 주 무기와 같은 손이라 반대손 무기를 붙이지 않음");
 
             animator.gameObject.AddComponent<CharacterHandRig>().Setup(right, left, weapon);
+            return weapon;
+        }
+
+        /// <summary>무기 프리팹을 그 쥐는 손 소켓에 붙인다. 프리팹이 없으면 null.</summary>
+        private static CharacterWeapon AttachWeapon(CharacterWeapon prefab, Transform right, Transform left, string name)
+        {
+            if (prefab == null)
+                return null;
+
+            Transform socket = prefab.Hand == WeaponHand.Right ? right : left;
+            CharacterWeapon weapon = ((GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, socket)).GetComponent<CharacterWeapon>();
+            weapon.name = name;
             return weapon;
         }
 

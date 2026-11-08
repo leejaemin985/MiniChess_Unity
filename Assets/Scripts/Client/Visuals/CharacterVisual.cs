@@ -62,6 +62,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField] private RuntimeAnimatorController animatorController;
         [Tooltip("손에 쥘 무기 프리팹. 쥐는 손과 반대손 IK 지점은 무기 프리팹(CharacterWeapon)에서 정한다. 몸체 프리팹 생성 메뉴가 붙인다.")]
         [SerializeField] private CharacterWeapon weaponPrefab;
+        [Tooltip("반대손에 따로 쥘 무기 프리팹(예: 조각가 → 오른손 망치 + 왼손 끌). 그 프리팹의 쥐는 손 소켓에 붙이기만 한다(반대손 IK 는 주 무기만). 몸체 프리팹 생성 메뉴가 붙인다.")]
+        [SerializeField] private CharacterWeapon offHandWeaponPrefab;
         [Tooltip("몸체 곁에 늘 붙어 다니는 오브젝트(예: 화염술사 → 불 정령). 몸체 프리팹 생성 메뉴가 몸체 루트 아래에 붙인다.")]
         [SerializeField] private BodyCompanion[] companions = Array.Empty<BodyCompanion>();
         [Tooltip("상태에 따른 자세(예: 박격포 설치 → 권총을 허리춤에 넣고 박격포 조작 대기). 상태를 비우면 쓰지 않는다. 몸체 프리팹 생성 메뉴가 붙인다.")]
@@ -94,6 +96,9 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>손에 쥘 무기 프리팹. 없으면 null.</summary>
         public CharacterWeapon WeaponPrefab => weaponPrefab;
+
+        /// <summary>반대손에 따로 쥘 무기 프리팹. 없으면 null.</summary>
+        public CharacterWeapon OffHandWeaponPrefab => offHandWeaponPrefab;
 
         /// <summary>몸체 곁에 붙어 다니는 오브젝트들(없으면 빈 배열).</summary>
         public BodyCompanion[] Companions => companions ?? Array.Empty<BodyCompanion>();
