@@ -26,6 +26,8 @@ namespace MiniChess.Client.Units
         private const float FaceFrame = 0.05f;
         /// <summary>캡슐 꼭대기와 얼굴 사이, 얼굴과 HP 바 사이 간격.</summary>
         private const float FaceGap = 0.08f;
+        /// <summary>탭으로 유닛을 고르는 몸통 원기둥의 반지름(월드 단위). 이웃 칸 유닛과 겹치지 않게 칸 크기의 절반보다 작게.</summary>
+        private const float PickRadius = 0.32f;
         /// <summary>머리 위 HP 바 크기(월드 단위).</summary>
         private const float HpBarWidth = 0.42f;
         private const float HpBarHeight = 0.06f;
@@ -147,6 +149,46 @@ namespace MiniChess.Client.Units
                 Instantiate(visual.SummonAura, transform, false).name = "Summon Aura";
             if (_face != null)
                 _face.SetImageColor(SummonFaceTint);
+        }
+
+        /// <summary>
+        /// 화면 탭의 레이가 이 유닛의 몸통(발밑부터 머리 위 얼굴까지의 세로 원기둥)에 맞는지. 맞으면 레이 위 거리.
+        /// 콜라이더 없이 계산하므로 비스듬한 시점에서 상반신/얼굴을 눌러도 그 뒤 칸이 아니라 이 유닛을 고른다. 숨긴 유닛은 맞지 않는다.
+        /// </summary>
+        public bool TryPick(Ray ray, out float distance)
+        {
+            distance = float.PositiveInfinity;
+            if (!gameObject.activeInHierarchy)
+                return false;
+
+            Vector3 foot = transform.position;
+            float top = foot.y + _overheadHeight;
+            Vector2 origin = new Vector2(ray.origin.x - foot.x, ray.origin.z - foot.z);
+            Vector2 direction = new Vector2(ray.direction.x, ray.direction.z);
+
+            // 옆면: 수평으로 축에서 PickRadius 거리가 되는 지점 중 앞쪽, 그 높이가 몸통 안이면 맞음.
+            float a = Vector2.Dot(direction, direction);
+            float b = 2f * Vector2.Dot(origin, direction);
+            float c = Vector2.Dot(origin, origin) - PickRadius * PickRadius;
+            float discriminant = b * b - 4f * a * c;
+            if (a > 1e-6f && discriminant >= 0f)
+            {
+                float enter = (-b - Mathf.Sqrt(discriminant)) / (2f * a);
+                float y = ray.origin.y + ray.direction.y * enter;
+                if (enter >= 0f && y >= foot.y && y <= top)
+                    distance = enter;
+            }
+
+            // 윗면: 위에서 내려다보면 머리 위 원판으로 들어온다.
+            if (Mathf.Abs(ray.direction.y) > 1e-6f)
+            {
+                float enter = (top - ray.origin.y) / ray.direction.y;
+                Vector2 hit = origin + direction * enter;
+                if (enter >= 0f && enter < distance && hit.sqrMagnitude <= PickRadius * PickRadius)
+                    distance = enter;
+            }
+
+            return !float.IsPositiveInfinity(distance);
         }
 
         /// <summary>몸체가 delay 초 뒤 duration 초 동안 바닥에서 솟아오르며 형체를 갖춘다(소환 연출).</summary>

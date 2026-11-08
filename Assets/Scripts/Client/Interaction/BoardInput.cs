@@ -1,5 +1,6 @@
 using System;
 using MiniChess.Client.Common;
+using MiniChess.Client.Units;
 using MiniChess.Core.Common;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -8,6 +9,8 @@ namespace MiniChess.Client.Interaction
 {
     /// <summary>
     /// 탭/클릭을 보드 칸 좌표로 바꿔 알린다. 게임 규칙은 모른다.
+    /// 칸은 콜라이더가 아니라 레이와 판 평면(칸 윗면 높이)의 교차점으로 정한다. 그래서 비스듬히 볼 때 벽 같은 높은 것에 가려진 칸도 눌린다.
+    /// 그보다 먼저 유닛 몸통(UnitsView.TryPickUnit)을 검사해, 캐릭터 상반신/얼굴을 누르면 그 뒤 칸이 아니라 그 유닛의 칸으로 본다.
     /// 누른 뒤 거의 움직이지 않고 뗐을 때만 탭으로 본다(DragThreshold 이상 끌면 카메라 조작이라 BoardCameraInput 이 처리).
     /// 모바일은 첫 손가락 하나만 탭이 되고, 두 손가락이 닿은 터치는 탭이 아니다.
     /// </summary>
@@ -20,6 +23,7 @@ namespace MiniChess.Client.Interaction
 
         private Camera _camera;
         private BoardCoordinates _coordinates;
+        private UnitsView _units;
         private Press _left;
         private Press _right;
         private Press _touch;
@@ -52,10 +56,12 @@ namespace MiniChess.Client.Interaction
 
         public Position? HoveredCell { get; private set; }
 
-        public void Initialize(Camera targetCamera, BoardCoordinates coordinates)
+        /// <param name="units">탭으로 유닛 몸통을 고를 유닛 뷰들. null 이면 칸(판 평면)만 판정한다.</param>
+        public void Initialize(Camera targetCamera, BoardCoordinates coordinates, UnitsView units = null)
         {
             _camera = targetCamera;
             _coordinates = coordinates;
+            _units = units;
             HoveredCell = null;
         }
 
@@ -176,13 +182,18 @@ namespace MiniChess.Client.Interaction
             HoverChanged?.Invoke(cell);
         }
 
+        /// <summary>화면 점이 가리키는 칸: 유닛 몸통에 맞으면 그 유닛의 칸, 아니면 판 평면과 만나는 칸. 보드 밖이면 null.</summary>
         private Position? RaycastCell(Vector2 screenPosition)
         {
             Ray ray = _camera.ScreenPointToRay(screenPosition);
-            if (!Physics.Raycast(ray, out RaycastHit hit, maxRayDistance))
+            if (_units != null && _units.TryPickUnit(ray, out Position unitCell))
+                return unitCell;
+
+            var board = new Plane(Vector3.up, _coordinates.Center);
+            if (!board.Raycast(ray, out float enter) || enter > maxRayDistance)
                 return null;
 
-            return _coordinates.TryGetPosition(hit.point, out Position position) ? position : (Position?)null;
+            return _coordinates.TryGetPosition(ray.GetPoint(enter), out Position position) ? position : (Position?)null;
         }
 
         /// <summary>pointerId 가 UI 위인지. 마우스는 -1, 터치는 손가락 번호.</summary>

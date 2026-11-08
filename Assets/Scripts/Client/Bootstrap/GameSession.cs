@@ -451,7 +451,7 @@ namespace MiniChess.Client.Bootstrap
             CameraSettings cameraSettings = gameOptions.Camera;
             cameraRig.Frame(Coordinates, cameraSettings, cameraSettings.FaceLocalTeam ? GetViewYaw(ViewTeam) : 0f);
             cameraInput.Initialize(cameraRig, cameraSettings, boardInput);
-            boardInput.Initialize(cameraRig.Camera, Coordinates);
+            boardInput.Initialize(cameraRig.Camera, Coordinates, unitsView);
 
             StateChanged?.Invoke();
         }

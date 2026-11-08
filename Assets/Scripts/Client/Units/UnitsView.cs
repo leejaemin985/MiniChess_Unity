@@ -218,6 +218,26 @@ namespace MiniChess.Client.Units
             return _views.TryGetValue(unit.Id, out view);
         }
 
+        /// <summary>
+        /// 화면 탭의 레이가 맞는 유닛 중 카메라에 가장 가까운 유닛의 칸(보드 위 유닛만). 맞는 유닛이 없으면 false.
+        /// 칸 판정(판 평면)보다 먼저 써서, 비스듬히 볼 때 캐릭터 상반신을 눌러도 그 뒤 칸이 아니라 그 유닛이 눌리게 한다.
+        /// </summary>
+        public bool TryPickUnit(Ray ray, out Position cell)
+        {
+            cell = default;
+            float nearest = float.PositiveInfinity;
+            foreach (UnitView view in _views.Values)
+            {
+                if (view == null || !view.Unit.IsPlaced || !view.TryPick(ray, out float distance) || distance >= nearest)
+                    continue;
+
+                nearest = distance;
+                cell = view.Unit.Position.Value;
+            }
+
+            return !float.IsPositiveInfinity(nearest);
+        }
+
         /// <summary>유닛 Id 로 뷰를 찾는다. 코어에서 이미 빠진(사망한) 유닛도 뷰가 남아 있으면 찾는다.</summary>
         public bool TryGetView(int unitId, out UnitView view)
         {
