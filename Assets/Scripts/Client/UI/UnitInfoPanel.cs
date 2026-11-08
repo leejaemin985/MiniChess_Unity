@@ -358,7 +358,9 @@ namespace MiniChess.Client.UI
         /// </summary>
         private void RefreshTooltip()
         {
-            if (_tooltip == null)
+            // 패널 자체가 꺼지는 중(종료/씬 정리)이면 버튼의 HoverRelay.OnDisable 이 여기로 들어온다. 이때 말풍선을 켜거나 순서를 바꾸면 Unity 가 막고,
+            // 꺼진 계층이라 캔버스도 찾지 못한다.
+            if (_tooltip == null || !isActiveAndEnabled)
                 return;
 
             if (TryGetStatusText(_hoverChip, out string statusText))
