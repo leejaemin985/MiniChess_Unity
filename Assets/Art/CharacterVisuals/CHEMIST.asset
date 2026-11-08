@@ -17,7 +17,7 @@ MonoBehaviour:
   faceCenter: {x: 0.625, y: 0.8666667}
   faceSize: 0.4
   bodyPrefab: {fileID: 2201780198458267048, guid: e8e58c5bf29308742b608badd8aaca47, type: 3}
-  animatorController: {fileID: 0}
+  animatorController: {fileID: 22100000, guid: ad50497ef55a5414ca8b1b861a5557ba, type: 2}
   weaponPrefab: {fileID: 5943696220370149369, guid: 04b0b82ce05fe514fa0a68e701241a71, type: 3}
   companions: []
   statusStance:
