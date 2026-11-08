@@ -22,7 +22,8 @@ namespace MiniChess.Client.Interaction
     ///     - 여러 칸 지정 스킬: 고른 칸을 표시하고 다음 후보를 다시 보여 준다. 다 고른 뒤 마지막 단계의 다른 칸을 누르면 마지막 칸만 바뀌고,
     ///       첫 단계의 칸을 누르면 그 칸부터 다시 고른다. 우클릭은 마지막 선택 취소.
     ///     - 자기 자신만 지정하는 스킬: 스킬 버튼을 누르면 바로 후보(범위 표시).
-    ///     - 회전하는 범위의 스킬: 우클릭으로 범위를 시계 방향 90도씩 돌린다(이때 우클릭은 취소가 아니다. 취소는 다른 칸 좌클릭, 스킬 버튼, 취소 버튼).
+    ///     - 회전하는 범위의 스킬(기준 칸을 고정해도 회전으로 적용 칸이 달라지는 스킬): 후보의 기준 칸을 다시 누르거나, 하단 회전 버튼, PC 우클릭으로
+    ///       범위를 시계 방향 90도씩 돌린다(이때 우클릭은 취소가 아니다. 취소는 다른 칸 좌클릭, 스킬 버튼, 취소 버튼). 지금 방향으로 쓸 수 없으면 확정만 막는다.
     ///   평타 모드: 평타 버튼 → 이동 칸 대신 기본 공격 사거리와 대상만 보임 → 대상(적, 장애물)을 누르면 공격 후보. 다른 칸을 누르면 평타 지정을 끝낸다.
     ///   후보가 있으면 하단에 취소/확정 버튼이 뜬다(UnitInfoPanel). 실제 AP 는 확정한 행동이 성공한 뒤에 차감된다.
     /// 실행 가능 여부 판정은 GameSession(→ 코어)에 맡기고, 거부 이유 표시도 그쪽 이벤트로 처리된다.
@@ -144,8 +145,17 @@ namespace MiniChess.Client.Interaction
 
         private int BasicAttackCost => _session.State?.Rules.ActionCost.BasicAttackCost ?? 0;
 
-        /// <summary>지금 후보를 확정할 수 있는지(조작할 차례이고 서버 결과 대기/행동 연출 중이 아님).</summary>
-        public bool CanConfirm => Candidate != CandidateKind.None && AcceptsInput(_session.State);
+        /// <summary>후보가 있고 지금 조작할 차례인지(서버 결과 대기/행동 연출 중이 아님). 회전 버튼은 이것만 본다.</summary>
+        public bool CanActOnCandidate => Candidate != CandidateKind.None && AcceptsInput(_session.State);
+
+        /// <summary>
+        /// 지금 후보를 확정할 수 있는지: 조작할 차례이고, 스킬이면 지금 방향(회전)으로도 쓸 수 있어야 한다.
+        /// 회전 가능한 스킬이 지금 방향에서 막히면 확정만 막고 회전은 열어 둔다.
+        /// </summary>
+        public bool CanConfirm => CanActOnCandidate && (Candidate != CandidateKind.Skill || GetCandidateSkillFailReason() == SkillFailReason.None);
+
+        /// <summary>후보 스킬을 회전할 수 있는지(기준 칸을 고정했을 때 회전으로 적용 칸이 달라지는 스킬). 회전 버튼을 이때만 보인다.</summary>
+        public bool CanRotateCandidate => Candidate == CandidateKind.Skill && _canRotate;
 
         /// <summary>선택 유닛, 스킬 지정 모드, 후보가 바뀌었다.</summary>
         public event Action SelectionChanged;
@@ -310,11 +320,32 @@ namespace MiniChess.Client.Interaction
                         CancelCandidate();
                     break;
                 case CandidateKind.Skill:
-                    IReadOnlyList<Position> targets = _confirmSelf ? new[] { _selected.Position.Value } : _chosenTargets.ToArray();
-                    if (!_session.TryUseSkill(_selected, _pendingSkillId, targets, _rotation) && !_confirmSelf)
+                    if (!_session.TryUseSkill(_selected, _pendingSkillId, GetCandidateSkillTargets(), _rotation) && !_confirmSelf)
                         RestartTargeting();
                     break;
             }
+        }
+
+        /// <summary>후보 스킬의 범위를 시계 방향 90도 돌린다(회전 버튼, 같은 칸 다시 탭, PC 우클릭). 회전할 수 없으면 무시.</summary>
+        public void RotateCandidate()
+        {
+            if (CanRotateCandidate && AcceptsInput(_session.State))
+                RotateSkill(1);
+        }
+
+        /// <summary>후보 스킬의 지정 칸: 자기 지정 스킬은 자기 칸, 아니면 고른 칸들.</summary>
+        private IReadOnlyList<Position> GetCandidateSkillTargets()
+        {
+            return _confirmSelf ? new[] { _selected.Position.Value } : _chosenTargets.ToArray();
+        }
+
+        /// <summary>후보 스킬을 지금 방향(회전)으로 쓸 수 있는지. 후보 스킬이 없으면 None.</summary>
+        private SkillFailReason GetCandidateSkillFailReason()
+        {
+            if (Candidate != CandidateKind.Skill || _session.Game == null)
+                return SkillFailReason.None;
+
+            return _session.Game.GetSkillFailReason(_selected.Id, _pendingSkillId, GetCandidateSkillTargets(), _rotation);
         }
 
         /// <summary>후보 행동을 취소한다(취소 버튼). 유닛 선택은 그대로 두고, 스킬/평타 지정 중이었으면 그것도 끝낸다.</summary>
@@ -460,8 +491,10 @@ namespace MiniChess.Client.Interaction
         {
             if (_confirmSelf)
             {
-                // 이미 후보다. 자기 칸이나 범위를 누르면 그대로 두고, 다른 칸을 누르면 스킬 지정을 끝낸다.
-                if (!GetSelfPreview().Contains(clicked) && clicked != _selected.Position.Value)
+                // 이미 후보다. 기준 칸(자기 칸)을 다시 누르면 회전, 범위를 누르면 그대로, 다른 칸을 누르면 스킬 지정을 끝낸다.
+                if (clicked == _selected.Position.Value)
+                    RotateCandidate();
+                else if (!GetSelfPreview().Contains(clicked))
                     CancelSkill();
                 return;
             }
@@ -491,11 +524,18 @@ namespace MiniChess.Client.Interaction
         }
 
         /// <summary>
-        /// 다 고른 스킬(후보)에서 칸을 다시 눌렀다. 마지막 단계의 다른 칸이면 마지막 칸만 바꾸고,
+        /// 다 고른 스킬(후보)에서 칸을 다시 눌렀다. 기준 칸(마지막으로 고른 칸)이면 회전, 마지막 단계의 다른 칸이면 마지막 칸만 바꾸고,
         /// 여러 칸 지정 스킬의 첫 단계 칸이면 그 칸부터 다시 고른다. 어느 쪽도 아니면 스킬 지정을 끝낸다.
         /// </summary>
         private void OnCompleteSkillClicked(Position clicked)
         {
+            // 기준 칸(마지막으로 고른 칸)을 다시 누르면 범위를 돌린다(모바일은 우클릭이 없다). 회전하지 않는 스킬은 그대로.
+            if (clicked == _chosenTargets[_chosenTargets.Count - 1])
+            {
+                RotateCandidate();
+                return;
+            }
+
             if (_skillTargets.Contains(clicked))
             {
                 _chosenTargets[_chosenTargets.Count - 1] = clicked;

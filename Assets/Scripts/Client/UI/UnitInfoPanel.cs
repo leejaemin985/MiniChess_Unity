@@ -40,6 +40,8 @@ namespace MiniChess.Client.UI
         [Header("Confirm (확정 전 후보가 있을 때만)")]
         [SerializeField] private GameObject confirmBar;
         [SerializeField] private Button cancelButton;
+        [Tooltip("회전 가능한 스킬 후보일 때만 취소와 확정 사이에 보인다. 숨으면 확정 버튼이 그 자리까지 왼쪽으로 넓어진다(취소 자리/폭, 확정 오른쪽 끝/높이는 그대로).")]
+        [SerializeField] private Button rotateButton;
         [SerializeField] private Button confirmButton;
         [Tooltip("\"돌진 확정 · ◆ 3\".")]
         [SerializeField] private TMP_Text confirmText;
@@ -120,6 +122,7 @@ namespace MiniChess.Client.UI
             CreateAttackButton();
             _tooltip = InfoBubbleView.Create(transform);
             cancelButton.onClick.AddListener(_selection.CancelCandidate);
+            rotateButton.onClick.AddListener(_selection.RotateCandidate);
             confirmButton.onClick.AddListener(_selection.ConfirmCandidate);
 
             _selection.SelectionChanged += Refresh;
@@ -177,7 +180,10 @@ namespace MiniChess.Client.UI
             RefreshConfirm();
         }
 
-        /// <summary>후보 행동이 있으면 취소/확정 버튼("돌진 확정 · ◆ 3"). 서버 결과 대기/행동 연출 중에는 누를 수 없다.</summary>
+        /// <summary>
+        /// 후보 행동이 있으면 취소/(회전)/확정 버튼("돌진 확정 · ◆ 3"). 회전 버튼은 회전 가능한 스킬 후보일 때만 보인다.
+        /// 서버 결과 대기/행동 연출 중에는 누를 수 없고, 스킬이 지금 방향으로 쓸 수 없으면 확정만 막는다(회전은 그대로 열어 둔다).
+        /// </summary>
         private void RefreshConfirm()
         {
             SelectionController.CandidateKind kind = _selection.Candidate;
@@ -187,6 +193,8 @@ namespace MiniChess.Client.UI
 
             confirmText.text = $"{CandidateLabel(kind)} 확정 · {HudPalette.Ap(_selection.CandidateCost)}";
             confirmButton.interactable = _selection.CanConfirm;
+            rotateButton.gameObject.SetActive(_selection.CanRotateCandidate);
+            rotateButton.interactable = _selection.CanActOnCandidate;
         }
 
         private string CandidateLabel(SelectionController.CandidateKind kind)
