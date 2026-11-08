@@ -17,6 +17,19 @@ MonoBehaviour:
   faceCenter: {x: 0.4875, y: 0.72291666}
   faceSize: 0.28
   bodyPrefab: {fileID: 7119488382743732208, guid: 59d783c6ecc0b384996d13d3181e4dfb, type: 3}
+  animatorController: {fileID: 22100000, guid: 576337f80e50b7e45817c256b14c4bac, type: 2}
+  weaponPrefab: {fileID: 2124514505393277440, guid: 598b8a9c379b9d548a5c786ce492ad3f, type: 3}
+  companions: []
+  statusStance:
+    statusId: 
+    stowBone: 0
+    stowPosition: {x: 0, y: 0, z: 0}
+    stowEulerAngles: {x: 0, y: 0, z: 0}
+    deployPrefab: {fileID: 0}
+    deployPosition: {x: 0, y: 0, z: 0}
+    deployEulerAngles: {x: 0, y: 0, z: 0}
+    bodyPosition: {x: 0, y: 0, z: 0}
+    bodyYaw: 0
   summonBodyMaterial: {fileID: 0}
   summonAura: {fileID: 0}
   summonSpawnEffect: {fileID: 0}
