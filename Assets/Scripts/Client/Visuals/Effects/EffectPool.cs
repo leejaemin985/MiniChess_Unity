@@ -36,9 +36,14 @@ namespace MiniChess.Client.Visuals.Effects
         public int Count => _all.Count;
         public int InUseCount => _all.Count - _idle.Count;
 
-        public T Get()
+        /// <summary>
+        /// 이펙트를 꺼내 position 으로 옮긴 뒤 재생한다. 위치를 먼저 잡아야 켜지는 순간(playOnAwake, prewarm)의 입자가
+        /// 풀 위치나 직전에 쓰인 자리에 남지 않는다. 정확한 위치/방향은 이어서 Place 로 정한다.
+        /// </summary>
+        public T Get(Vector3 position)
         {
             T effect = _idle.Count > 0 ? _idle.Pop() : CreateInstance();
+            effect.transform.position = position;
             effect.Spawn();
             return effect;
         }

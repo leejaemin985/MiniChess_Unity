@@ -123,7 +123,8 @@ namespace MiniChess.Client.Board
 
             int key = ownerTeam.HasValue ? -1 - (int)ownerTeam.Value : -3;
             string name = ownerTeam.HasValue ? $"Unknown ({ownerTeam.Value})" : "Unknown";
-            _casters.Get(key, name).GetPool(prefab, poolMultiplier).Get().Place(_coordinates.ToWorld(cell));
+            Vector3 cellTop = _coordinates.ToWorld(cell);
+            _casters.Get(key, name).GetPool(prefab, poolMultiplier).Get(cellTop).Place(cellTop);
         }
 
         /// <summary>칸·층에 깔린 이펙트가 맞았을 때의 반응(장애물 피격 등)을 재생한다. 깔린 이펙트가 없으면 무시.</summary>
@@ -142,8 +143,9 @@ namespace MiniChess.Client.Board
         private FieldEffect Spawn(Position cell, FieldZone zone, FieldEffect prefab)
         {
             EffectCaster caster = _casters.Get(GetCasterKey(zone), GetCasterName(zone));
-            FieldEffect effect = caster.GetPool(prefab, GetPoolSize(zone.SkillId)).Get();
-            effect.Place(_coordinates.ToWorld(cell));
+            Vector3 cellTop = _coordinates.ToWorld(cell);
+            FieldEffect effect = caster.GetPool(prefab, GetPoolSize(zone.SkillId)).Get(cellTop);
+            effect.Place(cellTop);
             return effect;
         }
 

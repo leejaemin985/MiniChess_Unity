@@ -49,7 +49,7 @@ namespace MiniChess.Client.Units
                 return;
 
             string name = $"{attacker.Unit.Stats.Base.Id}#{attacker.Unit.Id} ({attacker.Unit.Team})";
-            HitEffect effect = _casters.Get(attackerId, name).GetPool(prefab, poolSize).Get();
+            HitEffect effect = _casters.Get(attackerId, name).GetPool(prefab, poolSize).Get(hitPoint);
             effect.Place(hitPoint, hitPoint - attacker.transform.position);
         }
     }

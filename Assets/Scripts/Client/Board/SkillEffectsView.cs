@@ -52,7 +52,7 @@ namespace MiniChess.Client.Board
             Vector3 to = _coordinates.ToWorld(cells[cells.Count - 1]);
             Vector3 edge = (to - from).normalized * (_coordinates.CellSize * 0.5f);
 
-            LineEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get();
+            LineEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(from - edge);
             effect.Place(from - edge, to + edge);
         }
 
@@ -65,8 +65,9 @@ namespace MiniChess.Client.Board
             if (!_units.TryGetView(casterId, out UnitView view) || !view.Unit.IsPlaced)
                 return;
 
-            CastEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get();
-            effect.Place(_coordinates.ToWorld(view.Unit.Position.Value));
+            Vector3 position = _coordinates.ToWorld(view.Unit.Position.Value);
+            CastEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(position);
+            effect.Place(position);
         }
 
         /// <summary>
@@ -85,7 +86,7 @@ namespace MiniChess.Client.Board
             foreach (Position cell in cells)
             {
                 Vector3 hitPoint = _coordinates.ToWorld(cell);
-                pool.Get().Place(hitPoint, hitPoint - caster.transform.position);
+                pool.Get(hitPoint).Place(hitPoint, hitPoint - caster.transform.position);
             }
         }
 
@@ -106,7 +107,7 @@ namespace MiniChess.Client.Board
             EffectPool<ProjectileEffect> pool = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize);
             foreach (Position cell in cells)
             {
-                ProjectileEffect effect = pool.Get();
+                ProjectileEffect effect = pool.Get(from);
                 effect.Place(from, _coordinates.ToWorld(cell));
                 if (pushedTo != null && pushedTo.TryGetValue(cell, out Position destination))
                     effect.SetPushedTo(_coordinates.ToWorld(destination));
@@ -125,7 +126,7 @@ namespace MiniChess.Client.Board
             if (!_units.TryGetView(casterId, out UnitView caster))
                 return null;
 
-            WarpEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get();
+            WarpEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(caster.transform.position);
             effect.Place(caster.transform.position, _coordinates.ToWorld(from), _coordinates.ToWorld(to));
             return effect;
         }
@@ -137,7 +138,7 @@ namespace MiniChess.Client.Board
             if (prefab == null || _casters == null || _coordinates == null || !_units.TryGetView(ownerId, out UnitView owner))
                 return;
 
-            _casters.Get(ownerId, GetCasterName(ownerId)).GetPool(prefab, poolSize).Get()
+            _casters.Get(ownerId, GetCasterName(ownerId)).GetPool(prefab, poolSize).Get(owner.transform.position)
                 .Place(owner.transform.position, _coordinates.ToWorld(cell));
         }
 
@@ -149,7 +150,7 @@ namespace MiniChess.Client.Board
 
             CastEffect prefab = _units.FindSummonVisual(view.Unit)?.SummonVanishEffect;
             if (prefab != null)
-                _casters.Get(unitId, GetCasterName(unitId)).GetPool(prefab, 1).Get().Place(view.transform.position);
+                _casters.Get(unitId, GetCasterName(unitId)).GetPool(prefab, 1).Get(view.transform.position).Place(view.transform.position);
         }
 
         /// <summary>
@@ -167,7 +168,7 @@ namespace MiniChess.Client.Board
             int cells = System.Math.Max(System.Math.Abs(landing.X - target.X), System.Math.Abs(landing.Y - target.Y));
             Vector3 from = _coordinates.ToWorld(target);
 
-            _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get()
+            _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(from)
                 .Place(from, _coordinates.ToWorld(targets[1]) - from, _coordinates.ToWorld(landing), cells);
         }
 
@@ -178,8 +179,9 @@ namespace MiniChess.Client.Board
             if (prefab == null || _casters == null || _coordinates == null || from.Equals(to))
                 return;
 
-            _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get()
-                .Place(_coordinates.ToWorld(from), _coordinates.ToWorld(to));
+            Vector3 start = _coordinates.ToWorld(from);
+            _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(start)
+                .Place(start, _coordinates.ToWorld(to));
         }
 
         /// <summary>예약 공격이 떨어질 때 범위 중심과 각 칸에서 재생하는 연출(박격포 착탄 등). 이펙트가 없거나 범위가 비면 재생하지 않는다.</summary>
@@ -198,8 +200,9 @@ namespace MiniChess.Client.Board
                 center += point;
             }
 
-            StrikeEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get();
-            effect.Place(center / points.Count, points);
+            center /= points.Count;
+            StrikeEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(center);
+            effect.Place(center, points);
         }
 
         private string GetCasterName(int casterId)

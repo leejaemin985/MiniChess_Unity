@@ -48,7 +48,7 @@ namespace MiniChess.Client.Board
                 return;
 
             string targetName = $"{target.Unit.Stats.Base.Id}#{target.Unit.Id} ({target.Unit.Team})";
-            _casters.Get(targetId, targetName).GetPool(prefab, poolSize).Get().Place(target.transform.position);
+            _casters.Get(targetId, targetName).GetPool(prefab, poolSize).Get(target.transform.position).Place(target.transform.position);
         }
 
         /// <summary>상태 반응 이펙트를 걸린 유닛 → 건 유닛으로 재생한다. 이펙트가 없거나 두 유닛 중 하나라도 보드에 없으면 재생하지 않는다.</summary>
@@ -61,7 +61,7 @@ namespace MiniChess.Client.Board
                 return;
 
             string sourceName = $"{source.Unit.Stats.Base.Id}#{source.Unit.Id} ({source.Unit.Team})";
-            LineEffect effect = _casters.Get(sourceId, sourceName).GetPool(prefab, poolSize).Get();
+            LineEffect effect = _casters.Get(sourceId, sourceName).GetPool(prefab, poolSize).Get(target.transform.position);
             effect.Place(target.transform.position, source.transform.position);
         }
     }
