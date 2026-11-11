@@ -93,6 +93,7 @@ namespace MiniChess.Client.Bootstrap
         [Header("View")]
         [SerializeField] private BoardView boardView;
         [SerializeField] private FieldEffectsView fieldEffectsView;
+        [SerializeField] private TokensView tokensView;
         [SerializeField] private SkillEffectsView skillEffectsView;
         [SerializeField] private StatusEffectsView statusEffectsView;
         [SerializeField] private UnitsView unitsView;
@@ -248,6 +249,7 @@ namespace MiniChess.Client.Bootstrap
             if (mapLoader == null) mapLoader = CreateChild<MapLoader>("MapLoader");
             if (boardView == null) boardView = CreateChild<BoardView>("BoardView");
             if (fieldEffectsView == null) fieldEffectsView = CreateChild<FieldEffectsView>("FieldEffectsView");
+            if (tokensView == null) tokensView = CreateChild<TokensView>("TokensView");
             if (skillEffectsView == null) skillEffectsView = CreateChild<SkillEffectsView>("SkillEffectsView");
             if (statusEffectsView == null) statusEffectsView = CreateChild<StatusEffectsView>("StatusEffectsView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
@@ -444,6 +446,8 @@ namespace MiniChess.Client.Bootstrap
             _effectCasters.Clear();
             fieldEffectsView.Build(Coordinates);
             fieldEffectsView.Sync(State);
+            tokensView.Build(Coordinates);
+            tokensView.Sync(State);
             // 몸체는 자기 시작 구역에서 상대 쪽(보드 중심 방향)을 본다 = 그 팀 화면의 카메라 방향.
             unitsView.Build(State, Coordinates, characterVisuals, GetViewYaw);
             attackEffectsView.Build(Coordinates);
@@ -1001,6 +1005,7 @@ namespace MiniChess.Client.Bootstrap
             boardView.SyncEffects(State.Board);
             boardView.SyncStrikes(State);
             fieldEffectsView.Sync(State);
+            tokensView.Sync(State);
             StateChanged?.Invoke();
             return true;
         }
