@@ -240,6 +240,13 @@
       "dependencies": {},
       "url": "https://package.openupm.com"
     },
+    "jp.co.cyberagent.nova": {
+      "version": "https://github.com/CyberAgentGameEntertainment/NovaShader.git?path=/Assets/Nova#3.6.0",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "3988c45389b0d317dd225e4e6d796818c3e53828"
+    },
     "com.unity.modules.ai": {
       "version": "1.0.0",
       "depth": 0,

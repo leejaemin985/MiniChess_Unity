@@ -37,7 +37,7 @@ Material:
     - _OutlineFadeEnd: 45
     - _OutlineFadeStart: 30
     - _OutlineRefDistance: 8
-    - _OutlineWidth: 1
+    - _OutlineWidth: 0.5
     - _RimPower: 4
     - _RimStrength: 0.25
     - _ShadeSoftness: 0.02
