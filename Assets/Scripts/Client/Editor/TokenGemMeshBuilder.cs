@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using MiniChess.Client.Board;
 using UnityEditor;
 using UnityEngine;
 
@@ -14,7 +13,7 @@ namespace MiniChess.Client.Editor
     /// </summary>
     public static class TokenGemMeshBuilder
     {
-        public const string MeshPath = "Assets/Resources/" + TokensView.GemMeshPath + ".asset";
+        public const string MeshPath = "Assets/Resources/Tokens/Meshes/SM_TokenGem.asset";
 
         /// <summary>높이 / 폭(시안 정면 524 / 360).</summary>
         private const float Height = 1.46f;
@@ -40,6 +39,8 @@ namespace MiniChess.Client.Editor
 
             var vertices = new List<Vector3>();
             var triangles = new List<int>();
+            var uvs = new List<Vector2>();
+            var colors = new List<Color>();
             for (int i = 0; i < ring.Length; i++)
             {
                 Vector3 a = ring[i];
@@ -47,7 +48,21 @@ namespace MiniChess.Client.Editor
                 // 바깥에서 보아 시계 방향(Unity 앞면).
                 AddTriangle(vertices, triangles, top, b, a);
                 AddTriangle(vertices, triangles, bottom, a, b);
+                // 둘레를 U, 높이를 V 로 펼쳐 위아래 면이 적도의 UV 를 공유하게 한다.
+                float u0 = (float)i / ring.Length;
+                float u1 = (float)(i + 1) / ring.Length;
+                float middle = (u0 + u1) * 0.5f;
+                uvs.Add(new Vector2(middle, 1f));
+                uvs.Add(new Vector2(u1, 0.5f));
+                uvs.Add(new Vector2(u0, 0.5f));
+                uvs.Add(new Vector2(middle, 0f));
+                uvs.Add(new Vector2(u0, 0.5f));
+                uvs.Add(new Vector2(u1, 0.5f));
             }
+
+            // 토큰 왜곡 셰이더는 정점 색/알파로 왜곡과 프레넬 세기를 조절한다.
+            for (int i = 0; i < vertices.Count; i++)
+                colors.Add(Color.white);
 
             var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
             bool created = mesh == null;
@@ -57,6 +72,8 @@ namespace MiniChess.Client.Editor
             mesh.name = "SM_TokenGem";
             mesh.SetVertices(vertices);
             mesh.SetTriangles(triangles, 0);
+            mesh.SetUVs(0, uvs);
+            mesh.SetColors(colors);
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
