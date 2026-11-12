@@ -98,6 +98,7 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private StatusEffectsView statusEffectsView;
         [SerializeField] private UnitsView unitsView;
         [SerializeField] private AttackEffectsView attackEffectsView;
+        [SerializeField] private DamageNumbersView damageNumbersView;
         [SerializeField] private BoardCameraRig cameraRig;
         [SerializeField] private BoardCameraInput cameraInput;
         [SerializeField] private BoardInput boardInput;
@@ -254,6 +255,7 @@ namespace MiniChess.Client.Bootstrap
             if (statusEffectsView == null) statusEffectsView = CreateChild<StatusEffectsView>("StatusEffectsView");
             if (unitsView == null) unitsView = CreateChild<UnitsView>("UnitsView");
             if (attackEffectsView == null) attackEffectsView = CreateChild<AttackEffectsView>("AttackEffectsView");
+            if (damageNumbersView == null) damageNumbersView = CreateChild<DamageNumbersView>("DamageNumbersView");
             if (cameraRig == null) cameraRig = CreateChild<BoardCameraRig>("CameraRig");
             if (cameraInput == null) cameraInput = CreateChild<BoardCameraInput>("CameraInput");
             if (boardInput == null) boardInput = CreateChild<BoardInput>("BoardInput");
@@ -278,6 +280,7 @@ namespace MiniChess.Client.Bootstrap
             _effectCasters = new EffectCasterRegistry(_effectPools);
             fieldEffectsView.Initialize(_effectCasters, fieldEffects);
             attackEffectsView.Initialize(_effectCasters, unitsView);
+            damageNumbersView.Initialize(unitsView);
             skillEffectsView.Initialize(_effectCasters, skillEffects, unitsView);
             statusEffectsView.Initialize(_effectCasters, unitsView);
             boardView.HasFieldVisual = fieldEffectsView.HasVisual;
@@ -754,6 +757,7 @@ namespace MiniChess.Client.Bootstrap
             _presentRoutine = null;
             _presenting = false;
             _presentQueue.Clear();
+            damageNumbersView?.Clear();
         }
 
         /// <summary>
@@ -798,6 +802,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 소환: 소환자 → 소환 칸 소환 이펙트(분신: 그림자가 미끄러져 감), 새 소환물 뷰는 바닥에서 솟아오른다. 소환물 사망: 그 자리에서 소멸 이펙트.
         ///   - 상태가 새로 걸리거나 풀림: 그 유닛 자리에서 걸림/풀림 이펙트(봉인 → 마법석 문양/파편). 몸체가 굳고 깨지는 연출은 UnitView 가 상태대로 맞춘다.
         ///   - 호위자가 피해를 대신 받음: 보호 대상 → 호위자로 호위 반응 이펙트.
+        ///   - 피해: UnitDamagedEvent 의 실제 HP 피해/보호막 흡수량을 캐릭터 위 숫자로 표시한다(피로도 포함).
         ///   - 덫 발동/해체, 포격 착탄: 그 칸을 잠깐 표시한다(온라인에서 숨겨져 있던 상대 덫/조준 칸이 이때 드러난다).
         /// </summary>
         private void PlayEvents(IEnumerable<GameEvent> events)
@@ -846,8 +851,10 @@ namespace MiniChess.Client.Bootstrap
                     case StatusRemovedEvent removed when removed.Reason != StatusRemoveReason.Replaced:
                         statusEffectsView.PlayRemoved(removed.StatusId, removed.TargetId);
                         break;
-                    case UnitDamagedEvent damaged when damaged.Type == DamageType.Redirected:
-                        PlayGuardReaction(list, i, damaged);
+                    case UnitDamagedEvent damaged:
+                        damageNumbersView.Play(damaged);
+                        if (damaged.Type == DamageType.Redirected)
+                            PlayGuardReaction(list, i, damaged);
                         break;
                     case UnitSummonedEvent summoned when summoned.Summon.Position.HasValue:
                         skillEffectsView.PlaySummon(summoned.OwnerId, summoned.Summon.Position.Value);

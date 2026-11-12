@@ -90,6 +90,9 @@ namespace MiniChess.Client.Units
 
         public Unit Unit { get; private set; }
 
+        /// <summary>피해 숫자의 기준 위치. 사망 처리로 코어의 Position 이 없어져도 현재 뷰 위치를 사용한다.</summary>
+        public Vector3 DamageNumberPosition => transform.TransformPoint(Vector3.up * (_overheadHeight + 0.3f));
+
         /// <param name="face">얼굴 스프라이트. null 이면 얼굴 없이 캡슐과 라벨만 그린다.</param>
         /// <param name="faceMask">얼굴 마스크 모양. null 이면 원.</param>
         /// <param name="frameShape">얼굴 테두리 모양. null 이면 원.</param>
