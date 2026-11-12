@@ -11,12 +11,12 @@ namespace MiniChess.Client.Units
     /// <summary>확정된 피해 이벤트의 HP 피해/보호막 흡수량만 표시한다. HP 차이로 피해를 추측하지 않는다.</summary>
     public class DamageNumbersView : MonoBehaviour
     {
-        [SerializeField] private Color damageColor = new Color(1f, 0.32f, 0.25f);
-        [SerializeField] private Color fatigueColor = new Color32(0xB9, 0x9C, 0xFF, 0xFF);
+        [SerializeField] private Color damageColor = new Color32(0xE0, 0x20, 0x20, 0xFF);
+        [SerializeField] private Color fatigueColor = new Color32(0x9A, 0x32, 0xE6, 0xFF);
         [SerializeField, Min(0.1f)] private float duration = 0.9f;
         [SerializeField, Min(0f)] private float riseDistance = 0.65f;
         [SerializeField, Min(0f)] private float stackSpacing = 0.22f;
-        [SerializeField, Min(0.1f)] private float fontSize = 5.5f;
+        [SerializeField, Min(0.1f)] private float fontSize = 2.75f;
 
         private sealed class Popup
         {
@@ -60,11 +60,11 @@ namespace MiniChess.Client.Units
             }
 
             // 유닛 뷰의 자식으로 만들지 않아 사망/스냅샷 Rebind 후에도 숫자는 끝까지 남는다.
-            var go = new GameObject($"Damage {view.Unit.Id} -{amount}");
+            var go = new GameObject($"Damage {view.Unit.Id} {amount}");
             go.transform.SetParent(transform, false);
             var text = go.AddComponent<TextMeshPro>();
             KoreanFont.Apply(text);
-            text.text = "-" + amount.ToString(CultureInfo.InvariantCulture);
+            text.text = amount.ToString(CultureInfo.InvariantCulture);
             text.fontSize = fontSize;
             text.fontStyle = FontStyles.Bold;
             text.alignment = TextAlignmentOptions.Center;
