@@ -12,7 +12,6 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - USE_FRESNEL
   - USE_HEIGHT
   m_InvalidKeywords:
   - _ZWRITEMODE_ON
@@ -60,7 +59,7 @@ Material:
     - _UseAlphaCliping: 0
     - _UseBlending: 0
     - _UseCutout: 0
-    - _UseFresnel: 1
+    - _UseFresnel: 0
     - _UseHeight: 1
     - _UseMainTex: 0
     - _UseRefractive: 0
@@ -70,6 +69,6 @@ Material:
     - _CutoutColor: {r: 1, g: 1, b: 1, a: 1}
     - _FresnelColor: {r: 0.7254902, g: 0.6117647, b: 1, a: 1}
     - _HeightUVScrollDistort: {r: 5, g: 1, b: 0, a: 0}
-    - _MainColor: {r: 2.9019608, g: 2.447059, b: 4, a: 1}
+    - _MainColor: {r: 8.694503, g: 7.331581, b: 11.984315, a: 1}
     - _TintColor: {r: 0.9264706, g: 0.96653146, b: 1, a: 1}
   m_BuildTextureStacks: []
