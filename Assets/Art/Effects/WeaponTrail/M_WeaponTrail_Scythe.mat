@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_WeaponTrail_Scythe
+  m_Shader: {fileID: 4800000, guid: 8305102fb0f315d44a687bd8fdd44ee8, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: b1c4838ca128ad441b92b13e4300dcf6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StreakTex:
+        m_Texture: {fileID: 2800000, guid: 6cb6d6cb93fcd2e4eb67f0c8028c8b4c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _CoreWidth: 0.08
+    - _DarkInner: 0.25
+    - _DarkTail: 0.6
+    - _Dissolve: 0.9
+    - _DissolveSoftness: 0.25
+    - _EdgeSoftness: 0.12
+    - _GlowTail: 1.1
+    - _Intensity: 1.6
+    - _TipBias: 1.4
+    m_Colors:
+    - _CoreColor: {r: 1.6, g: 0.8, b: 3, a: 1}
+    - _DarkColor: {r: 0.02, g: 0, b: 0.04, a: 0.95}
+    - _GlowColor: {r: 0.9, g: 0.2, b: 2.4, a: 1}
+    - _NoiseTiling: {r: 2.5, g: 1.2, b: -2, a: 0}
+    - _StreakTiling: {r: 1.2, g: 1, b: 1.5, a: 0}
+  m_BuildTextureStacks: []

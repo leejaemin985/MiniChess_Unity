@@ -822,10 +822,10 @@ namespace MiniChess.Client.Bootstrap
                 {
                     case UnitAttackedEvent attacked:
                         // 공격 모션과 아이콘은 PlayActionStart 가 타격 시점보다 먼저 시작했다.
-                        attackEffectsView.PlayOnUnit(characterVisuals?.BasicAttackEffect, attacked.AttackerId, attacked.TargetId);
+                        attackEffectsView.PlayOnUnit(GetBasicAttackEffect(attacked.AttackerId), attacked.AttackerId, attacked.TargetId);
                         break;
                     case ObstacleHitEvent hit:
-                        attackEffectsView.PlayOnCell(characterVisuals?.BasicAttackEffect, hit.AttackerId, hit.Position);
+                        attackEffectsView.PlayOnCell(GetBasicAttackEffect(hit.AttackerId), hit.AttackerId, hit.Position);
                         fieldEffectsView.PlayReaction(hit.Position, CellEffectLayer.Obstacle);
                         break;
                     case SkillUsedEvent used:
@@ -869,6 +869,15 @@ namespace MiniChess.Client.Bootstrap
                         break;
                 }
             }
+        }
+
+        /// <summary>공격자 캐릭터의 기본 공격 타격 이펙트(캐릭터별로 따로 있으면 그것, 없으면 공용).</summary>
+        private HitEffect GetBasicAttackEffect(int attackerId)
+        {
+            string characterId = State.FindUnit(attackerId)?.Stats.Base.Id;
+            return characterVisuals == null ? null
+                : characterId != null ? characterVisuals.FindBasicAttackEffect(characterId)
+                : characterVisuals.BasicAttackEffect;
         }
 
         /// <summary>스킬이 시전자 캐릭터의 몇 번째 칸인지로 몸체 동작을 고른다. 2번 칸이면 Skill2, 그 밖(1번 칸, 추가 스킬, 시전자를 못 찾음)은 Skill1.</summary>

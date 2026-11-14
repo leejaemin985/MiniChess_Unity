@@ -68,6 +68,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField] private BodyCompanion[] companions = Array.Empty<BodyCompanion>();
         [Tooltip("상태에 따른 자세(예: 박격포 설치 → 권총을 허리춤에 넣고 박격포 조작 대기). 상태를 비우면 쓰지 않는다. 몸체 프리팹 생성 메뉴가 붙인다.")]
         [SerializeField] private StatusStanceSettings statusStance;
+        [Tooltip("기본 공격 타격 이펙트(예: 낫 → 몸통을 가로지르는 베기 선). 비우면 공용(CharacterVisualCatalog.BasicAttackEffect).")]
+        [SerializeField] private HitEffect basicAttackEffect;
 
         [Header("Summon (이 캐릭터가 부른 소환물, 예: 낫 → 그림자 분신)")]
         [Tooltip("소환물 몸체의 기본 머티리얼(예: 그림자). 비우면 팀 색을 옅게 칠한다. 지정하면 소환물 발밑에 팀 색 고리를 둔다.")]
@@ -105,6 +107,9 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>상태에 따른 자세 설정. statusId 가 비어 있으면 쓰지 않는다.</summary>
         public StatusStanceSettings StatusStance => statusStance;
+
+        /// <summary>이 캐릭터만의 기본 공격 타격 이펙트. 없으면 null(공용을 쓴다).</summary>
+        public HitEffect BasicAttackEffect => basicAttackEffect;
 
         /// <summary>소환물 몸체 기본 머티리얼. 없으면 null(팀 색).</summary>
         public Material SummonBodyMaterial => summonBodyMaterial;

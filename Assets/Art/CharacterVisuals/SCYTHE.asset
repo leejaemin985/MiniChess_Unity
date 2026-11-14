@@ -19,6 +19,7 @@ MonoBehaviour:
   bodyPrefab: {fileID: 6905493466218555885, guid: 523d31fe78c2a5849bbd9a6f164cbbc6, type: 3}
   animatorController: {fileID: 22100000, guid: ccb1a34a18bf9e242af1d3ea2efddb7b, type: 2}
   weaponPrefab: {fileID: 6679782776711041027, guid: 4f5e9ea2ea781794fbc2ed43f7fddb16, type: 3}
+  basicAttackEffect: {fileID: 2468013579246801357, guid: b0d0899ad649dd441b43f842ce697bc6, type: 3}
   summonBodyMaterial: {fileID: 2100000, guid: c030161f27dc6e6469a54a0e00dc64a7, type: 2}
   summonAura: {fileID: 7974265882471180318, guid: d25ea68fdbb399249a4e598e20290a6e, type: 3}
   summonSpawnEffect: {fileID: 8268960800848127791, guid: 24165d0e5b9cf1e4fa7c95b48b02d718, type: 3}
