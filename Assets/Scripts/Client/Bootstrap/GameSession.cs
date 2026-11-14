@@ -208,6 +208,9 @@ namespace MiniChess.Client.Bootstrap
         private Coroutine _presentRoutine;
         private readonly Queue<Action> _presentQueue = new Queue<Action>();
 
+        /// <summary>PlayActionStart 가 몸체 동작과 시전 아이콘을 먼저 시작한 스킬 사용(타격 시점에 PlayEvents 가 다시 시작하지 않게).</summary>
+        private readonly HashSet<SkillUsedEvent> _startedSkills = new HashSet<SkillUsedEvent>();
+
         /// <summary>
         /// 지금 경기의 번호. 새 경기(로컬 새 경기, 온라인 경기 시작, 재접속 대기)마다 바뀐다.
         /// 온라인은 상태가 바뀔 때마다 Game 객체를 새로 만드므로(스냅샷 복원), "같은 경기인지"는 객체가 아니라 이 번호로 판단한다.
@@ -687,8 +690,9 @@ namespace MiniChess.Client.Bootstrap
         }
 
         /// <summary>
-        /// 행동 하나의 결과를 연출하고 화면에 반영한다(apply: 상태 반영). 기본 공격이면 공격 모션을 먼저 시작하고, 타격 시점(공격 클립의 Hit 이벤트)까지
-        /// 나머지 연출(타격 이펙트, 연쇄 반응, 사망)과 상태 반영(HP, 사망)을 미룬다. 그 밖의 행동은 지금처럼 바로 연출하고 반영한다.
+        /// 행동 하나의 결과를 연출하고 화면에 반영한다(apply: 상태 반영). 기본 공격, 또는 클립에 Hit 이벤트가 있는 스킬이면 모션을 먼저 시작하고,
+        /// 타격 시점(클립의 Hit 이벤트)까지 나머지 연출(타격/범위 이펙트, 연쇄 반응, 사망)과 상태 반영(HP, 사망)을 미룬다(PlayActionStart).
+        /// 그 밖의 행동은 지금처럼 바로 연출하고 반영한다.
         /// 연출 중에 들어온 다음 갱신(온라인 상대 행동 등)은 차례를 기다린다.
         /// </summary>
         private void Present(IReadOnlyList<GameEvent> events, Action apply)
@@ -757,35 +761,54 @@ namespace MiniChess.Client.Bootstrap
             _presentRoutine = null;
             _presenting = false;
             _presentQueue.Clear();
+            _startedSkills.Clear();
             damageNumbersView?.Clear();
         }
 
         /// <summary>
-        /// 행동의 시작 연출: 기본 공격자마다 공격 모션과 기본 공격 아이콘. 타격 시점까지의 시간(초)을 돌려준다(첫 공격자의 공격 클립 Hit 이벤트, 없으면 defaultHitDelay).
-        /// 기본 공격이 없으면 0(바로 연출).
+        /// 행동의 시작 연출. 타격 시점까지의 시간(초)을 돌려준다(0 이면 기다리지 않고 바로 연출).
+        ///   - 기본 공격: 공격자마다 공격 모션과 기본 공격 아이콘. 첫 공격자의 공격 클립 Hit 이벤트 시간(없으면 defaultHitDelay).
+        ///   - 스킬: 시전자의 스킬 클립에 Hit 이벤트가 있을 때만 스킬 모션과 시전 아이콘을 먼저 시작하고 그 시간을 기다린다.
+        ///     Hit 이벤트가 없는 스킬은 지금처럼 PlayEvents 에서 바로 모션과 이펙트를 함께 재생한다.
         /// </summary>
         private float PlayActionStart(IReadOnlyList<GameEvent> events)
         {
             float hitDelay = 0f;
             foreach (GameEvent gameEvent in events)
             {
-                int attackerId;
+                int actorId;
+                UnitAction action;
+                float? hitTime;
                 switch (gameEvent)
                 {
                     case UnitAttackedEvent attacked:
-                        attackerId = attacked.AttackerId;
+                        actorId = attacked.AttackerId;
+                        action = UnitAction.Attack;
+                        hitTime = unitsView.GetHitTime(actorId, action) ?? defaultHitDelay;
+                        ShowActionIcon(actorId, characterVisuals?.BasicAttackIcon);
                         break;
                     case ObstacleHitEvent hit:
-                        attackerId = hit.AttackerId;
+                        actorId = hit.AttackerId;
+                        action = UnitAction.Attack;
+                        hitTime = unitsView.GetHitTime(actorId, action) ?? defaultHitDelay;
+                        ShowActionIcon(actorId, characterVisuals?.BasicAttackIcon);
+                        break;
+                    case SkillUsedEvent used:
+                        actorId = used.CasterId;
+                        action = GetSkillAction(used.CasterId, used.SkillId);
+                        hitTime = unitsView.GetHitTime(actorId, action);
+                        if (hitTime == null)
+                            continue;
+                        _startedSkills.Add(used);
+                        ShowActionIcon(actorId, characterVisuals?.SkillCastIcon);
                         break;
                     default:
                         continue;
                 }
 
-                unitsView.PlayAction(attackerId, UnitAction.Attack);
-                ShowActionIcon(attackerId, characterVisuals?.BasicAttackIcon);
+                unitsView.PlayAction(actorId, action);
                 if (hitDelay <= 0f)
-                    hitDelay = Mathf.Max(unitsView.GetHitTime(attackerId, UnitAction.Attack) ?? defaultHitDelay, Mathf.Epsilon);
+                    hitDelay = Mathf.Max(hitTime.Value, Mathf.Epsilon);
             }
 
             return hitDelay;
@@ -829,8 +852,13 @@ namespace MiniChess.Client.Bootstrap
                         fieldEffectsView.PlayReaction(hit.Position, CellEffectLayer.Obstacle);
                         break;
                     case SkillUsedEvent used:
-                        unitsView.PlayAction(used.CasterId, GetSkillAction(used.CasterId, used.SkillId));
-                        ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);
+                        // 스킬 클립에 Hit 이벤트가 있으면 모션과 아이콘은 PlayActionStart 가 타격 시점보다 먼저 시작했다.
+                        if (!_startedSkills.Remove(used))
+                        {
+                            unitsView.PlayAction(used.CasterId, GetSkillAction(used.CasterId, used.SkillId));
+                            ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);
+                        }
+
                         skillEffectsView.Play(used.CasterId, used.SkillId, used.AffectedCells);
                         skillEffectsView.PlayCast(used.CasterId, used.SkillId);
                         skillEffectsView.PlayHit(used.CasterId, used.SkillId, used.AffectedCells);
@@ -871,13 +899,27 @@ namespace MiniChess.Client.Bootstrap
             }
         }
 
-        /// <summary>공격자 캐릭터의 기본 공격 타격 이펙트(캐릭터별로 따로 있으면 그것, 없으면 공용).</summary>
+        /// <summary>
+        /// 공격자의 기본 공격 타격 이펙트: 캐릭터별로 따로 있으면 그것, 없으면 공용.
+        /// 소환물(분신 등)은 자기 시각 데이터가 없으므로 소환자 시각 데이터의 소환물 타격 이펙트를 쓴다.
+        /// </summary>
         private HitEffect GetBasicAttackEffect(int attackerId)
         {
-            string characterId = State.FindUnit(attackerId)?.Stats.Base.Id;
-            return characterVisuals == null ? null
-                : characterId != null ? characterVisuals.FindBasicAttackEffect(characterId)
-                : characterVisuals.BasicAttackEffect;
+            if (characterVisuals == null)
+                return null;
+
+            Unit attacker = State.FindUnit(attackerId);
+            if (attacker == null)
+                return characterVisuals.BasicAttackEffect;
+
+            if (attacker.IsSummon && attacker.SummonOwner != null)
+            {
+                HitEffect summonEffect = characterVisuals.Find(attacker.SummonOwner.Stats.Base.Id)?.SummonBasicAttackEffect;
+                if (summonEffect != null)
+                    return summonEffect;
+            }
+
+            return characterVisuals.FindBasicAttackEffect(attacker.Stats.Base.Id);
         }
 
         /// <summary>스킬이 시전자 캐릭터의 몇 번째 칸인지로 몸체 동작을 고른다. 2번 칸이면 Skill2, 그 밖(1번 칸, 추가 스킬, 시전자를 못 찾음)은 Skill1.</summary>

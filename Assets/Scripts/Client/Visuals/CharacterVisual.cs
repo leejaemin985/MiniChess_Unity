@@ -84,6 +84,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField, Min(0f)] private float summonAppearTime = 0.35f;
         [Tooltip("소환물이 사라질(사망) 때 그 자리에서 재생하는 이펙트(예: 보라 연기로 흩어짐).")]
         [SerializeField] private CastEffect summonVanishEffect;
+        [Tooltip("소환물이 기본 공격할 때 타격 이펙트(예: 분신 → 작은 베기 선). 비우면 공용(CharacterVisualCatalog.BasicAttackEffect).")]
+        [SerializeField] private HitEffect summonBasicAttackEffect;
 
         [NonSerialized] private Sprite _faceSprite;
 
@@ -118,6 +120,9 @@ namespace MiniChess.Client.Visuals
         public float SummonAppearDelay => summonAppearDelay;
         public float SummonAppearTime => summonAppearTime;
         public CastEffect SummonVanishEffect => summonVanishEffect;
+
+        /// <summary>이 캐릭터가 부른 소환물의 기본 공격 타격 이펙트. 없으면 null(공용을 쓴다).</summary>
+        public HitEffect SummonBasicAttackEffect => summonBasicAttackEffect;
 
         /// <summary>
         /// 얼굴 정사각형(텍스처 픽셀 좌표). 일러스트 밖으로 나가지 않게 안쪽으로 밀어 넣는다.
