@@ -50,7 +50,7 @@ MonoBehaviour:
   towardCamera: 1
   line: {fileID: 2468013579246801362}
   sweep: {fileID: 4590621218470459297}
-  sweepTime: 0.03
+  sweepTime: 0.05
   height: 0.5
   tilt: 25
 --- !u!1 &2468013579246801361
@@ -234,7 +234,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.35
+      scalar: 0.45
       minScalar: 0.4
       maxCurve:
         serializedVersion: 2
@@ -1495,7 +1495,7 @@ ParticleSystem:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 0}
         key1: {r: 1, g: 1, b: 1, a: 0.55}
-        key2: {r: 0, g: 0, b: 0, a: 0.33}
+        key2: {r: 0, g: 0, b: 0, a: 0.44000003}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
         key5: {r: 0, g: 0, b: 0, a: 0}
@@ -1510,8 +1510,8 @@ ParticleSystem:
         ctime6: 0
         ctime7: 0
         atime0: 0
-        atime1: 2621
-        atime2: 19661
+        atime1: 7864
+        atime2: 29491
         atime3: 65535
         atime4: 0
         atime5: 0
@@ -5144,7 +5144,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.25
+      scalar: 0.35
       minScalar: 0.4
       maxCurve:
         serializedVersion: 2
@@ -6405,7 +6405,7 @@ ParticleSystem:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 0}
         key1: {r: 1, g: 1, b: 1, a: 0.45}
-        key2: {r: 0, g: 0, b: 0, a: 0.27}
+        key2: {r: 0, g: 0, b: 0, a: 0.35999998}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
         key5: {r: 0, g: 0, b: 0, a: 0}
@@ -6420,8 +6420,8 @@ ParticleSystem:
         ctime6: 0
         ctime7: 0
         atime0: 0
-        atime1: 2621
-        atime2: 19661
+        atime1: 7864
+        atime2: 29491
         atime3: 65535
         atime4: 0
         atime5: 0
