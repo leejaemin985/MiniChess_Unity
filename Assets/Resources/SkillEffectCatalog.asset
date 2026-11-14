@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entries:
   - skillId: SCYTHE_SLASH
-    prefab: {fileID: 1323569398173397374, guid: 7418647c56f6c504eaad2b26700b9a32, type: 3}
+    prefab: {fileID: 1700942929423879358, guid: 54b8fda904deac147ba8d5670dc26240, type: 3}
     castEffect: {fileID: 0}
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}

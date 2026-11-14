@@ -39,7 +39,7 @@ namespace MiniChess.Client.Visuals.Effects
         /// point 에서 카메라로 향하는 방향. 카메라 축(-forward)이 아니라 그 점을 지나는 시선이라, 원근 카메라에서도 화면 위치가 밀리지 않는다.
         /// 카메라가 없으면 0.
         /// </summary>
-        private static Vector3 TowardCamera(Vector3 point)
+        internal static Vector3 TowardCamera(Vector3 point)
         {
             Camera camera = Camera.main;
             if (camera == null)
