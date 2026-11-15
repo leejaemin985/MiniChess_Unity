@@ -77,13 +77,16 @@ Shader "MiniChess/ShockConeDistortion"
             {
                 float2 p = input.uv - 0.5;
                 float dist = length(p);
-                float angle = degrees(atan2(p.x, p.y)); // 0 = 앞(+V)
-
-                // 부채꼴 안, 링 반지름 근처만. 가장자리 각도는 부드럽게.
-                float cone = 1.0 - smoothstep(_Spread * 0.6, _Spread, abs(angle));
+                // 링 반지름 근처만. 쿼드의 대부분은 링 밖이므로 텍스처를 읽기 전에 버린다(겹쳐 그리는 넓은 쿼드의 비용을 줄인다).
                 float offsetR = (dist - _Radius) / _Width;
                 float ring = saturate(1.0 - abs(offsetR));
                 ring *= ring;
+                clip(ring * input.color.a - 0.001);
+
+                // 부채꼴 안만. 가장자리 각도는 부드럽게.
+                float angle = degrees(atan2(p.x, p.y)); // 0 = 앞(+V)
+                float cone = 1.0 - smoothstep(_Spread * 0.6, _Spread, abs(angle));
+                clip(cone - 0.001);
 
                 // 노이즈: 각도 방향 결(바람 줄기)과 바깥으로 흐르는 결.
                 float2 nuv = float2(angle / _Spread * 1.3, dist * 3.0 - _Time.y * 1.5);

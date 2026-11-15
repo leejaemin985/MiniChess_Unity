@@ -75,6 +75,8 @@ Shader "MiniChess/ShockwaveDistortion"
                 // 링: 반지름 _Radius 근처만 세다. 노이즈로 군데군데 끊어 바람이 터지는 결을 낸다.
                 float ring = saturate(1.0 - abs(dist - _Radius) / _Width);
                 ring *= ring;
+                // 링 밖(쿼드의 대부분)은 텍스처를 읽기 전에 버린다.
+                clip(ring * input.color.a - 0.001);
                 float angle = atan2(p.y, p.x) / (2.0 * PI) + 0.5;
                 half noise = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, float2(angle * 3.0, dist * 2.0 + _Time.y * 0.5)).r;
                 half mask = ring * lerp(1.0, noise * 1.6, _NoiseAmount) * input.color.a;
