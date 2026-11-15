@@ -769,6 +769,7 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>
         /// 행동의 시작 연출. 타격 시점까지의 시간(초)을 돌려준다(0 이면 기다리지 않고 바로 연출).
         ///   - 기본 공격: 공격자마다 공격 모션과 기본 공격 아이콘. 첫 공격자의 공격 클립 Hit 이벤트 시간(없으면 defaultHitDelay).
+        ///     기본 공격 투사체(궁수 화살 등)가 있으면 그 시간에 쏘고, 타격은 날아가는 시간만큼 늦춰 도착할 때 보인다.
         ///   - 스킬: 시전자의 스킬 클립에 Hit 이벤트가 있을 때만 스킬 모션과 시전 아이콘을 먼저 시작하고 그 시간을 기다린다.
         ///     Hit 이벤트가 없는 스킬은 지금처럼 PlayEvents 에서 바로 모션과 이펙트를 함께 재생한다.
         /// </summary>
@@ -786,12 +787,16 @@ namespace MiniChess.Client.Bootstrap
                         actorId = attacked.AttackerId;
                         action = UnitAction.Attack;
                         hitTime = unitsView.GetHitTime(actorId, action) ?? defaultHitDelay;
+                        if (unitsView.TryGetView(attacked.TargetId, out UnitView target))
+                            hitTime += LaunchBasicAttackProjectile(actorId, target.transform.position, hitTime.Value);
                         ShowActionIcon(actorId, characterVisuals?.BasicAttackIcon);
                         break;
                     case ObstacleHitEvent hit:
                         actorId = hit.AttackerId;
                         action = UnitAction.Attack;
                         hitTime = unitsView.GetHitTime(actorId, action) ?? defaultHitDelay;
+                        if (Coordinates != null)
+                            hitTime += LaunchBasicAttackProjectile(actorId, Coordinates.ToWorld(hit.Position), hitTime.Value);
                         ShowActionIcon(actorId, characterVisuals?.BasicAttackIcon);
                         break;
                     case SkillUsedEvent used:
@@ -899,6 +904,20 @@ namespace MiniChess.Client.Bootstrap
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// 공격자 캐릭터에 기본 공격 투사체(궁수 화살 등)가 있으면 releaseTime 초 뒤(활을 놓는 시점)에 target 으로 쏘고 날아가는 시간을 돌려준다.
+        /// 타격(타격 이펙트, 피해 숫자)은 그만큼 늦어져 도착할 때 보인다. 투사체가 없으면(소환물 포함) 0.
+        /// </summary>
+        private float LaunchBasicAttackProjectile(int attackerId, Vector3 target, float releaseTime)
+        {
+            Unit attacker = State.FindUnit(attackerId);
+            if (characterVisuals == null || attacker == null || attacker.IsSummon)
+                return 0f;
+
+            ProjectileEffect projectile = characterVisuals.Find(attacker.Stats.Base.Id)?.BasicAttackProjectile;
+            return attackEffectsView.PlayProjectile(projectile, attackerId, target, releaseTime);
         }
 
         /// <summary>

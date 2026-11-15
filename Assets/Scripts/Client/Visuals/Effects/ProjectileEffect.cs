@@ -69,19 +69,20 @@ namespace MiniChess.Client.Visuals.Effects
         private ParticleSystem[] ProjectileParticles =>
             _projectileParticles ?? (_projectileParticles = projectile.GetComponentsInChildren<ParticleSystem>(true));
 
+        /// <summary>from → to 로 Place 했을 때 날아가는 시간(초). 프리팹에서 불러 발사 전에 도착 시점을 계산할 때 쓴다.</summary>
+        public float GetFlightTime(Vector3 from, Vector3 to)
+        {
+            (Vector3 launch, Vector3 hit) = GetFlightPoints(from, to);
+            return travelTime > 0f ? travelTime : (hit - launch).magnitude / speed;
+        }
+
         /// <param name="from">시전자 칸 윗면 중심(월드).</param>
         /// <param name="to">대상 칸 윗면 중심(월드).</param>
         public void Place(Vector3 from, Vector3 to)
         {
             TargetCell = to;
-            _from = from + Vector3.up * launchHeight;
-            _to = to + Vector3.up * hitHeight;
+            (_from, _to) = GetFlightPoints(from, to);
             Vector3 direction = _to - _from;
-            if (direction.magnitude > hitPullback)
-            {
-                _to -= direction.normalized * hitPullback;
-                direction = _to - _from;
-            }
 
             Quaternion facing = direction.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(direction) : Quaternion.identity;
 
@@ -90,7 +91,7 @@ namespace MiniChess.Client.Visuals.Effects
             if (impact != null)
                 impact.transform.SetPositionAndRotation(_to, facing * Quaternion.Euler(0f, 180f, 0f));
 
-            _duration = travelTime > 0f ? travelTime : direction.magnitude / speed;
+            _duration = GetFlightTime(from, to);
             PushedTo = null;
             _elapsed = 0f;
             _flying = true;
@@ -124,6 +125,17 @@ namespace MiniChess.Client.Visuals.Effects
             }
 
             base.Update();
+        }
+
+        /// <summary>발사 지점과 명중 지점(hitPullback 적용 후).</summary>
+        private (Vector3 Launch, Vector3 Hit) GetFlightPoints(Vector3 from, Vector3 to)
+        {
+            Vector3 launch = from + Vector3.up * launchHeight;
+            Vector3 hit = to + Vector3.up * hitHeight;
+            Vector3 direction = hit - launch;
+            if (direction.magnitude > hitPullback)
+                hit -= direction.normalized * hitPullback;
+            return (launch, hit);
         }
 
         private Vector3 PointAt(float t) =>

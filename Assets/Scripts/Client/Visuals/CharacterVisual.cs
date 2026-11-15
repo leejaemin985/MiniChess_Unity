@@ -70,6 +70,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField] private StatusStanceSettings statusStance;
         [Tooltip("기본 공격 타격 이펙트(예: 낫 → 몸통을 가로지르는 베기 선). 비우면 공용(CharacterVisualCatalog.BasicAttackEffect).")]
         [SerializeField] private HitEffect basicAttackEffect;
+        [Tooltip("기본 공격 투사체(예: 궁수 → 화살). 있으면 공격 클립 Hit 시점(없으면 기본 타격 시점)에 쏘고, 타격 이펙트와 피해 숫자는 도착할 때 보인다. 비우면 투사체 없이 바로 타격.")]
+        [SerializeField] private ProjectileEffect basicAttackProjectile;
 
         [Header("Summon (이 캐릭터가 부른 소환물, 예: 낫 → 그림자 분신)")]
         [Tooltip("소환물 몸체의 기본 머티리얼(예: 그림자). 비우면 팀 색을 옅게 칠한다. 지정하면 소환물 발밑에 팀 색 고리를 둔다.")]
@@ -112,6 +114,9 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>이 캐릭터만의 기본 공격 타격 이펙트. 없으면 null(공용을 쓴다).</summary>
         public HitEffect BasicAttackEffect => basicAttackEffect;
+
+        /// <summary>기본 공격 투사체. 없으면 null(바로 타격).</summary>
+        public ProjectileEffect BasicAttackProjectile => basicAttackProjectile;
 
         /// <summary>소환물 몸체 기본 머티리얼. 없으면 null(팀 색).</summary>
         public Material SummonBodyMaterial => summonBodyMaterial;

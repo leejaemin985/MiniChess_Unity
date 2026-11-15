@@ -52,6 +52,21 @@ namespace MiniChess.Client.Units
                 Play(prefab, attackerId, _coordinates.ToWorld(cell));
         }
 
+        /// <summary>
+        /// 기본 공격 투사체(화살 등)를 delay 초 뒤에 공격자 자리 → target(칸 윗면 높이 월드 좌표)으로 쏜다. 날아가는 시간(초)을 돌려준다.
+        /// 쏠 수 없으면(이펙트/공격자 뷰 없음) 0 을 돌려주고 쏘지 않는다.
+        /// </summary>
+        public float PlayProjectile(ProjectileEffect prefab, int attackerId, Vector3 target, float delay)
+        {
+            if (prefab == null || _casters == null || _units == null || !_units.TryGetView(attackerId, out UnitView attacker))
+                return 0f;
+
+            Vector3 from = attacker.transform.position;
+            float flightTime = prefab.GetFlightTime(from, target);
+            StartCoroutine(LaunchLater(prefab, attackerId, from, target, delay));
+            return flightTime;
+        }
+
         /// <summary>기다리는 중인 타격 이펙트를 모두 취소한다(새 경기 등).</summary>
         public void CancelPending()
         {
@@ -64,14 +79,27 @@ namespace MiniChess.Client.Units
             Play(prefab, attackerId, hitPoint);
         }
 
+        private IEnumerator LaunchLater(ProjectileEffect prefab, int attackerId, Vector3 from, Vector3 to, float delay)
+        {
+            if (delay > 0f)
+                yield return new WaitForSeconds(delay);
+            if (!_units.TryGetView(attackerId, out UnitView attacker))
+                yield break;
+
+            ProjectileEffect effect = _casters.Get(attackerId, GetCasterName(attacker)).GetPool(prefab, poolSize).Get(from);
+            effect.Place(from, to);
+        }
+
         private void Play(HitEffect prefab, int attackerId, Vector3 hitPoint)
         {
             if (prefab == null || _casters == null || !_units.TryGetView(attackerId, out UnitView attacker))
                 return;
 
-            string name = $"{attacker.Unit.Stats.Base.Id}#{attacker.Unit.Id} ({attacker.Unit.Team})";
-            HitEffect effect = _casters.Get(attackerId, name).GetPool(prefab, poolSize).Get(hitPoint);
+            HitEffect effect = _casters.Get(attackerId, GetCasterName(attacker)).GetPool(prefab, poolSize).Get(hitPoint);
             effect.Place(hitPoint, hitPoint - attacker.transform.position);
         }
+
+        private static string GetCasterName(UnitView attacker) =>
+            $"{attacker.Unit.Stats.Base.Id}#{attacker.Unit.Id} ({attacker.Unit.Team})";
     }
 }
