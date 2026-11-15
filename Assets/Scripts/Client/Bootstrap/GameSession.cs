@@ -763,6 +763,7 @@ namespace MiniChess.Client.Bootstrap
             _presentQueue.Clear();
             _startedSkills.Clear();
             damageNumbersView?.Clear();
+            attackEffectsView?.CancelPending();
         }
 
         /// <summary>
@@ -865,6 +866,7 @@ namespace MiniChess.Client.Bootstrap
                         Dictionary<Position, Position> pushes = FindPushes(list, i);
                         skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells, pushes);
                         skillEffectsView.PlayPush(used.CasterId, used.SkillId, used.Targets, pushes);
+                        PlaySkillDamageHits(list, i, used);
                         break;
                     case CellEffectTriggeredEvent triggered when triggered.OwnerTeam.HasValue:
                         boardView.RevealTrap(triggered.Position, triggered.OwnerTeam.Value);
@@ -957,6 +959,31 @@ namespace MiniChess.Client.Bootstrap
         }
 
         /// <summary>
+        /// 카탈로그에 피해 타격 이펙트가 있는 스킬(돌진 등)이면 events[castIndex] 의 스킬 사용 뒤(다음 스킬 사용 전까지) 시전자가 직접 피해를 준 유닛마다
+        /// 그 이펙트를 재생한다. 시전자가 돌진했으면 도착한 뒤에 재생한다(맞은 자리는 지금 읽어 둔다).
+        /// </summary>
+        private void PlaySkillDamageHits(IReadOnlyList<GameEvent> events, int castIndex, SkillUsedEvent used)
+        {
+            HitEffect effect = skillEffects != null ? skillEffects.FindDamageHit(used.SkillId) : null;
+            if (effect == null)
+                return;
+
+            bool dashed = false;
+            for (int i = castIndex + 1; i < events.Count && !(events[i] is SkillUsedEvent); i++)
+            {
+                if (events[i] is UnitMovedEvent moved && moved.UnitId == used.CasterId && moved.Kind == MoveKind.Dash)
+                    dashed = true;
+            }
+
+            float delay = dashed ? unitsView.DashDuration : 0f;
+            for (int i = castIndex + 1; i < events.Count && !(events[i] is SkillUsedEvent); i++)
+            {
+                if (events[i] is UnitDamagedEvent damaged && damaged.SourceId == used.CasterId && damaged.Type == DamageType.Direct)
+                    attackEffectsView.PlayOnUnit(effect, used.CasterId, damaged.TargetId, delay);
+            }
+        }
+
+        /// <summary>
         /// events[castIndex] 의 스킬 사용 뒤(다음 스킬 사용 전까지) 밀려나거나 당겨진 유닛의 처음 칸 → 마지막 도착 칸.
         /// 이동 이벤트는 칸마다 기록되므로 유닛마다 첫 출발 칸과 마지막 도착 칸을 잇는다.
         /// </summary>
@@ -998,7 +1025,7 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>
         /// events[castIndex] 의 스킬 사용 뒤(다음 스킬 사용 전까지) 시전자가 스스로 이동한 경로가 있으면 경로 이펙트를 재생하고,
-        /// 돌진이면 유닛을 미끄러지듯 옮긴다(이동 이벤트는 칸마다 기록되므로 첫 출발 칸 → 마지막 도착 칸).
+        /// 돌진이면 유닛을 미끄러지듯 옮기고, 스킬 모션이 끝날 때까지 무기 궤적을 끈다(이동 이벤트는 칸마다 기록되므로 첫 출발 칸 → 마지막 도착 칸).
         /// </summary>
         private void PlaySkillPath(IReadOnlyList<GameEvent> events, int castIndex, SkillUsedEvent used)
         {
@@ -1017,6 +1044,10 @@ namespace MiniChess.Client.Bootstrap
                 return;
 
             skillEffectsView.PlayPath(used.CasterId, used.SkillId, first.From, last.To);
+
+            // 돌진 스킬은 이동과 모션(휘두르기 포함) 모두 무기 궤적 없이 보인다.
+            if (last.Kind == MoveKind.Dash)
+                unitsView.SuppressWeaponTrails(used.CasterId, GetSkillAction(used.CasterId, used.SkillId));
         }
 
         /// <summary>

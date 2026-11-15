@@ -1,3 +1,4 @@
+using System.Collections;
 using MiniChess.Client.Common;
 using MiniChess.Client.Visuals.Effects;
 using MiniChess.Core.Common;
@@ -29,10 +30,18 @@ namespace MiniChess.Client.Units
             _coordinates = coordinates;
         }
 
-        /// <summary>유닛을 친 공격. 피격자 뷰가 없으면 재생하지 않는다.</summary>
-        public void PlayOnUnit(HitEffect prefab, int attackerId, int targetId)
+        /// <summary>
+        /// 유닛을 친 공격. 피격자 뷰가 없으면 재생하지 않는다.
+        /// delay 가 있으면 맞은 자리는 지금 읽어 두고 delay 초 뒤에 재생한다(돌진 도착 뒤 등). 공격 방향은 재생할 때 공격자 자리로 정한다.
+        /// </summary>
+        public void PlayOnUnit(HitEffect prefab, int attackerId, int targetId, float delay = 0f)
         {
-            if (_units != null && _units.TryGetView(targetId, out UnitView target))
+            if (_units == null || !_units.TryGetView(targetId, out UnitView target))
+                return;
+
+            if (delay > 0f)
+                StartCoroutine(PlayLater(prefab, attackerId, target.transform.position, delay));
+            else
                 Play(prefab, attackerId, target.transform.position);
         }
 
@@ -41,6 +50,18 @@ namespace MiniChess.Client.Units
         {
             if (_coordinates != null)
                 Play(prefab, attackerId, _coordinates.ToWorld(cell));
+        }
+
+        /// <summary>기다리는 중인 타격 이펙트를 모두 취소한다(새 경기 등).</summary>
+        public void CancelPending()
+        {
+            StopAllCoroutines();
+        }
+
+        private IEnumerator PlayLater(HitEffect prefab, int attackerId, Vector3 hitPoint, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            Play(prefab, attackerId, hitPoint);
         }
 
         private void Play(HitEffect prefab, int attackerId, Vector3 hitPoint)

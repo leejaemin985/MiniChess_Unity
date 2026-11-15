@@ -53,13 +53,16 @@ namespace MiniChess.Client.Units
         [Tooltip("밀려남/당겨짐이 출발하기 전 기다리는 시간(초). 스킬 타격 연출(심판 둔기 등)이 닿는 시점과 맞춘다.")]
         [SerializeField, Min(0f)] private float knockbackDelay = 0.15f;
 
+        /// <summary>돌진 전체에 걸리는 시간(초).</summary>
+        public float DashDuration => dashDuration;
+
         private readonly List<Vector3> _movePoints = new List<Vector3>();
         /// <summary>방금 소환되어 뷰를 만들 때 솟아오르는 연출을 할 소환물 Id(ExpectSummon).</summary>
         private readonly HashSet<int> _appearing = new HashSet<int>();
 
         /// <summary>
         /// 유닛을 지금 자리에서 cells(거치는 칸, 마지막이 도착 칸)를 차례로 지나 옮긴다. Sync 전에 호출한다.
-        /// 돌진은 칸 수와 상관없이 dashDuration 동안 감속하고, 밀려남/당겨짐은 knockbackDelay 뒤 칸마다 knockbackCellDuration 으로 감속하며 미끄러진다.
+        /// 돌진은 칸 수와 상관없이 dashDuration 동안 감속하며 그동안 무기 궤적을 끄고, 밀려남/당겨짐은 knockbackDelay 뒤 칸마다 knockbackCellDuration 으로 감속하며 미끄러진다.
         /// 그 밖(일반 이동)은 칸마다 moveCellDuration 의 일정한 속도로 지난다.
         /// </summary>
         public void PlayMove(int unitId, IReadOnlyList<Position> cells, UnitMoveStyle style)
@@ -75,6 +78,8 @@ namespace MiniChess.Client.Units
             {
                 case UnitMoveStyle.Dash:
                     view.BeginMove(_movePoints, dashDuration, easeOut: true);
+                    // 몸 전체가 빠르게 미끄러지면 무기 끝도 빨라져 궤적이 생기므로, 돌진하는 동안은 무기 궤적을 끈다.
+                    view.SuppressWeaponTrails(dashDuration);
                     break;
                 case UnitMoveStyle.Knockback:
                     view.BeginMove(_movePoints, knockbackCellDuration * cells.Count, easeOut: true, knockbackDelay);
@@ -211,6 +216,13 @@ namespace MiniChess.Client.Units
         public float? GetHitTime(int unitId, UnitAction action)
         {
             return TryGetView(unitId, out UnitView view) ? view.GetHitTime(action) : null;
+        }
+
+        /// <summary>유닛의 무기 궤적을 동작(action) 클립이 끝날 때까지(최소 돌진 시간) 끈다. 돌진 스킬처럼 이동과 모션이 함께일 때 쓴다.</summary>
+        public void SuppressWeaponTrails(int unitId, UnitAction action)
+        {
+            if (TryGetView(unitId, out UnitView view))
+                view.SuppressWeaponTrails(Mathf.Max(dashDuration, view.GetActionLength(action)));
         }
 
         public bool TryGetView(Unit unit, out UnitView view)

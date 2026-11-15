@@ -56,6 +56,7 @@ namespace MiniChess.Client.Visuals
         private Sample _beforePrevious;
         private int _recorded;
         private float _weight;
+        private float _suppressUntil;
 
         /// <summary>수동 모드에서 남길지. 자동 모드에서는 무시된다.</summary>
         public bool Emitting { get; set; }
@@ -81,6 +82,13 @@ namespace MiniChess.Client.Visuals
                 _ribbon.SetActive(false);
         }
 
+        /// <summary>seconds 초 동안 궤적을 남기지 않고 남은 궤적도 지운다(돌진 등 몸 전체가 빠르게 움직여 날 끝 속도가 오를 때).</summary>
+        public void Suppress(float seconds)
+        {
+            _suppressUntil = Time.time + seconds;
+            Clear();
+        }
+
         private void OnEnable()
         {
             Clear();
@@ -103,6 +111,14 @@ namespace MiniChess.Client.Visuals
         {
             if (bladeBase == null || bladeTip == null)
                 return;
+
+            // 끄는 동안은 기록하지 않는다(끝나면 처음부터 다시 기록해 속도가 튀지 않는다).
+            if (Time.time < _suppressUntil)
+            {
+                if (_recorded > 0)
+                    Clear();
+                return;
+            }
 
             float now = Time.time;
             float dt = Mathf.Max(Time.deltaTime, 1e-4f);
@@ -229,7 +245,8 @@ namespace MiniChess.Client.Visuals
 
             _mesh = new Mesh { name = "WeaponTrail" };
             _mesh.MarkDynamic();
-            _ribbon = new GameObject($"{name} Trail");
+            // 무기와 같은 레이어에 둔다(특정 레이어만 그리는 카메라에서도 보이게).
+            _ribbon = new GameObject($"{name} Trail") { layer = gameObject.layer };
             _ribbon.AddComponent<MeshFilter>().sharedMesh = _mesh;
             var renderer = _ribbon.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;

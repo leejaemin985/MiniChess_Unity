@@ -306,6 +306,13 @@ namespace MiniChess.Client.Units
             _moveEaseOut = easeOut;
         }
 
+        /// <summary>몸체가 쥔 무기의 궤적(WeaponTrail)을 seconds 초 동안 끄고 남은 궤적을 지운다(돌진 등 몸 전체가 빠르게 움직일 때).</summary>
+        public void SuppressWeaponTrails(float seconds)
+        {
+            foreach (WeaponTrail trail in GetComponentsInChildren<WeaponTrail>())
+                trail.Suppress(seconds);
+        }
+
         /// <summary>
         /// 관문 이동: delay 초 뒤 sinkTime 동안 from 칸 아래로 작아지며 가라앉고, riseTime 동안 to 칸에서 커지며 솟아오른다(실 관문 등). Sync 전에 호출한다.
         /// 위치는 BeginMove 와 같은 좌표(칸 윗면 중심). 끝나면 Sync 가 정한 자리에 맞춘다.
@@ -387,6 +394,12 @@ namespace MiniChess.Client.Units
         public float? GetHitTime(UnitAction action)
         {
             return _body.GetEventTime(action, UnitActions.HitEvent);
+        }
+
+        /// <summary>동작 클립 길이(초). 애니메이션이 없으면 0.</summary>
+        public float GetActionLength(UnitAction action)
+        {
+            return _body.GetActionLength(action);
         }
 
         /// <summary>

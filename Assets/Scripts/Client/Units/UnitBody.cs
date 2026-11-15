@@ -110,6 +110,13 @@ namespace MiniChess.Client.Units
             return null;
         }
 
+        /// <summary>동작 클립 길이(초). 애니메이션이 없으면 0.</summary>
+        public float GetActionLength(UnitAction action)
+        {
+            AnimationClip clip = FindActionClip(action);
+            return clip != null ? clip.length : 0f;
+        }
+
         private AnimationClip FindActionClip(UnitAction action)
         {
             RuntimeAnimatorController controller = _animator != null ? _animator.runtimeAnimatorController : null;
