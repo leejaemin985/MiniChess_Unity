@@ -68,7 +68,7 @@ MonoBehaviour:
     castEffect: {fileID: 0}
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
-    pathEffect: {fileID: 3675737014630378770, guid: 743e60ec51c35db41bb5b64a8dafed83, type: 3}
+    pathEffect: {fileID: 7484643209020600690, guid: b92b9765a24882944bb9316db29f5a87, type: 3}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
