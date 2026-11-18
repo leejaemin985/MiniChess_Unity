@@ -69,10 +69,11 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 7484643209020600690, guid: b92b9765a24882944bb9316db29f5a87, type: 3}
+    travelEffect: {fileID: 1085573427056958351, guid: e31abb04b2ade6f48bd22361f1f89f07, type: 3}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
-    damageHitEffect: {fileID: 1085573427056958351, guid: e31abb04b2ade6f48bd22361f1f89f07, type: 3}
+    damageHitEffect: {fileID: 0}
   - skillId: ASSASSIN_CHARGE
     prefab: {fileID: 0}
     castEffect: {fileID: 9186359798505698876, guid: 3a0087755388b3f4687ba736842d63df, type: 3}

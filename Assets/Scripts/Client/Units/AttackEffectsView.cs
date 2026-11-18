@@ -7,7 +7,7 @@ using UnityEngine;
 namespace MiniChess.Client.Units
 {
     /// <summary>
-    /// 기본 공격 타격 이펙트를 맞은 자리에서 공격 방향(공격자 → 피격자)으로 재생한다. 이펙트는 공격자(EffectCaster)의 풀에서 꺼낸다.
+    /// 기본 공격 타격 이펙트를 맞은 자리에서 공격 방향(공격자 → 피격자)으로 재생한다(이펙트가 AttachToAttacker 면 공격자 오브젝트 아래에 붙여 재생). 이펙트는 공격자(EffectCaster)의 풀에서 꺼낸다.
     /// 위치는 유닛 뷰에서 읽는다(코어에서는 결정타를 맞은 유닛이 이미 보드에서 빠져 있으므로). 따라서 뷰를 새 상태로 맞추기 전에 호출해야 한다.
     /// </summary>
     public class AttackEffectsView : MonoBehaviour
@@ -95,8 +95,15 @@ namespace MiniChess.Client.Units
             if (prefab == null || _casters == null || !_units.TryGetView(attackerId, out UnitView attacker))
                 return;
 
+            Vector3 from = attacker.transform.position;
+            if (prefab.AttachToAttacker)
+            {
+                _casters.Get(attackerId, GetCasterName(attacker)).GetPool(prefab, poolSize).Get(from).Attach(attacker.transform, hitPoint - from);
+                return;
+            }
+
             HitEffect effect = _casters.Get(attackerId, GetCasterName(attacker)).GetPool(prefab, poolSize).Get(hitPoint);
-            effect.Place(hitPoint, hitPoint - attacker.transform.position);
+            effect.Place(hitPoint, hitPoint - from);
         }
 
         private static string GetCasterName(UnitView attacker) =>

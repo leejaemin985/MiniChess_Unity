@@ -29,10 +29,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _NoiseAmount: 0.8
-    - _NoiseVisible: 0.4
-    - _Radius: 0.36
-    - _Strength: 0.06
-    - _Width: 0.16
+    - _NoiseAmount: 0.6
+    - _NoiseVisible: 0.45
+    - _Radius: 0.38
+    - _Strength: 0.1
+    - _Width: 0.14
     m_Colors: []
   m_BuildTextureStacks: []

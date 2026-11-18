@@ -14,6 +14,7 @@ namespace MiniChess.Client.Visuals.Effects
 
         private ParticleSystem[] _particles;
         private Action<EffectBase> _returnToPool;
+        private Transform _home;
         private float? _releaseDeadline;
 
         /// <summary>풀에서 꺼내져 쓰이는 중인지(사라지는 중 포함).</summary>
@@ -25,6 +26,7 @@ namespace MiniChess.Client.Visuals.Effects
         internal void Bind(Action<EffectBase> returnToPool)
         {
             _returnToPool = returnToPool;
+            _home = transform.parent;
         }
 
         /// <summary>풀에서 꺼낼 때 EffectPool 이 호출한다. 처음부터 다시 재생한다.</summary>
@@ -114,6 +116,9 @@ namespace MiniChess.Client.Visuals.Effects
             IsInUse = false;
             _releaseDeadline = null;
             gameObject.SetActive(false);
+            // 쓰는 동안 다른 오브젝트(공격자 등)에 붙었으면 풀로 되돌린다.
+            if (transform.parent != _home)
+                transform.SetParent(_home, false);
             _returnToPool?.Invoke(this);
         }
     }

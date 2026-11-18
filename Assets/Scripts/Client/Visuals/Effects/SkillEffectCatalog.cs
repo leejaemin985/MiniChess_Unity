@@ -11,6 +11,7 @@ namespace MiniChess.Client.Visuals.Effects
     ///   - 타격(hitEffect): 사용 때 범위 각 칸에서 시전자 → 칸 방향으로 재생한다(강타 등).
     ///   - 투사체(projectileEffect): 사용 때 시전자에서 범위 각 칸으로 날아가 명중한다(장거리 조준 등).
     ///   - 경로(pathEffect): 사용 직후 시전자가 직접 이동한 경로(출발 칸 → 도착 칸)를 따라 재생한다(돌진 등).
+    ///   - 이동(travelEffect): 경로 이펙트와 함께 시전자에게 붙여 재생해 시전자를 따라 움직인다(돌진 바람 등).
     ///   - 착탄(strikeEffect): 예약 공격이 떨어질 때 범위에서 재생한다(박격포 착탄 등).
     ///   - 워프(warpEffect): 사용으로 시전자가 일으킨 순간이동/위치 교환마다 시전자/출발 칸/도착 칸에 재생하고, 옮겨지는 유닛은 가라앉았다 솟아오른다(실 관문 등).
     ///   - 밀기(pushEffect): 대상과 방향을 고르는 밀기 스킬 사용 때 대상 칸에서 고른 방향으로, 실제로 밀려난 도착 칸까지 재생한다(자리 교정 등).
@@ -38,6 +39,8 @@ namespace MiniChess.Client.Visuals.Effects
             public ProjectileEffect projectileEffect;
             [Tooltip("사용 직후 시전자가 이동한 경로(출발 → 도착)를 따라 재생하는 이펙트. 비우면 재생 안 함.")]
             public LineEffect pathEffect;
+            [Tooltip("경로 이펙트와 함께 시전자 오브젝트 아래에 로컬 0 으로 붙여 재생하는 이펙트(돌진 바람 등). 시전자를 따라 움직인다. 비우면 재생 안 함.")]
+            public HitEffect travelEffect;
             [Tooltip("예약 공격이 떨어질 때 범위에서 재생하는 이펙트. 비우면 재생 안 함.")]
             public StrikeEffect strikeEffect;
             [Tooltip("사용으로 시전자가 일으킨 순간이동(출발 → 도착)마다 재생하는 이펙트. 지정하면 옮겨지는 유닛이 가라앉았다 솟아오른다. 비우면 재생 안 함(바로 옮겨짐).")]
@@ -78,6 +81,12 @@ namespace MiniChess.Client.Visuals.Effects
         public LineEffect FindPath(string skillId)
         {
             return FindEntry(skillId, entry => entry.pathEffect != null)?.pathEffect;
+        }
+
+        /// <summary>경로 이동 동안 시전자에게 붙는 이펙트 프리팹(돌진 바람 등). 없으면 null.</summary>
+        public HitEffect FindTravel(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.travelEffect != null)?.travelEffect;
         }
 
         /// <summary>스킬의 착탄 이펙트 프리팹. 없으면 null.</summary>
