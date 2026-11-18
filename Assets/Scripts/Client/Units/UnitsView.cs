@@ -52,6 +52,8 @@ namespace MiniChess.Client.Units
         [SerializeField, Min(0f)] private float knockbackCellDuration = 0.1f;
         [Tooltip("밀려남/당겨짐이 출발하기 전 기다리는 시간(초). 스킬 타격 연출(심판 둔기 등)이 닿는 시점과 맞춘다.")]
         [SerializeField, Min(0f)] private float knockbackDelay = 0.15f;
+        [Tooltip("동작 동안 무기 궤적을 끌 때 클립 길이에 더하는 시간(초). 동작으로 들어가는 전환(AC_Unit 0.1)과 끝나고 대기로 돌아가는 전환(0.18) 동안의 휘두름까지 끈다.")]
+        [SerializeField, Min(0f)] private float actionTrailMargin = 0.35f;
 
         /// <summary>돌진 전체에 걸리는 시간(초).</summary>
         public float DashDuration => dashDuration;
@@ -218,11 +220,11 @@ namespace MiniChess.Client.Units
             return TryGetView(unitId, out UnitView view) ? view.GetHitTime(action) : null;
         }
 
-        /// <summary>유닛의 무기 궤적을 동작(action) 클립이 끝날 때까지(최소 돌진 시간) 끈다. 돌진 스킬처럼 이동과 모션이 함께일 때 쓴다.</summary>
+        /// <summary>유닛의 무기 궤적을 동작(action)이 대기로 돌아갈 때까지(클립 길이 + 전환 여유, 최소 돌진 시간) 끈다. 돌진 스킬처럼 이동과 모션이 함께일 때 쓴다.</summary>
         public void SuppressWeaponTrails(int unitId, UnitAction action)
         {
             if (TryGetView(unitId, out UnitView view))
-                view.SuppressWeaponTrails(Mathf.Max(dashDuration, view.GetActionLength(action)));
+                view.SuppressWeaponTrails(Mathf.Max(dashDuration, view.GetActionLength(action) + actionTrailMargin));
         }
 
         public bool TryGetView(Unit unit, out UnitView view)
