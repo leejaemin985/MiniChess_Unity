@@ -32,7 +32,7 @@ Material:
     - _NoiseAmount: 0.8
     - _NoiseVisible: 0.4
     - _Radius: 0.36
-    - _Strength: 0.06
+    - _Strength: 0.08
     - _Width: 0.16
     m_Colors: []
   m_BuildTextureStacks: []

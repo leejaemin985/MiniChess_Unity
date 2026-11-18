@@ -7,7 +7,7 @@ Shader "MiniChess/ShockConeDistortion"
     Properties
     {
         _NoiseTex ("Noise (RG)", 2D) = "gray" {}
-        _Strength ("Distortion Strength", Range(0, 0.1)) = 0.04
+        _Strength ("Distortion Strength", Range(0, 0.15)) = 0.04
         _Radius ("Ring Radius (UV)", Range(0.05, 0.5)) = 0.42
         _Width ("Ring Width (UV)", Range(0.01, 0.4)) = 0.1
         _Spread ("Spread (부채꼴 반각, 도)", Range(5, 90)) = 40

@@ -34,8 +34,8 @@ Material:
     - _NoiseVisible: 0.6
     - _Radius: 0.42
     - _Spread: 40
-    - _Strength: 0.1
-    - _Width: 0.18
+    - _Strength: 0.14
+    - _Width: 0.22
     m_Colors:
-    - _Tint: {r: 0.72, g: 0.78, b: 0.98, a: 0.5}
+    - _Tint: {r: 0.72, g: 0.78, b: 0.98, a: 0.75}
   m_BuildTextureStacks: []
