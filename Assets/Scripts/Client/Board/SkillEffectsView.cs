@@ -12,7 +12,7 @@ namespace MiniChess.Client.Board
     ///   - 라인(Play): 범위 칸 순서(모양 정의 순)의 첫 칸에서 마지막 칸으로 쓸고 지나가며, 양 끝 칸의 바깥 가장자리까지 늘린다.
     ///   - 시전(PlayCast): 시전자 자리에서 재생한다.
     ///   - 타격(PlayHit): 범위 각 칸에서 시전자 → 칸 방향으로 재생한다.
-    ///   - 투사체(PlayProjectile): 시전자에서 범위 각 칸으로 날아가 명중한다.
+    ///   - 투사체(PlayProjectile): 시전자에서 범위 각 칸으로 날아가 명중한다. 명중까지 걸리는 시간을 돌려준다.
     ///   - 경로(PlayPath): 시전자가 직접 이동한 경로의 출발 칸에서 도착 칸까지 재생하고, 이동 이펙트는 시전자에게 붙여 따라가게 한다.
     ///   - 착탄(PlayStrike): 범위 중심에 놓고 각 칸 위치를 함께 넘긴다.
     ///   - 워프(PlayWarp): 시전자가 일으킨 순간이동마다 시전자/출발 칸/도착 칸을 넘긴다.
@@ -95,23 +95,37 @@ namespace MiniChess.Client.Board
         /// pushedTo 는 범위 칸에 있던 유닛이 이 스킬로 밀려 도착한 칸(밀리지 않았으면 없음)이며, 밀린 자리에 이어 붙이는 연출(충격탄 등)에 넘긴다.
         /// 이펙트가 없거나 시전자가 보드에 없으면 재생하지 않는다.
         /// </summary>
-        public void PlayProjectile(int casterId, string skillId, IReadOnlyList<Position> cells, IReadOnlyDictionary<Position, Position> pushedTo = null)
+        public float PlayProjectile(int casterId, string skillId, IReadOnlyList<Position> cells, IReadOnlyDictionary<Position, Position> pushedTo = null)
         {
             ProjectileEffect prefab = _catalog != null ? _catalog.FindProjectile(skillId) : null;
             if (prefab == null || _casters == null || _coordinates == null || _units == null || cells == null)
-                return;
+                return 0f;
             if (!_units.TryGetView(casterId, out UnitView caster) || !caster.Unit.IsPlaced)
-                return;
+                return 0f;
 
             Vector3 from = _coordinates.ToWorld(caster.Unit.Position.Value);
             EffectPool<ProjectileEffect> pool = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize);
+            float arrival = 0f;
             foreach (Position cell in cells)
             {
+                Vector3 to = _coordinates.ToWorld(cell);
                 ProjectileEffect effect = pool.Get(from);
-                effect.Place(from, _coordinates.ToWorld(cell));
+                effect.Place(from, to);
                 if (pushedTo != null && pushedTo.TryGetValue(cell, out Position destination))
                     effect.SetPushedTo(_coordinates.ToWorld(destination));
+                arrival = Mathf.Max(arrival, prefab.GetArrivalTime(from, to));
             }
+
+            return arrival;
+        }
+
+        /// <summary>
+        /// 스킬의 투사체가 발사 전에 조준하는지(LaunchDelay > 0, 장거리 조준 등). 그런 투사체는 모션과 함께 먼저 쏘고 명중할 때 타격을 보인다.
+        /// </summary>
+        public bool HasAimedProjectile(string skillId)
+        {
+            ProjectileEffect prefab = _catalog != null ? _catalog.FindProjectile(skillId) : null;
+            return prefab != null && prefab.LaunchDelay > 0f;
         }
 
         /// <summary>

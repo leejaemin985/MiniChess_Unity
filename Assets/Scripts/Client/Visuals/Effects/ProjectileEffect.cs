@@ -5,6 +5,7 @@ namespace MiniChess.Client.Visuals.Effects
     /// <summary>
     /// 시전자 → 대상으로 날아가 명중하는 투사체 이펙트의 기반(장거리 조준 등). 끝나면 스스로 풀로 돌아간다.
     /// projectile(하위 파티클 포함)이 일정 속도로 날아가고, 도착하면 방출을 멈추고 impact 를 대상 자리에서 재생한다.
+    /// LaunchDelay 가 있으면 Place 뒤 그만큼 기다렸다가 발사한다(그동안 모델은 숨긴다, 조준 연출 등).
     /// projectile 의 +Z 가 날아가는 방향이 되게 만든다. impact 는 +Z 가 시전자 쪽을 향한다.
     /// </summary>
     public abstract class ProjectileEffect : EffectBase
@@ -35,6 +36,7 @@ namespace MiniChess.Client.Visuals.Effects
         private float _duration;
         private float _elapsed;
         private bool _flying;
+        private bool _launched;
 
         protected override bool ReleaseWhenFinished => true;
 
@@ -45,6 +47,9 @@ namespace MiniChess.Client.Visuals.Effects
         /// <summary>날아가는 부분.</summary>
         protected Transform Projectile => projectile;
 
+        /// <summary>명중 연출의 루트. 없으면 null.</summary>
+        protected ParticleSystem Impact => impact;
+
         /// <summary>발사 지점(월드).</summary>
         protected Vector3 LaunchPoint => _from;
 
@@ -54,8 +59,14 @@ namespace MiniChess.Client.Visuals.Effects
         /// <summary>대상 칸 윗면 중심(월드, Place 에 넘긴 값).</summary>
         protected Vector3 TargetCell { get; private set; }
 
-        /// <summary>날아가는 중인지.</summary>
+        /// <summary>날아가는 중인지(발사 전 대기 포함).</summary>
         protected bool IsFlying => _flying;
+
+        /// <summary>Place 뒤 발사까지 기다리는 시간(초). 0 이면 바로 발사한다.</summary>
+        public virtual float LaunchDelay => 0f;
+
+        /// <summary>Place 뒤 지난 시간(초).</summary>
+        protected float Elapsed => _elapsed;
 
         /// <summary>대상이 이 스킬로 밀려(당겨져) 도착한 칸 윗면 중심(월드). 밀리지 않았거나 모르면 null.</summary>
         protected Vector3? PushedTo { get; private set; }
@@ -76,6 +87,9 @@ namespace MiniChess.Client.Visuals.Effects
             return travelTime > 0f ? travelTime : (hit - launch).magnitude / speed;
         }
 
+        /// <summary>from → to 로 Place 했을 때 명중까지 걸리는 시간(초, 발사 전 대기 + 날아가는 시간).</summary>
+        public float GetArrivalTime(Vector3 from, Vector3 to) => LaunchDelay + GetFlightTime(from, to);
+
         /// <param name="from">시전자 칸 윗면 중심(월드).</param>
         /// <param name="to">대상 칸 윗면 중심(월드).</param>
         public void Place(Vector3 from, Vector3 to)
@@ -95,6 +109,22 @@ namespace MiniChess.Client.Visuals.Effects
             PushedTo = null;
             _elapsed = 0f;
             _flying = true;
+            _launched = false;
+            if (LaunchDelay > 0f)
+            {
+                SetModelVisible(false);
+                OnAimStarted();
+            }
+            else
+            {
+                Launch();
+            }
+        }
+
+        private void Launch()
+        {
+            _launched = true;
+            projectile.position = _from;
             SetModelVisible(true);
             foreach (ParticleSystem particle in ProjectileParticles)
                 particle.Play(false);
@@ -111,7 +141,18 @@ namespace MiniChess.Client.Visuals.Effects
             if (_flying)
             {
                 _elapsed += Time.deltaTime;
-                float t = _duration > 0f ? Mathf.Clamp01(_elapsed / _duration) : 1f;
+                if (!_launched)
+                {
+                    if (_elapsed < LaunchDelay)
+                    {
+                        base.Update();
+                        return;
+                    }
+                    Launch();
+                }
+
+                float flight = _elapsed - LaunchDelay;
+                float t = _duration > 0f ? Mathf.Clamp01(flight / _duration) : 1f;
                 projectile.position = PointAt(t);
                 if (arcHeight > 0f)
                 {
@@ -161,7 +202,10 @@ namespace MiniChess.Client.Visuals.Effects
             OnArrived();
         }
 
-        /// <summary>발사 직후(Place 끝)에 호출된다.</summary>
+        /// <summary>LaunchDelay 가 있을 때 Place 끝에 호출된다(발사 전 대기 시작, 조준 연출 등).</summary>
+        protected virtual void OnAimStarted() { }
+
+        /// <summary>발사 직후에 호출된다(LaunchDelay 가 없으면 Place 끝).</summary>
         protected virtual void OnLaunched() { }
 
         /// <summary>명중 지점에 도착해 impact 를 재생한 뒤 호출된다.</summary>

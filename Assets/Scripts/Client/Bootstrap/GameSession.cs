@@ -210,6 +210,8 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>PlayActionStart 가 몸체 동작과 시전 아이콘을 먼저 시작한 스킬 사용(타격 시점에 PlayEvents 가 다시 시작하지 않게).</summary>
         private readonly HashSet<SkillUsedEvent> _startedSkills = new HashSet<SkillUsedEvent>();
+        /// <summary>PlayActionStart 가 조준하는 투사체(장거리 조준)를 먼저 쏜 스킬 사용(PlayEvents 가 다시 쏘지 않게).</summary>
+        private readonly HashSet<SkillUsedEvent> _launchedProjectiles = new HashSet<SkillUsedEvent>();
 
         /// <summary>
         /// 지금 경기의 번호. 새 경기(로컬 새 경기, 온라인 경기 시작, 재접속 대기)마다 바뀐다.
@@ -762,6 +764,7 @@ namespace MiniChess.Client.Bootstrap
             _presenting = false;
             _presentQueue.Clear();
             _startedSkills.Clear();
+            _launchedProjectiles.Clear();
             damageNumbersView?.Clear();
             attackEffectsView?.CancelPending();
         }
@@ -772,6 +775,7 @@ namespace MiniChess.Client.Bootstrap
         ///     기본 공격 투사체(궁수 화살 등)가 있으면 그 시간에 쏘고, 타격은 날아가는 시간만큼 늦춰 도착할 때 보인다.
         ///   - 스킬: 시전자의 스킬 클립에 Hit 이벤트가 있을 때만 스킬 모션과 시전 아이콘을 먼저 시작하고 그 시간을 기다린다.
         ///     Hit 이벤트가 없는 스킬은 지금처럼 PlayEvents 에서 바로 모션과 이펙트를 함께 재생한다.
+        ///     조준하는 투사체(장거리 조준)가 있는 스킬은 모션과 함께 투사체를 먼저 쏘고, 명중까지 걸리는 시간을 타격 시점으로 쓴다.
         /// </summary>
         private float PlayActionStart(IReadOnlyList<GameEvent> events)
         {
@@ -803,6 +807,12 @@ namespace MiniChess.Client.Bootstrap
                         actorId = used.CasterId;
                         action = GetSkillAction(used.CasterId, used.SkillId);
                         hitTime = unitsView.GetHitTime(actorId, action);
+                        if (skillEffectsView.HasAimedProjectile(used.SkillId))
+                        {
+                            // 조준하는 투사체(장거리 조준)는 모션과 함께 먼저 쏘고, 타격은 명중할 때 보인다.
+                            hitTime = skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells);
+                            _launchedProjectiles.Add(used);
+                        }
                         if (hitTime == null)
                             continue;
                         _startedSkills.Add(used);
@@ -869,7 +879,8 @@ namespace MiniChess.Client.Bootstrap
                         skillEffectsView.PlayCast(used.CasterId, used.SkillId);
                         skillEffectsView.PlayHit(used.CasterId, used.SkillId, used.AffectedCells);
                         Dictionary<Position, Position> pushes = FindPushes(list, i);
-                        skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells, pushes);
+                        if (!_launchedProjectiles.Remove(used))
+                            skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells, pushes);
                         skillEffectsView.PlayPush(used.CasterId, used.SkillId, used.Targets, pushes);
                         PlaySkillDamageHits(list, i, used);
                         break;
