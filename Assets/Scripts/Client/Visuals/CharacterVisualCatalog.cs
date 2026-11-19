@@ -36,11 +36,16 @@ namespace MiniChess.Client.Visuals
         /// <summary>기본 공격 타격 이펙트. 지정하지 않았으면 null(재생 안 함).</summary>
         public HitEffect BasicAttackEffect => basicAttackEffect;
 
-        /// <summary>그 캐릭터의 기본 공격 타격 이펙트: 캐릭터 시각 데이터에 따로 있으면 그것, 없으면 공용.</summary>
+        /// <summary>
+        /// 그 캐릭터의 기본 공격 타격 이펙트: 캐릭터 시각 데이터에 따로 있으면 그것, 없으면 공용.
+        /// 투사체(화살 등)를 쓰는 캐릭터는 명중 연출을 투사체가 맡으므로 따로 지정하지 않았으면 공용도 쓰지 않는다(null).
+        /// </summary>
         public HitEffect FindBasicAttackEffect(string characterId)
         {
-            HitEffect own = Find(characterId)?.BasicAttackEffect;
-            return own != null ? own : basicAttackEffect;
+            CharacterVisual visual = Find(characterId);
+            if (visual != null && visual.BasicAttackEffect != null)
+                return visual.BasicAttackEffect;
+            return visual != null && visual.BasicAttackProjectile != null ? null : basicAttackEffect;
         }
 
         /// <summary>얼굴 마스크 모양. 지정하지 않았으면 null(FaceBadge 가 원을 쓴다).</summary>

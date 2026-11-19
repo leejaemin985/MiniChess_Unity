@@ -68,7 +68,7 @@ namespace MiniChess.Client.Visuals
         [SerializeField] private BodyCompanion[] companions = Array.Empty<BodyCompanion>();
         [Tooltip("상태에 따른 자세(예: 박격포 설치 → 권총을 허리춤에 넣고 박격포 조작 대기). 상태를 비우면 쓰지 않는다. 몸체 프리팹 생성 메뉴가 붙인다.")]
         [SerializeField] private StatusStanceSettings statusStance;
-        [Tooltip("기본 공격 타격 이펙트(예: 낫 → 몸통을 가로지르는 베기 선). 비우면 공용(CharacterVisualCatalog.BasicAttackEffect).")]
+        [Tooltip("기본 공격 타격 이펙트(예: 낫 → 몸통을 가로지르는 베기 선). 비우면 공용(CharacterVisualCatalog.BasicAttackEffect). 기본 공격 투사체가 있으면 비웠을 때 공용도 쓰지 않는다(투사체가 명중 연출을 맡는다).")]
         [SerializeField] private HitEffect basicAttackEffect;
         [Tooltip("기본 공격 투사체(예: 궁수 → 화살). 있으면 공격 클립 Hit 시점(없으면 기본 타격 시점)에 쏘고, 타격 이펙트와 피해 숫자는 도착할 때 보인다. 비우면 투사체 없이 바로 타격.")]
         [SerializeField] private ProjectileEffect basicAttackProjectile;
