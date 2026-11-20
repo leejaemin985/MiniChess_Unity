@@ -64,6 +64,12 @@ namespace MiniChess.Client.Bootstrap
         [Tooltip("서버와 주고받는 메시지를 콘솔에 남긴다.")]
         [SerializeField] private bool logNetwork = true;
 
+        [Header("Test Mode (로컬 경기 전용, 사람이 조작하는 팀에만 적용. 온라인에서는 무시)")]
+        [Tooltip("이동/기본 공격/스킬이 AP 를 쓰지 않는다.")]
+        [SerializeField] private bool testFreeAp;
+        [Tooltip("기본 공격과 스킬의 턴당 1회 제한, 행동 종료(행동이 끝나는 스킬)를 무시한다.")]
+        [SerializeField] private bool testUnlimitedActions;
+
         [Header("Quick Start (켜면 배치 단계를 건너뛰고 아래 라인업을 자동 배치)")]
         [SerializeField] private bool quickStart;
 
@@ -119,6 +125,9 @@ namespace MiniChess.Client.Bootstrap
 
         /// <summary>경기 설정(서버/로컬과 같은 프리셋). 시점 스냅샷으로 경기를 다시 만들 때 쓴다(온라인: 서버 스냅샷, 로컬: 내 팀 시점).</summary>
         private GameConfig _viewConfig;
+
+        /// <summary>로컬 경기(숨길 팀이 있을 때)의 시점 경기용 설정. 실제 경기 규칙을 그대로 쓴다.</summary>
+        private GameConfig _localViewConfig;
 
         /// <summary>
         /// 로컬 경기의 실제 경기(판정 전용, 서버 역할). 명령은 여기에 실행한다. 온라인이면 null(판정은 서버).
@@ -408,6 +417,7 @@ namespace MiniChess.Client.Bootstrap
             }
 
             Authority = game;
+            _localViewConfig = null;
             BeginGame(LocalView());
         }
 
@@ -418,8 +428,14 @@ namespace MiniChess.Client.Bootstrap
             if (!viewer.HasValue)
                 return Authority;
 
-            _viewConfig = _viewConfig ?? OnlineMatch.CreateConfig();
-            return GameController.Restore(_viewConfig, Authority.GetSnapshot(viewer.Value));
+            // 실제 경기와 같은 규칙(테스트 규칙 포함)으로 만들어야 칸 표시/버튼 판정이 실제 경기와 맞는다.
+            if (_localViewConfig == null)
+            {
+                _localViewConfig = OnlineMatch.CreateConfig();
+                _localViewConfig.Rules = Authority.State.Rules;
+            }
+
+            return GameController.Restore(_localViewConfig, Authority.GetSnapshot(viewer.Value));
         }
 
         /// <summary>
@@ -518,7 +534,7 @@ namespace MiniChess.Client.Bootstrap
             {
                 return GameController.Create(new GameConfig
                 {
-                    Rules = PrototypeTestPreset.CreateRules(),
+                    Rules = CreateLocalRules(),
                     Map = PrototypeTestPreset.CreateTestMap(),
                     Characters = PrototypeTestPreset.CreateCharacters(),
                     Skills = PrototypeTestPreset.CreateSkills(),
@@ -528,12 +544,29 @@ namespace MiniChess.Client.Bootstrap
             string[] defaultLineup = PrototypeTestPreset.CreateStartingLineup();
 
             return QuickBattleFactory.Create(
-                PrototypeTestPreset.CreateRules(),
+                CreateLocalRules(),
                 PrototypeTestPreset.CreateTestMap(),
                 PrototypeTestPreset.CreateCharacters(),
                 ToLineup(player1Lineup, defaultLineup),
                 ToLineup(player2Lineup, defaultLineup),
                 PrototypeTestPreset.CreateSkills());
+        }
+
+        /// <summary>로컬 경기 규칙: 프리셋 규칙에 인스펙터의 테스트 모드(사람이 조작하는 팀에만)를 얹는다.</summary>
+        private GameRuleData CreateLocalRules()
+        {
+            GameRuleData rules = PrototypeTestPreset.CreateRules();
+            if (testFreeAp || testUnlimitedActions)
+            {
+                rules.Test = new TestRuleData
+                {
+                    FreeAp = testFreeAp,
+                    UnlimitedActions = testUnlimitedActions,
+                    Teams = new[] { Team.Player1, Team.Player2 }.Where(team => !IsBot(team)).ToArray(),
+                };
+            }
+
+            return rules;
         }
 
         /// <summary>인스펙터 라인업에서 빈 칸("(없음)")을 뺀 구성. 남는 게 없으면 프리셋 기본 구성.</summary>

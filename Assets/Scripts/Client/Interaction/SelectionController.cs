@@ -143,7 +143,17 @@ namespace MiniChess.Client.Interaction
             ? (Candidate != CandidateKind.None || _pendingSkillId != null || _attackPending ? _selected : Displayed)?.Team
             : null;
 
-        private int BasicAttackCost => _session.State?.Rules.ActionCost.BasicAttackCost ?? 0;
+        /// <summary>미리보는 행동의 유닛(PreviewApTeam 과 같은 기준). 테스트 규칙의 AP 무료 판정에 쓴다.</summary>
+        private Unit CostUnit => Candidate != CandidateKind.None || _pendingSkillId != null || _attackPending ? _selected : Displayed;
+
+        private int BasicAttackCost
+        {
+            get
+            {
+                Unit unit = CostUnit;
+                return unit != null ? _session.State?.Rules.GetBasicAttackCost(unit.Team) ?? 0 : 0;
+            }
+        }
 
         /// <summary>후보가 있고 지금 조작할 차례인지(서버 결과 대기/행동 연출 중이 아님). 회전 버튼은 이것만 본다.</summary>
         public bool CanActOnCandidate => Candidate != CandidateKind.None && AcceptsInput(_session.State);
@@ -821,7 +831,12 @@ namespace MiniChess.Client.Interaction
 
         private int GetSkillCost(string skillId)
         {
-            return skillId != null ? _session.State?.Skills.Find(skillId)?.ApCost ?? 0 : 0;
+            Unit unit = CostUnit;
+            GameState state = _session.State;
+            if (skillId == null || unit == null || state == null)
+                return 0;
+
+            return state.Rules.GetSkillCost(unit.Team, state.Skills.Find(skillId));
         }
 
         private void Redraw()
