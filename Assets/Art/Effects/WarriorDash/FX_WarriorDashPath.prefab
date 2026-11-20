@@ -116,8 +116,8 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 3
-      scalar: 1.5600001
-      minScalar: 0.6
+      scalar: 0.9
+      minScalar: 0.45
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -979,9 +979,9 @@ ParticleSystem:
       time: 0
       countCurve:
         serializedVersion: 2
-        minMaxState: 0
-        scalar: 96
-        minScalar: 60
+        minMaxState: 3
+        scalar: 12
+        minScalar: 8
         maxCurve:
           serializedVersion: 2
           m_Curve:
@@ -9926,8 +9926,8 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 3
-      scalar: 1.17
-      minScalar: 0.6
+      scalar: 0.8
+      minScalar: 0.45
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -10789,9 +10789,9 @@ ParticleSystem:
       time: 0
       countCurve:
         serializedVersion: 2
-        minMaxState: 0
-        scalar: 80
-        minScalar: 50
+        minMaxState: 3
+        scalar: 12
+        minScalar: 8
         maxCurve:
           serializedVersion: 2
           m_Curve:
@@ -19672,7 +19672,7 @@ MonoBehaviour:
   smoke: {fileID: 2954020475065147879}
   path: {fileID: 3901805595027430721}
   pathReferenceLength: 3
-  travelTime: 0.15
+  travelTime: 0.25
   lingerTime: 0.5
   wakeWidth: 1
   wakeHeight: 0.04
@@ -24741,8 +24741,8 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 3
-      scalar: 1.17
-      minScalar: 0.6
+      scalar: 0.8
+      minScalar: 0.45
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -25604,9 +25604,9 @@ ParticleSystem:
       time: 0
       countCurve:
         serializedVersion: 2
-        minMaxState: 0
-        scalar: 80
-        minScalar: 50
+        minMaxState: 3
+        scalar: 12
+        minScalar: 8
         maxCurve:
           serializedVersion: 2
           m_Curve:
@@ -29683,8 +29683,8 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 3
-      scalar: 1.5600001
-      minScalar: 0.6
+      scalar: 0.9
+      minScalar: 0.45
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -30546,9 +30546,9 @@ ParticleSystem:
       time: 0
       countCurve:
         serializedVersion: 2
-        minMaxState: 0
-        scalar: 96
-        minScalar: 60
+        minMaxState: 3
+        scalar: 12
+        minScalar: 8
         maxCurve:
           serializedVersion: 2
           m_Curve:

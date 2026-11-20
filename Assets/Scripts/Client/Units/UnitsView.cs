@@ -47,7 +47,7 @@ namespace MiniChess.Client.Units
         [Tooltip("일반 이동에서 칸 하나를 지나는 시간(초).")]
         [SerializeField, Min(0f)] private float moveCellDuration = 0.12f;
         [Tooltip("돌진 전체에 걸리는 시간(초, 칸 수와 무관). 돌진 경로 이펙트(FX_Dash)의 travelTime 과 맞춘다.")]
-        [SerializeField, Min(0f)] private float dashDuration = 0.15f;
+        [SerializeField, Min(0f)] private float dashDuration = 0.25f;
         [Tooltip("밀려남/당겨짐에서 칸 하나를 지나는 시간(초). 감속하며 미끄러진다.")]
         [SerializeField, Min(0f)] private float knockbackCellDuration = 0.1f;
         [Tooltip("밀려남/당겨짐이 출발하기 전 기다리는 시간(초). 스킬 타격 연출(심판 둔기 등)이 닿는 시점과 맞춘다.")]
