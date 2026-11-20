@@ -29,8 +29,11 @@ namespace MiniChess.Client.Visuals.Effects
         [SerializeField, Min(0f)] private float hitPullback = 0.35f;
         [Tooltip("포물선 꼭대기 높이(직선 대비). 0 이면 직선으로 날아간다. 포물선이면 projectile 의 +Z 가 궤적 접선을 따라간다.")]
         [SerializeField, Min(0f)] private float arcHeight;
+        [Tooltip("0 보다 크면 포물선 높이를 수평 거리에 비례시킨다(높이 = 거리 × 이 값, arcHeight 무시). 거리와 상관없이 같은 각도로 던진다.")]
+        [SerializeField, Min(0f)] private float arcPerDistance;
 
         private ParticleSystem[] _projectileParticles;
+        private float _arc;
         private Vector3 _from;
         private Vector3 _to;
         private float _duration;
@@ -97,6 +100,7 @@ namespace MiniChess.Client.Visuals.Effects
             TargetCell = to;
             (_from, _to) = GetFlightPoints(from, to);
             Vector3 direction = _to - _from;
+            _arc = arcPerDistance > 0f ? new Vector3(direction.x, 0f, direction.z).magnitude * arcPerDistance : arcHeight;
 
             Quaternion facing = direction.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(direction) : Quaternion.identity;
 
@@ -154,10 +158,10 @@ namespace MiniChess.Client.Visuals.Effects
                 float flight = _elapsed - LaunchDelay;
                 float t = _duration > 0f ? Mathf.Clamp01(flight / _duration) : 1f;
                 projectile.position = PointAt(t);
-                if (arcHeight > 0f)
+                if (_arc > 0f)
                 {
                     // 궤적 접선(미분: 직선 성분 + 4h(1-2t) 위쪽)으로 머리를 돌린다.
-                    Vector3 tangent = (_to - _from) + Vector3.up * (4f * arcHeight * (1f - 2f * t));
+                    Vector3 tangent = (_to - _from) + Vector3.up * (4f * _arc * (1f - 2f * t));
                     if (tangent.sqrMagnitude > 0.0001f)
                         projectile.rotation = Quaternion.LookRotation(tangent);
                 }
@@ -180,7 +184,7 @@ namespace MiniChess.Client.Visuals.Effects
         }
 
         private Vector3 PointAt(float t) =>
-            Vector3.Lerp(_from, _to, t) + Vector3.up * (4f * arcHeight * t * (1f - t));
+            Vector3.Lerp(_from, _to, t) + Vector3.up * (4f * _arc * t * (1f - t));
 
         private void SetModelVisible(bool visible)
         {

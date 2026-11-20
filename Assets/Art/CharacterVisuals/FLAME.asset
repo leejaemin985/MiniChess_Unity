@@ -19,14 +19,34 @@ MonoBehaviour:
   bodyPrefab: {fileID: 2020786802196599461, guid: 7eb76c63e63e0e146b74e8d267e1c2d1, type: 3}
   animatorController: {fileID: 22100000, guid: 6af207f326a03f0449c21fb6d1315674, type: 2}
   weaponPrefab: {fileID: 0}
+  offHandWeaponPrefab: {fileID: 0}
   companions:
   - prefab: {fileID: 276793172200438385, guid: 0df3a8bda3cd8c24ca09f72c48d059ee, type: 3}
     localPosition: {x: 0.38, y: 0.62, z: 0.05}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    followBone: 0
+    bone: 0
   - prefab: {fileID: 276793172200438385, guid: 0df3a8bda3cd8c24ca09f72c48d059ee, type: 3}
     localPosition: {x: -0.42, y: 0.28, z: 0.05}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    followBone: 0
+    bone: 0
+  statusStance:
+    statusId: 
+    stowBone: 0
+    stowPosition: {x: 0, y: 0, z: 0}
+    stowEulerAngles: {x: 0, y: 0, z: 0}
+    deployPrefab: {fileID: 0}
+    deployPosition: {x: 0, y: 0, z: 0}
+    deployEulerAngles: {x: 0, y: 0, z: 0}
+    bodyPosition: {x: 0, y: 0, z: 0}
+    bodyYaw: 0
+  basicAttackEffect: {fileID: 0}
+  basicAttackProjectile: {fileID: 8549243410972344937, guid: 3a9015ff080cb85468a2009b86e8df7d, type: 3}
   summonBodyMaterial: {fileID: 0}
   summonAura: {fileID: 0}
   summonSpawnEffect: {fileID: 0}
   summonAppearDelay: 0.25
   summonAppearTime: 0.35
   summonVanishEffect: {fileID: 0}
+  summonBasicAttackEffect: {fileID: 0}
