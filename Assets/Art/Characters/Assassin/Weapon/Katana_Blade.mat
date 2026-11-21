@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Dagger
+  m_Name: Katana_Blade
   m_Shader: {fileID: 4800000, guid: f0ae0219b5fc17c4ab0f4c8ea6686170, type: 3}
   m_Parent: {fileID: 2100000, guid: 5d6e03760a32c994f8e85732fedf6526, type: 2}
   m_ModifiedSerializedProperties: 0
@@ -22,12 +22,10 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs:
-    - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: c65d778d95d1cef42aa9712a9d89360d, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
+    m_TexEnvs: []
     m_Ints: []
-    m_Floats: []
-    m_Colors: []
+    m_Floats:
+    - _RimStrength: 0.55
+    m_Colors:
+    - _BaseColor: {r: 0.86, g: 0.88, b: 0.92, a: 1}
   m_BuildTextureStacks: []

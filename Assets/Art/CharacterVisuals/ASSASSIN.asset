@@ -13,15 +13,30 @@ MonoBehaviour:
   m_Name: ASSASSIN
   m_EditorClassIdentifier: 
   characterId: ASSASSIN
-  illustration: {fileID: 21300000, guid: d32882f4b491ce24ba24a6c9108f69e1, type: 3}
-  faceCenter: {x: 0.38125, y: 0.86041665}
-  faceSize: 0.34
-  bodyPrefab: {fileID: 4108621765422319716, guid: 61fe50e6b0fa62e4d88d4ea485867259, type: 3}
+  illustration: {fileID: 21300000, guid: 945e1c7ea0926a24b8f862cda11f2d4d, type: 3}
+  faceCenter: {x: 0.66, y: 0.765}
+  faceSize: 0.27
+  bodyPrefab: {fileID: 9111547358898651505, guid: 61fe50e6b0fa62e4d88d4ea485867259, type: 3}
   animatorController: {fileID: 22100000, guid: ddc61a87c66b93a4798de88e66cc7aed, type: 2}
-  weaponPrefab: {fileID: 2017487290696431794, guid: 25af805972ea01844815bad9e6f44a8e, type: 3}
+  weaponPrefab: {fileID: 4218174725033435824, guid: 803a4ce002f16a343a148c7adb79fbc3, type: 3}
+  offHandWeaponPrefab: {fileID: 4218174725033435824, guid: 3168f49ef34390f4e9c30bb0b53ff9fe, type: 3}
+  companions: []
+  statusStance:
+    statusId: 
+    stowBone: 0
+    stowPosition: {x: 0, y: 0, z: 0}
+    stowEulerAngles: {x: 0, y: 0, z: 0}
+    deployPrefab: {fileID: 0}
+    deployPosition: {x: 0, y: 0, z: 0}
+    deployEulerAngles: {x: 0, y: 0, z: 0}
+    bodyPosition: {x: 0, y: 0, z: 0}
+    bodyYaw: 0
+  basicAttackEffect: {fileID: 0}
+  basicAttackProjectile: {fileID: 0}
   summonBodyMaterial: {fileID: 0}
   summonAura: {fileID: 0}
   summonSpawnEffect: {fileID: 0}
   summonAppearDelay: 0.25
   summonAppearTime: 0.35
   summonVanishEffect: {fileID: 0}
+  summonBasicAttackEffect: {fileID: 0}
