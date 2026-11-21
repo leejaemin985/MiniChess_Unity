@@ -9,6 +9,7 @@ using MiniChess.Core.Common;
 using MiniChess.Core.Controller;
 using MiniChess.Core.Skills;
 using MiniChess.Core.Skills.Areas;
+using MiniChess.Core.Skills.Targeting;
 using MiniChess.Core.State;
 using UnityEngine;
 
@@ -21,6 +22,7 @@ namespace MiniChess.Client.Interaction
     ///   스킬 모드: 스킬 버튼 → 지정 가능 칸 하이라이트(마우스를 올리면 범위 미리보기) → 칸을 다 고르면 후보(범위와 비용 표시)
     ///     - 여러 칸 지정 스킬: 고른 칸을 표시하고 다음 후보를 다시 보여 준다. 다 고른 뒤 마지막 단계의 다른 칸을 누르면 마지막 칸만 바뀌고,
     ///       첫 단계의 칸을 누르면 그 칸부터 다시 고른다. 우클릭은 마지막 선택 취소.
+    ///       지정 수가 바뀌는 스킬(연속 베기)은 코어가 지정 완료를 판정한다: 대상 다음에 다른 대상과 착지 칸(이동 칸 색)이 함께 보이고, 착지 칸을 고르면 끝.
     ///     - 자기 자신만 지정하는 스킬: 스킬 버튼을 누르면 바로 후보(범위 표시).
     ///     - 회전하는 범위의 스킬(기준 칸을 고정해도 회전으로 적용 칸이 달라지는 스킬): 후보의 기준 칸을 다시 누르거나, 하단 회전 버튼, PC 우클릭으로
     ///       범위를 시계 방향 90도씩 돌린다(이때 우클릭은 취소가 아니다. 취소는 다른 칸 좌클릭, 스킬 버튼, 취소 버튼). 지금 방향으로 쓸 수 없으면 확정만 막는다.
@@ -67,6 +69,7 @@ namespace MiniChess.Client.Interaction
         private readonly List<Position> _skillTargets = new List<Position>();
         private readonly List<Position> _chosenTargets = new List<Position>();
         private int _targetCount;
+        private SkillTargeting _pendingTargeting;
         private bool _confirmSelf;
         private bool _canRotate;
         private AreaRotation _rotation;
@@ -173,7 +176,10 @@ namespace MiniChess.Client.Interaction
         /// <summary>하이라이트(미리보기)를 다시 그렸다. AP 미리보기(PreviewApCost)가 바뀌었을 수 있다.</summary>
         public event Action PreviewChanged;
 
-        private bool IsSkillComplete => _pendingSkillId != null && (_confirmSelf || (_targetCount > 0 && _chosenTargets.Count >= _targetCount));
+        /// <summary>지정을 다 했는지. 지정 수가 바뀌는 스킬(연속 베기: 착지 칸을 고르면 끝)도 있어 코어에 묻는다.</summary>
+        private bool IsSkillComplete => _pendingSkillId != null && (_confirmSelf
+            || (_chosenTargets.Count > 0 && _selected != null && _session.Game != null
+                && _session.Game.IsSkillTargetingComplete(_selected.Id, _pendingSkillId, _chosenTargets)));
 
         public void Initialize(GameSession session, BoardInput input, BoardView boardView)
         {
@@ -234,6 +240,7 @@ namespace MiniChess.Client.Interaction
             _skillTargets.Clear();
             _skillTargets.AddRange(targets);
             _targetCount = skill.Definition.Targeting.TargetCount;
+            _pendingTargeting = skill.Definition.Targeting;
             _confirmSelf = skill.Definition.Targeting.IsSelfOnly;
             _canRotate = skill.CanRotate;
             _rotation = AreaRotation.R0;
@@ -548,8 +555,12 @@ namespace MiniChess.Client.Interaction
 
             if (_skillTargets.Contains(clicked))
             {
+                // 지정 수가 바뀌는 스킬은 마지막 칸을 바꾸면 지정이 다시 이어질 수 있다(연속 베기: 착지 칸 → 두 번째 대상).
                 _chosenTargets[_chosenTargets.Count - 1] = clicked;
-                Redraw();
+                if (IsSkillComplete)
+                    Redraw();
+                else
+                    RefreshCandidates();
                 SelectionChanged?.Invoke();
                 return;
             }
@@ -824,6 +835,7 @@ namespace MiniChess.Client.Interaction
             _skillTargets.Clear();
             _chosenTargets.Clear();
             _targetCount = 0;
+            _pendingTargeting = null;
             _confirmSelf = false;
             _canRotate = false;
             _rotation = AreaRotation.R0;
@@ -904,8 +916,13 @@ namespace MiniChess.Client.Interaction
         {
             if (!IsSkillComplete || _confirmSelf)
             {
+                // 착지 칸(연속 베기)은 대상 칸과 구분해 이동 칸 색으로 보인다.
+                bool showLanding = _pendingTargeting is ChainStrikeTargeting;
                 foreach (Position target in _skillTargets)
-                    _boardView.Highlight(target, CellHighlight.SkillTarget);
+                {
+                    bool landing = showLanding && !TargetFilter.Enemy.Matches(_selected, _session.State.Board.GetLivingUnit(target));
+                    _boardView.Highlight(target, landing ? CellHighlight.Move : CellHighlight.SkillTarget);
+                }
             }
 
             if (_confirmSelf)

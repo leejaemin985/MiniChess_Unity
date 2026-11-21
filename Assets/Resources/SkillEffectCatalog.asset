@@ -19,6 +19,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -29,6 +30,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 8547910967128957860, guid: 012ebb0095680bc4a8c9657c90a384d5, type: 3}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -39,6 +41,7 @@ MonoBehaviour:
     hitEffect: {fileID: 6123456789012345601, guid: 5d2e8f1a3b4c4d6e9f0a1b2c3d4e5f71, type: 3}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -49,6 +52,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 5184768108425405257, guid: d2bdcdd4daf1ec24fa9ea403b8858a0f, type: 3}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -59,6 +63,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 6034879568990057492, guid: 1c7983a5d4e872e41b34cb6f9ffeaf0b, type: 3}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -74,22 +79,24 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
-  - skillId: ASSASSIN_CHARGE
+  - skillId: ASSASSIN_CHAIN_SLASH
     prefab: {fileID: 0}
-    castEffect: {fileID: 9186359798505698876, guid: 3a0087755388b3f4687ba736842d63df, type: 3}
+    castEffect: {fileID: 0}
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
-  - skillId: ASSASSIN_LEAP
+  - skillId: ASSASSIN_SHURIKEN
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
-    hitEffect: {fileID: 8427752819548031810, guid: 1706c42db74216740a0fd2d22d506623, type: 3}
-    projectileEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 7720915533180264003, guid: 5ad2b1c429f43bb40b43633192769bbd, type: 3}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -100,6 +107,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 8549243410972344937, guid: 91186513087e25a429512c6450569385, type: 3}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -110,6 +118,7 @@ MonoBehaviour:
     hitEffect: {fileID: 1876635879352326416, guid: 341402efcbc98b145a4695d655016997, type: 3}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -120,6 +129,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 101221600942653750, guid: 124c7fca2ae31804a9175a7cb0385570, type: 3}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -130,6 +140,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 3403056494446274826, guid: 4e84a79eef28a684bbb253524d400c60, type: 3}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -140,6 +151,7 @@ MonoBehaviour:
     hitEffect: {fileID: 8441192223872104837, guid: e49bb265fca47b44597832cf586db78f, type: 3}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -150,6 +162,7 @@ MonoBehaviour:
     hitEffect: {fileID: 68359627295769223, guid: b9f529e1cea9d0443aee580a6579a63b, type: 3}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -160,6 +173,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 442762682155169214, guid: 216a547b533dd35449729c205492b127, type: 3}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
@@ -170,6 +184,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 9182663622605788441, guid: 4a898e0828b5f3b45af7be4af42f89a4, type: 3}
     pushEffect: {fileID: 0}
@@ -180,6 +195,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 7308400959056003178, guid: 50403b8c7f396bb47aa5a294878fc213, type: 3}
@@ -190,6 +206,7 @@ MonoBehaviour:
     hitEffect: {fileID: 0}
     projectileEffect: {fileID: 0}
     pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
     strikeEffect: {fileID: 0}
     warpEffect: {fileID: 3169119360114960061, guid: 5c445d31802452443a257e024c54dadd, type: 3}
     pushEffect: {fileID: 0}

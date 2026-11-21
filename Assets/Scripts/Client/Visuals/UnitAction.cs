@@ -26,6 +26,12 @@ namespace MiniChess.Client.Visuals
         /// <summary>클립 애니메이션 이벤트 이름: 투사체를 놓는 시점(원거리).</summary>
         public const string ReleaseEvent = "Release";
 
+        /// <summary>클립 애니메이션 이벤트 이름: 스킬 이동(연속 베기 등)을 시작하는 시점.</summary>
+        public const string MoveStartEvent = "MoveStart";
+
+        /// <summary>클립 애니메이션 이벤트 이름: 스킬 이동이 착지 칸에 도착하는 시점.</summary>
+        public const string LandEvent = "Land";
+
         private static readonly int[] TriggerIds =
         {
             Animator.StringToHash(nameof(UnitAction.Attack)),

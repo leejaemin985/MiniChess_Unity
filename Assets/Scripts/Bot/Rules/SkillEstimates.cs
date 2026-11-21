@@ -25,6 +25,9 @@ namespace MiniChess.Bot.Rules
                     case FrontStrikeEffect strike:
                         damage += strike.Damage ?? 0;
                         break;
+                    case ChainStrikeEffect chain:
+                        damage += chain.SingleDamage ?? 0;
+                        break;
                     case ScheduleStrikeEffect scheduled:
                         damage += (scheduled.Damage ?? 0) * 0.5;
                         break;
@@ -48,14 +51,19 @@ namespace MiniChess.Bot.Rules
                     return (cell.Range ?? 0) + 1;
                 case StraightMoveTargeting straight:
                     return (straight.Range ?? 0) + 1;
+                case ChainStrikeTargeting chain:
+                    return chain.Range ?? 0;
                 default:
                     return 0;
             }
         }
 
-        /// <summary>시전자를 다른 칸으로 옮기는 스킬(도약 등)의 이동 거리. 아니면 0.</summary>
+        /// <summary>시전자를 다른 칸으로 옮기는 스킬(순간이동, 돌진 등)의 이동 거리. 아니면 0.</summary>
         public static int SelfMoveReach(SkillDefinition skill)
         {
+            if (skill.Targeting is ChainStrikeTargeting chainTargeting)
+                return (chainTargeting.Range ?? 0) + 1; // 대상 옆 착지 칸까지
+
             if (!skill.Effects.Any(effect => effect is TeleportEffect || effect is DashEffect))
                 return 0;
 

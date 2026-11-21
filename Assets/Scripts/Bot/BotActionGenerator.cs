@@ -43,7 +43,7 @@ namespace MiniChess.Bot
                         continue;
 
                     IReadOnlyList<AreaRotation> rotations = skill.CanRotate ? AllRotations : new[] { AreaRotation.R0 };
-                    foreach (List<Position> targets in EnumerateTargets(game, unit.Id, skill.Id, skill.Definition.Targeting.TargetCount))
+                    foreach (List<Position> targets in EnumerateTargets(game, unit.Id, skill.Id))
                     {
                         foreach (AreaRotation rotation in rotations)
                             actions.Add(BotAction.UseSkill(team, unit.Id, skill.Id, targets, rotation));
@@ -54,15 +54,15 @@ namespace MiniChess.Bot
             return actions;
         }
 
-        /// <summary>지정 칸 수만큼 GetSkillTargets 를 따라가며 가능한 지정 순서를 모두 만든다.</summary>
-        private static IEnumerable<List<Position>> EnumerateTargets(GameController game, int unitId, string skillId, int count)
+        /// <summary>지정이 끝날 때까지(지정 수가 바뀌는 스킬 포함) GetSkillTargets 를 따라가며 가능한 지정 순서를 모두 만든다.</summary>
+        private static IEnumerable<List<Position>> EnumerateTargets(GameController game, int unitId, string skillId)
         {
-            return Extend(game, unitId, skillId, count, new List<Position>());
+            return Extend(game, unitId, skillId, new List<Position>());
         }
 
-        private static IEnumerable<List<Position>> Extend(GameController game, int unitId, string skillId, int count, List<Position> chosen)
+        private static IEnumerable<List<Position>> Extend(GameController game, int unitId, string skillId, List<Position> chosen)
         {
-            if (chosen.Count == count)
+            if (game.IsSkillTargetingComplete(unitId, skillId, chosen))
             {
                 yield return chosen;
                 yield break;
@@ -71,7 +71,7 @@ namespace MiniChess.Bot
             foreach (Position next in game.GetSkillTargets(unitId, skillId, chosen))
             {
                 var extended = new List<Position>(chosen) { next };
-                foreach (List<Position> targets in Extend(game, unitId, skillId, count, extended))
+                foreach (List<Position> targets in Extend(game, unitId, skillId, extended))
                     yield return targets;
             }
         }

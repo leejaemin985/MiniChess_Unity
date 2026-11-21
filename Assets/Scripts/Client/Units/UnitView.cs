@@ -291,7 +291,7 @@ namespace MiniChess.Client.Units
         /// 지금 자리에서 cells(거치는 칸들의 월드 위치, 마지막이 도착 칸)를 차례로 지나 duration 초 동안 옮긴다. Sync 전에 호출한다.
         /// easeOut 이면 경로 전체에 감속을 건다(돌진, 밀려남), 아니면 일정한 속도로 지난다(일반 이동).
         /// delay 초 동안은 제자리에 있다가 출발한다(밀려남을 타격 시점에 맞출 때).
-        /// 끝나면 Sync 가 정한 자리에 맞춘다. 이 연출 없이 Sync 하면 바로 옮겨진다(워프 등).
+        /// 끝나면 경로 끝(마지막 칸)에 둔다. 이 연출 없이 Sync 하면 바로 옮겨진다(워프 등).
         /// </summary>
         public void BeginMove(IReadOnlyList<Vector3> cells, float duration, bool easeOut, float delay = 0f)
         {
@@ -349,8 +349,9 @@ namespace MiniChess.Client.Units
 
             if (t >= 1f || Mathf.Approximately(_moveDuration, 0f))
             {
+                // 경로 끝(= 도착 칸)에 둔다. 상태 반영(Sync)이 도착과 같은 프레임이거나 조금 늦어도 출발 칸으로 튀지 않게 한다.
+                transform.localPosition = _movePath[_movePath.Count - 1];
                 _movePath.Clear();
-                transform.localPosition = _targetPosition;
                 return;
             }
 
@@ -394,6 +395,12 @@ namespace MiniChess.Client.Units
         public float? GetHitTime(UnitAction action)
         {
             return _body.GetEventTime(action, UnitActions.HitEvent);
+        }
+
+        /// <summary>동작 클립에서 eventName 이벤트의 시간(초, MoveStart/Land 등). 애니메이션이나 이벤트가 없으면 null.</summary>
+        public float? GetEventTime(UnitAction action, string eventName)
+        {
+            return _body.GetEventTime(action, eventName);
         }
 
         /// <summary>동작 클립 길이(초). 애니메이션이 없으면 0.</summary>

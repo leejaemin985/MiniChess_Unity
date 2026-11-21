@@ -23,6 +23,7 @@ using MiniChess.Core.Movement;
 using MiniChess.Core.Presets;
 using MiniChess.Core.Setup;
 using MiniChess.Core.Skills.Areas;
+using MiniChess.Core.Skills.Targeting;
 using MiniChess.Core.Snapshots;
 using MiniChess.Core.State;
 using MiniChess.Core.Statuses.Library;
@@ -147,6 +148,12 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>명령 결과를 이 시간(초) 안에 받지 못하면 기다리기를 그만두고 입력을 다시 받는다(늦게 온 결과는 무시된다).</summary>
         private const float CommandResultTimeoutSeconds = 10f;
 
+        /// <summary>연속 베기 이동의 최소 시간(초). 클립의 Land 이벤트가 MoveStart 보다 앞서 있어도 이만큼은 움직인다.</summary>
+        private const float MinChainTravelTime = 0.05f;
+
+        /// <summary>피해 맞은 유닛 뷰가 지정한 대상 칸에 있다고 보는 거리(칸 크기보다 충분히 작게).</summary>
+        private const float CellMatchDistance = 0.2f;
+
         /// <summary>
         /// 이 화면의 시점 경기(표시와 조회 전용). 경기를 만들지 못했거나 온라인 상대를 기다리는 중이면 null.
         ///   온라인: 서버가 보낸 내 팀 시점 스냅샷으로 만든 경기.
@@ -221,6 +228,10 @@ namespace MiniChess.Client.Bootstrap
         private readonly HashSet<SkillUsedEvent> _startedSkills = new HashSet<SkillUsedEvent>();
         /// <summary>PlayActionStart 가 조준하는 투사체(장거리 조준)를 먼저 쏜 스킬 사용(PlayEvents 가 다시 쏘지 않게).</summary>
         private readonly HashSet<SkillUsedEvent> _launchedProjectiles = new HashSet<SkillUsedEvent>();
+        /// <summary>PlayActionStart 가 대상을 지나는 시점에 따로 띄우기로 한 피해(연속 베기). PlayEvents 가 다시 띄우지 않는다.</summary>
+        private readonly HashSet<UnitDamagedEvent> _deferredDamage = new HashSet<UnitDamagedEvent>();
+        /// <summary>미뤄 둔 피해 숫자 코루틴(새 경기에서 멈춘다).</summary>
+        private readonly List<Coroutine> _deferredRoutines = new List<Coroutine>();
 
         /// <summary>
         /// 지금 경기의 번호. 새 경기(로컬 새 경기, 온라인 경기 시작, 재접속 대기)마다 바뀐다.
@@ -798,6 +809,13 @@ namespace MiniChess.Client.Bootstrap
             _presentQueue.Clear();
             _startedSkills.Clear();
             _launchedProjectiles.Clear();
+            foreach (Coroutine routine in _deferredRoutines)
+            {
+                if (routine != null)
+                    StopCoroutine(routine);
+            }
+            _deferredRoutines.Clear();
+            _deferredDamage.Clear();
             damageNumbersView?.Clear();
             attackEffectsView?.CancelPending();
         }
@@ -809,6 +827,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 스킬: 시전자의 스킬 클립에 Hit 이벤트가 있을 때만 스킬 모션과 시전 아이콘을 먼저 시작하고 그 시간을 기다린다.
         ///     Hit 이벤트가 없는 스킬은 지금처럼 PlayEvents 에서 바로 모션과 이펙트를 함께 재생한다.
         ///     조준하는 투사체(장거리 조준)가 있는 스킬은 모션과 함께 투사체를 먼저 쏘고, 명중까지 걸리는 시간을 타격 시점으로 쓴다.
+        ///     연속 베기는 모션과 함께 대상들을 지나는 곡선 이동을 시작하고, 착지 시간을 타격 시점으로 쓴다(PlayChainStrikeTravel).
         /// </summary>
         private float PlayActionStart(IReadOnlyList<GameEvent> events)
         {
@@ -840,7 +859,12 @@ namespace MiniChess.Client.Bootstrap
                         actorId = used.CasterId;
                         action = GetSkillAction(used.CasterId, used.SkillId);
                         hitTime = unitsView.GetHitTime(actorId, action);
-                        if (skillEffectsView.HasAimedProjectile(used.SkillId))
+                        if (State.Skills.Find(used.SkillId)?.Targeting is ChainStrikeTargeting)
+                        {
+                            // 연속 베기는 대상들을 곡선으로 지나 착지할 때까지 상태 반영을 미루고, 대상마다 지나는 순간 피해를 띄운다.
+                            hitTime = PlayChainStrikeTravel(events, used, action);
+                        }
+                        else if (skillEffectsView.HasAimedProjectile(used.SkillId))
                         {
                             // 조준하는 투사체(장거리 조준)는 모션과 함께 먼저 쏘고, 타격은 명중할 때 보인다.
                             hitTime = skillEffectsView.PlayProjectile(used.CasterId, used.SkillId, used.AffectedCells);
@@ -861,6 +885,57 @@ namespace MiniChess.Client.Bootstrap
             }
 
             return hitDelay;
+        }
+
+        /// <summary>
+        /// 연속 베기(ChainStrikeTargeting) 시작 연출. 시전자가 스킬 클립의 MoveStart 이벤트 시간에 출발해 지정한 대상들을 곡선으로 지나
+        /// Land 이벤트 시간에 착지 칸에 닿게 하고(몸 방향은 그대로, 모션은 계속 재생), 대상마다 지나는 순간 그 대상의 피해 숫자를 띄운다.
+        /// 착지 시간(초)을 돌려주며 상태 반영(HP, 사망)은 그때 한다. 이벤트가 없으면 0초 출발, 클립 끝 착지.
+        /// </summary>
+        private float PlayChainStrikeTravel(IReadOnlyList<GameEvent> events, SkillUsedEvent used, UnitAction action)
+        {
+            float start = unitsView.GetEventTime(used.CasterId, action, UnitActions.MoveStartEvent) ?? 0f;
+            float land = unitsView.GetEventTime(used.CasterId, action, UnitActions.LandEvent) ?? unitsView.GetActionLength(used.CasterId, action);
+            land = Mathf.Max(land, start + MinChainTravelTime);
+
+            IReadOnlyList<Position> targetCells = ChainStrikeTargeting.GetTargetCells(used.Targets);
+            var waypoints = new List<Position>(targetCells) { used.Targets[used.Targets.Count - 1] };
+            List<float> passTimes = unitsView.PlayCurvedMove(used.CasterId, waypoints, start, land - start);
+            if (passTimes.Count == 0 || Coordinates == null)
+                return land;
+
+            int castIndex = 0;
+            while (castIndex < events.Count && events[castIndex] != used)
+                castIndex++;
+
+            // 시전자가 직접 준 피해를 맞은 유닛의 자리(뷰는 아직 반영 전이라 원래 칸)로 몇 번째 대상인지 찾는다.
+            for (int i = castIndex + 1; i < events.Count && !(events[i] is SkillUsedEvent); i++)
+            {
+                if (!(events[i] is UnitDamagedEvent damaged) || damaged.SourceId != used.CasterId || damaged.Type != DamageType.Direct)
+                    continue;
+                if (!unitsView.TryGetView(damaged.TargetId, out UnitView target))
+                    continue;
+
+                for (int k = 0; k < targetCells.Count; k++)
+                {
+                    Vector3 offset = target.transform.localPosition - Coordinates.ToWorld(targetCells[k]);
+                    offset.y = 0f;
+                    if (offset.sqrMagnitude > CellMatchDistance * CellMatchDistance)
+                        continue;
+
+                    _deferredDamage.Add(damaged);
+                    _deferredRoutines.Add(StartCoroutine(PlayDamageAfter(damaged, passTimes[k])));
+                    break;
+                }
+            }
+
+            return land;
+        }
+
+        private IEnumerator PlayDamageAfter(UnitDamagedEvent damaged, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            damageNumbersView?.Play(damaged);
         }
 
         /// <summary>
@@ -929,6 +1004,9 @@ namespace MiniChess.Client.Bootstrap
                         break;
                     case StatusRemovedEvent removed when removed.Reason != StatusRemoveReason.Replaced:
                         statusEffectsView.PlayRemoved(removed.StatusId, removed.TargetId);
+                        break;
+                    case UnitDamagedEvent damaged when _deferredDamage.Remove(damaged):
+                        // 연속 베기: PlayActionStart 가 대상을 지나는 시점에 이미 띄웠다.
                         break;
                     case UnitDamagedEvent damaged:
                         damageNumbersView.Play(damaged);

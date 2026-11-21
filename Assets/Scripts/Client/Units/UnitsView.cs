@@ -52,11 +52,16 @@ namespace MiniChess.Client.Units
         [SerializeField, Min(0f)] private float knockbackCellDuration = 0.1f;
         [Tooltip("밀려남/당겨짐이 출발하기 전 기다리는 시간(초). 스킬 타격 연출(심판 둔기 등)이 닿는 시점과 맞춘다.")]
         [SerializeField, Min(0f)] private float knockbackDelay = 0.15f;
+        [Tooltip("스킬 곡선 이동(연속 베기)이 경로 가운데에서 살짝 뜨는 높이. 0 이면 바닥을 따라 간다.")]
+        [SerializeField, Min(0f)] private float curvedMoveHopHeight = 0.1f;
         [Tooltip("동작 동안 무기 궤적을 끌 때 클립 길이에 더하는 시간(초). 동작으로 들어가는 전환(AC_Unit 0.1)과 끝나고 대기로 돌아가는 전환(0.18) 동안의 휘두름까지 끈다.")]
         [SerializeField, Min(0f)] private float actionTrailMargin = 0.35f;
 
         /// <summary>돌진 전체에 걸리는 시간(초).</summary>
         public float DashDuration => dashDuration;
+
+        /// <summary>곡선 이동에서 거쳐 갈 칸 사이 구간 하나를 찍는 점 수.</summary>
+        private const int CurveSamplesPerSegment = 16;
 
         private readonly List<Vector3> _movePoints = new List<Vector3>();
         /// <summary>방금 소환되어 뷰를 만들 때 솟아오르는 연출을 할 소환물 Id(ExpectSummon).</summary>
@@ -90,6 +95,83 @@ namespace MiniChess.Client.Units
                     view.BeginMove(_movePoints, moveCellDuration * cells.Count, easeOut: false);
                     break;
             }
+        }
+
+        /// <summary>
+        /// 유닛을 지금 자리에서 waypoints(거쳐 갈 칸들, 마지막이 도착 칸)를 부드러운 곡선(Catmull-Rom)으로 지나 옮긴다(연속 베기). Sync 전에 호출한다.
+        /// delay 초 뒤 출발해 duration 초 동안 일정한 속도로 가며, 몸 방향은 바꾸지 않는다. 경로 가운데에서 curvedMoveHopHeight 만큼 살짝 뜬다.
+        /// waypoints 마다 그 칸을 지나는 시간(초, 지금부터)을 돌려준다. 뷰가 없으면 빈 목록.
+        /// </summary>
+        public List<float> PlayCurvedMove(int unitId, IReadOnlyList<Position> waypoints, float delay, float duration)
+        {
+            var passTimes = new List<float>();
+            if (_coordinates == null || waypoints == null || waypoints.Count == 0 || !TryGetView(unitId, out UnitView view))
+                return passTimes;
+
+            var knots = new List<Vector3> { view.transform.localPosition };
+            foreach (Position cell in waypoints)
+                knots.Add(_coordinates.ToWorld(cell));
+
+            // 구간마다 곡선을 촘촘히 찍고, 각 거쳐 갈 칸까지의 길이를 잰다.
+            var curve = new List<Vector3> { knots[0] };
+            var knotLengths = new List<float>();
+            float length = 0f;
+            for (int i = 0; i < knots.Count - 1; i++)
+            {
+                Vector3 p0 = knots[Mathf.Max(i - 1, 0)], p1 = knots[i], p2 = knots[i + 1], p3 = knots[Mathf.Min(i + 2, knots.Count - 1)];
+                for (int s = 1; s <= CurveSamplesPerSegment; s++)
+                {
+                    Vector3 point = CatmullRom(p0, p1, p2, p3, (float)s / CurveSamplesPerSegment);
+                    length += Vector3.Distance(curve[curve.Count - 1], point);
+                    curve.Add(point);
+                }
+                knotLengths.Add(length);
+            }
+
+            foreach (float knotLength in knotLengths)
+                passTimes.Add(delay + (length > 0f ? duration * knotLength / length : duration));
+
+            // 같은 간격으로 다시 찍어 BeginMove(구간마다 같은 시간)가 일정한 속도가 되게 하고, 가운데에서 살짝 띄운다.
+            _movePoints.Clear();
+            int count = Mathf.Max(1, CurveSamplesPerSegment * (knots.Count - 1));
+            int index = 1;
+            float walked = 0f;
+            for (int k = 1; k <= count; k++)
+            {
+                float target = length * k / count;
+                while (index < curve.Count - 1 && walked + Vector3.Distance(curve[index - 1], curve[index]) < target)
+                {
+                    walked += Vector3.Distance(curve[index - 1], curve[index]);
+                    index++;
+                }
+
+                float step = Vector3.Distance(curve[index - 1], curve[index]);
+                Vector3 point = step > 0f ? Vector3.Lerp(curve[index - 1], curve[index], (target - walked) / step) : curve[index];
+                if (k < count)
+                    point.y += curvedMoveHopHeight * Mathf.Sin(Mathf.PI * k / count);
+                _movePoints.Add(point);
+            }
+
+            view.BeginMove(_movePoints, duration, easeOut: false, delay);
+            return passTimes;
+        }
+
+        private static Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+        {
+            float t2 = t * t, t3 = t2 * t;
+            return 0.5f * (2f * p1 + (p2 - p0) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (3f * p1 - p0 - 3f * p2 + p3) * t3);
+        }
+
+        /// <summary>유닛 동작 클립에서 eventName 이벤트의 시간(초). 뷰, 애니메이션, 이벤트 중 하나라도 없으면 null.</summary>
+        public float? GetEventTime(int unitId, UnitAction action, string eventName)
+        {
+            return TryGetView(unitId, out UnitView view) ? view.GetEventTime(action, eventName) : null;
+        }
+
+        /// <summary>유닛 동작 클립 길이(초). 뷰나 애니메이션이 없으면 0.</summary>
+        public float GetActionLength(int unitId, UnitAction action)
+        {
+            return TryGetView(unitId, out UnitView view) ? view.GetActionLength(action) : 0f;
         }
 
         /// <summary>유닛을 from 칸 관문으로 가라앉혔다가 to 칸 관문에서 솟아오르게 한다(실 관문 등). Sync 전에 호출한다.</summary>

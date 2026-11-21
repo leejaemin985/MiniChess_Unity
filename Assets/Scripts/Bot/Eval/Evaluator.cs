@@ -42,7 +42,6 @@ namespace MiniChess.Bot.Eval
                 new ExposureTerm(),
                 new ApproachTerm(),
                 new AfflictionsTerm(),
-                new ChargeTerm(),
                 new PendingStrikesTerm(),
                 new CaptureTerm(),
                 new CarriedApTerm(),

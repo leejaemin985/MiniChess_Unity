@@ -318,11 +318,10 @@ namespace MiniChess.Bot.Rules
             return RangeCalculator.GetDistance(guardian.Position.Value, target.Position.Value) <= behavior.MaxDistance ? guardian : null;
         }
 
-        /// <summary>기본 공격 피해(차징 추가 피해 포함).</summary>
+        /// <summary>기본 공격 피해.</summary>
         public static int BasicAttackDamage(Unit attacker)
         {
-            ChargedBehavior charged = SkillEstimates.FindBehavior<ChargedBehavior>(attacker, StatusLibrary.ChargedId);
-            return attacker.Stats.Attack + (charged?.BonusDamage ?? 0);
+            return attacker.Stats.Attack;
         }
 
         #endregion

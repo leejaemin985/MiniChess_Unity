@@ -10,6 +10,7 @@ using MiniChess.Core.Effects;
 using MiniChess.Core.Effects.Zones;
 using MiniChess.Core.Skills;
 using MiniChess.Core.Skills.Effects;
+using MiniChess.Core.Skills.Targeting;
 using MiniChess.Core.Snapshots;
 using MiniChess.Core.State;
 using MiniChess.Core.Statuses;
@@ -329,6 +330,17 @@ namespace MiniChess.Bot.Rules
                     return Relocation(caster, target, g.ApAfter, BoardAnalysis.CanFightAfter(caster, g.Skill), g.Skill.Id)
                         + PathHazard(new[] { target });
 
+                case ChainStrikeEffect chain:
+                {
+                    IReadOnlyList<Position> cells = ChainStrikeTargeting.GetTargetCells(g.Action.Targets);
+                    int damage = (cells.Count == 1 ? chain.SingleDamage : chain.MultiDamage) ?? 0;
+                    double hits = UnitsIn(cells, TargetFilter.Enemy, caster).Sum(unit => _a.DamageValue(caster, unit, damage, DamageType.Direct));
+                    Position landing = g.Action.Targets[g.Action.Targets.Count - 1];
+                    return landing == caster.Position.Value
+                        ? hits
+                        : hits + Relocation(caster, landing, g.ApAfter, BoardAnalysis.CanFightAfter(caster, g.Skill), g.Skill.Id) + PathHazard(new[] { landing });
+                }
+
                 case ScheduleStrikeEffect scheduled:
                     return UnitsIn(g.Area, TargetFilter.Enemy, caster).Sum(enemy =>
                         _a.DamageValue(caster, enemy, scheduled.Damage ?? 0, DamageType.Area) * StrikeHitChance(enemy));
@@ -529,22 +541,11 @@ namespace MiniChess.Bot.Rules
             return wouldDie ? _a.KillValue(target) * _a.Caution - lostTurn : -lostTurn;
         }
 
-        /// <summary>
-        /// 자신에게 거는 상태(차징, 설치)의 가치. 차징은 이번 턴에 기본 공격이 남아 있고 사거리 안에 적이 있으면
-        /// 바로 이어서 칠 수 있어 추가 피해를 그대로, 아니면 다음 턴 몫으로 낮춰 본다.
-        /// </summary>
+        /// <summary>자신에게 거는 상태(설치 등)의 가치.</summary>
         private double SelfStatusValue(StatusDefinition status, Unit caster)
         {
             switch (status.Behavior)
             {
-                case ChargedBehavior charged:
-                {
-                    if (caster.FindStatus(status.Id) != null)
-                        return 0;
-                    bool hitNow = !caster.TurnState.BasicAttackUsed && _a.Ap >= _a.AttackCost
-                        && _a.Enemies.Any(enemy => RangeCalculator.GetDistance(caster.Position.Value, enemy.Position.Value) <= caster.Stats.AttackRange);
-                    return charged.BonusDamage * (hitNow ? 1 : _w.DamageOverTime);
-                }
                 case InstalledBehavior _:
                     return 0;
                 default:
