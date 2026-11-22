@@ -14,6 +14,9 @@ namespace MiniChess.Client.Units
     /// 원래 모습 위에 교체 머티리얼이 아래에서 위로 차오르거나(굳기), 교체를 먼저 걷어낸 뒤 덧씌움이 금 가며 조각나 사라진다(깨지기).
     /// 기본 머티리얼(SetBaseMaterial, 분신의 그림자 등)을 쓰면 원래 머티리얼 대신 그것이 기본 모습이 되고, 매 프레임 몸체 높이 범위(_BottomY/_TopY)를 넣어 준다.
     /// 그 몸체는 바닥에서 솟아오르며 형체를 갖출 수 있다(Appear, _FillHeight).
+    /// 순간이동 노이즈(BlinkOut/BlinkIn): 캐릭터 툰 셰이더의 _BLINK 변형으로 세로 줄무늬가 번지며 사라지거나 나타난다.
+    /// 재생하는 동안만 머티리얼을 복제해 키워드를 켜고, 다 나타나면 원래 머티리얼로 되돌린다(평소 변형에는 비용이 없다).
+    /// _Blink 를 지원하지 않는 머티리얼의 렌더러는 절반쯤 사라졌을 때 통째로 숨긴다.
     /// </summary>
     public class UnitBody : MonoBehaviour
     {
@@ -24,6 +27,9 @@ namespace MiniChess.Client.Units
         private static readonly int DepthOffsetId = Shader.PropertyToID("_DepthOffset");
         private static readonly int BottomYId = Shader.PropertyToID("_BottomY");
         private static readonly int TopYId = Shader.PropertyToID("_TopY");
+        private static readonly int BlinkId = Shader.PropertyToID("_Blink");
+        private static readonly int BlinkSeedId = Shader.PropertyToID("_BlinkSeed");
+        private const string BlinkKeyword = "_BLINK";
         private const float NoFill = 100000f;
 
         /// <summary>깨지기 연출에서 금이 번지는 구간(나머지는 조각나 사라짐).</summary>
@@ -58,6 +64,16 @@ namespace MiniChess.Client.Units
         private float _appearDelay;
         private float _appearDuration;
         private float _appearTime = -1f;
+
+        /// <summary>순간이동 노이즈 중인 렌더러별 복제 머티리얼(지원하지 않는 칸은 원래 머티리얼). 재생 중이 아니면 null.</summary>
+        private Material[][] _blinkMaterials;
+        private readonly List<Material> _blinkClones = new List<Material>();
+        private float _blink;
+        private float _blinkFrom;
+        private float _blinkTo;
+        private float _blinkTime;
+        private float _blinkDuration;
+        private bool _blinkPlaying;
 
         /// <param name="prefab">캐릭터 모델 프리팹. null 이면 width × height 캡슐을 만든다.</param>
         /// <param name="scale">전체 크기 배율(소환물 축소 등).</param>
@@ -159,6 +175,7 @@ namespace MiniChess.Client.Units
             if (_override == material)
                 return;
 
+            EndBlink();
             _override = material;
             for (int i = 0; i < _renderers.Length; i++)
             {
@@ -183,6 +200,7 @@ namespace MiniChess.Client.Units
         /// </summary>
         public void SetBaseMaterial(Material material)
         {
+            EndBlink();
             _baseMaterial = material;
             _baseBlock = new MaterialPropertyBlock();
             _tintable = false;
@@ -235,8 +253,130 @@ namespace MiniChess.Client.Units
                 BeginTransition(Transition.Shatter, material, duration);
         }
 
+        /// <summary>순간이동 노이즈로 duration 초 동안 사라진다. 끝난 뒤에도 BlinkIn 전까지 숨은 채로 있다.</summary>
+        public void BlinkOut(float duration) => BeginBlink(1f, duration);
+
+        /// <summary>순간이동 노이즈로 duration 초 동안 나타난다. 다 나타나면 원래 머티리얼로 되돌린다.</summary>
+        public void BlinkIn(float duration) => BeginBlink(0f, duration);
+
+        private void BeginBlink(float target, float duration)
+        {
+            if (_blinkMaterials == null)
+            {
+                if (target <= 0f)
+                    return;
+                CreateBlinkMaterials();
+            }
+
+            float seed = Random.Range(0f, 100f);
+            foreach (Material clone in _blinkClones)
+                clone.SetFloat(BlinkSeedId, seed);
+
+            _blinkFrom = _blink;
+            _blinkTo = target;
+            _blinkTime = 0f;
+            _blinkDuration = Mathf.Max(duration, 0.0001f);
+            _blinkPlaying = true;
+            UpdateBlink();
+        }
+
+        /// <summary>지금 머티리얼 칸마다 _Blink 를 지원하면 복제해 키워드를 켜고 바꿔 끼운다.</summary>
+        private void CreateBlinkMaterials()
+        {
+            _blinkMaterials = new Material[_renderers.Length][];
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                Material[] current = _renderers[i].sharedMaterials;
+                var replaced = new Material[current.Length];
+                for (int slot = 0; slot < current.Length; slot++)
+                {
+                    Material source = current[slot];
+                    if (source == null || !source.HasProperty(BlinkId))
+                    {
+                        replaced[slot] = source;
+                        continue;
+                    }
+
+                    var clone = new Material(source) { name = source.name + " (Blink)" };
+                    clone.EnableKeyword(BlinkKeyword);
+                    _blinkClones.Add(clone);
+                    replaced[slot] = clone;
+                }
+
+                _blinkMaterials[i] = replaced;
+                _renderers[i].sharedMaterials = replaced;
+            }
+        }
+
+        private void UpdateBlink()
+        {
+            if (!_blinkPlaying)
+                return;
+
+            _blinkTime += Time.deltaTime;
+            float t = Mathf.Clamp01(_blinkTime / _blinkDuration);
+            _blink = Mathf.Lerp(_blinkFrom, _blinkTo, Mathf.SmoothStep(0f, 1f, t));
+            foreach (Material clone in _blinkClones)
+                clone.SetFloat(BlinkId, _blink);
+
+            // _Blink 를 지원하지 않는 렌더러는 절반쯤에서 통째로 숨긴다.
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                if (!UsesBlink(_blinkMaterials[i]))
+                    _renderers[i].enabled = _blink < 0.5f;
+            }
+
+            if (t < 1f)
+                return;
+
+            _blinkPlaying = false;
+            if (_blink <= 0f)
+                EndBlink();
+        }
+
+        private static bool UsesBlink(Material[] materials)
+        {
+            foreach (Material material in materials)
+            {
+                if (material != null && material.IsKeywordEnabled(BlinkKeyword))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>노이즈를 멈추고 노이즈 전 머티리얼(원래, 또는 교체 중이면 교체 머티리얼)로 되돌린 뒤 복제본을 지운다.</summary>
+        private void EndBlink()
+        {
+            if (_blinkMaterials == null)
+                return;
+
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                _renderers[i].enabled = true;
+                if (_override == null)
+                {
+                    _renderers[i].sharedMaterials = _originals[i];
+                    continue;
+                }
+
+                var replaced = new Material[_originals[i].Length];
+                for (int slot = 0; slot < replaced.Length; slot++)
+                    replaced[slot] = _override;
+                _renderers[i].sharedMaterials = replaced;
+            }
+
+            foreach (Material clone in _blinkClones)
+                Destroy(clone);
+            _blinkClones.Clear();
+            _blinkMaterials = null;
+            _blinkPlaying = false;
+            _blink = 0f;
+        }
+
         private void Update()
         {
+            UpdateBlink();
             UpdateBase();
             if (_transition == Transition.None)
                 return;
@@ -271,6 +411,7 @@ namespace MiniChess.Client.Units
         /// <summary>숨겨지면(사망 등) 연출을 끝낸다. 굳는 중이었으면 바로 굳힌다.</summary>
         private void OnDisable()
         {
+            EndBlink();
             Material petrified = _transition == Transition.Petrify ? _overlaySource : null;
             EndTransition();
             if (petrified != null)
@@ -279,6 +420,7 @@ namespace MiniChess.Client.Units
 
         private void OnDestroy()
         {
+            EndBlink();
             if (_overlayMaterial != null)
                 Destroy(_overlayMaterial);
         }

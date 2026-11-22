@@ -222,6 +222,18 @@ namespace MiniChess.Client.Units
             _body.Appear(delay, duration);
         }
 
+        /// <summary>몸체가 순간이동 노이즈로 duration 초 동안 사라진다(BlinkIn 전까지 숨은 채).</summary>
+        public void BlinkOut(float duration)
+        {
+            _body.BlinkOut(duration);
+        }
+
+        /// <summary>몸체가 순간이동 노이즈로 duration 초 동안 나타난다.</summary>
+        public void BlinkIn(float duration)
+        {
+            _body.BlinkIn(duration);
+        }
+
         private void CreateTeamRing()
         {
             Material material = Resources.Load<Material>(TeamRingPath);

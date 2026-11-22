@@ -10,6 +10,11 @@
 //     탄젠트 공간 값이라 스킨 애니메이션에도 따라 돈다. UV7 이 없으면 정점 법선을 쓴다.
 //   - 발광(_EMISSION 키워드, 켠 머티리얼만): 정점 색 R 을 마스크로 그 영역을 _EmissionColor(HDR)로 명암과 상관없이 칠한다(블룸용).
 //     마스크는 임포트 때 구워 둔다(무기 날 끝: WeaponEdgeGlow). 정점 색이 없는 메시에 켜면 전체가 빛난다.
+//   - 순간이동 노이즈(_Blink 0~1): 화면 기준 세로 줄무늬마다 무작위로 몸을 지운다(옛 애니 순간이동 느낌). 0 = 멀쩡, 1 = 완전히 사라짐.
+//     줄무늬 값은 _BlinkRate 로 계속 바뀌어 지지직거리고, 지워지기 직전 줄은 _BlinkEdgeColor 로 칠하고(기본 검정, HDR 로 두면 번쩍), 일부 줄은 어둡게 눌린다.
+//     몸 전체가 좌우로 조금 떨린다(_BlinkJitter, 픽셀). 모든 패스(외곽선/깊이/그림자)가 같은 줄무늬로 지워 구멍이 생기지 않는다.
+//     _BLINK 키워드를 켠 변형에서만 동작한다. 재생하는 유닛만 머티리얼을 복제해 키워드를 켜고 _Blink/_BlinkSeed 를 넣으며, 끝나면 원래 머티리얼로 되돌린다
+//     (평소 변형에는 clip 이 없어 다른 캐릭터에 비용이 없다).
 // 모바일 기준: 텍스처 샘플 1번(외곽선 1번 더), 보조광은 쓰지 않는다. 그림자 캐스트/깊이 패스 포함(SRP Batcher 호환).
 Shader "MiniChess/CharacterToon"
 {
@@ -44,6 +49,17 @@ Shader "MiniChess/CharacterToon"
         [Toggle(_EMISSION)] _EmissionEnabled ("Emission (Vertex Color R Mask)", Float) = 0
         [HDR] _EmissionColor ("Emission Color", Color) = (0, 0, 0, 1)
 
+        [Header(Blink Noise)]
+        _Blink ("Blink (0 보임 ~ 1 사라짐)", Range(0, 1)) = 0
+        _BlinkSeed ("Blink Seed", Float) = 0
+        _BlinkStripeWidth ("Stripe Width (px at 1080p)", Range(1, 32)) = 5
+        _BlinkSegment ("Stripe Segment Length (px at 1080p)", Range(8, 400)) = 90
+        _BlinkRate ("Flicker Rate (Hz)", Range(1, 60)) = 24
+        _BlinkEdgeWidth ("Edge Width", Range(0, 0.5)) = 0.18
+        [HDR] _BlinkEdgeColor ("Edge Color", Color) = (0, 0, 0, 1)
+        _BlinkDarken ("Dark Stripes", Range(0, 1)) = 0.55
+        _BlinkJitter ("Jitter (px at 1080p)", Range(0, 30)) = 8
+
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
 
@@ -73,8 +89,61 @@ Shader "MiniChess/CharacterToon"
             half4 _OutlineColor;
             half _OutlineAlbedo;
             half4 _EmissionColor;
+            half _Blink;
+            float _BlinkSeed;
+            float _BlinkStripeWidth;
+            float _BlinkSegment;
+            float _BlinkRate;
+            half _BlinkEdgeWidth;
+            half4 _BlinkEdgeColor;
+            half _BlinkDarken;
+            float _BlinkJitter;
             half _Cull;
         CBUFFER_END
+
+        // 순간이동 노이즈 ---------------------------------------------------------------
+        float BlinkHash(float2 p)
+        {
+            p = frac(p * float2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return frac(p.x * p.y);
+        }
+
+        // 화면 픽셀 위치(SV_POSITION.xy)의 줄무늬 값(0~1). 세로 줄(폭 _BlinkStripeWidth)마다, 세로로는 긴 토막(_BlinkSegment)마다 다르고,
+        // _BlinkRate 로 시간이 바뀔 때마다 새로 뽑는다. 이 값이 _Blink 보다 작으면 지운다.
+        float BlinkNoise(float2 pixel, out float dark)
+        {
+            float scale = _ScreenParams.y / 1080.0;
+            float column = floor(pixel.x / max(_BlinkStripeWidth * scale, 1.0));
+            float segment = floor(pixel.y / max(_BlinkSegment * scale, 1.0));
+            float tick = floor(_Time.y * _BlinkRate) + _BlinkSeed * 17.0;
+            float columnValue = BlinkHash(float2(column, tick));
+            float segmentValue = BlinkHash(float2(column + segment * 31.0, tick + 7.0));
+            dark = step(0.6, BlinkHash(float2(column + 13.0, tick + 3.0)));
+            return columnValue * 0.7 + segmentValue * 0.3;
+        }
+
+        // _BLINK 키워드가 꺼진 평소 변형에는 clip 이 아예 없다(모바일 GPU 의 가려진 픽셀 미리 버리기 최적화를 지킨다).
+        #if _BLINK
+            // 깊이/그림자/외곽선 패스용: 지워질 픽셀이면 버린다.
+            void BlinkClip(float2 pixel)
+            {
+                float dark;
+                clip(BlinkNoise(pixel, dark) - _Blink * (1.0 + _BlinkEdgeWidth));
+            }
+
+            // 몸 전체를 좌우로 떤다(클립 공간 x 를 픽셀만큼 민다).
+            float4 BlinkJitter(float4 positionCS)
+            {
+                float tick = floor(_Time.y * _BlinkRate) + _BlinkSeed * 17.0;
+                float shake = (BlinkHash(float2(tick, 5.0)) - 0.5) * 2.0 * _BlinkJitter * (_ScreenParams.y / 1080.0);
+                positionCS.x += shake * 2.0 / _ScreenParams.x * positionCS.w * saturate(_Blink * 3.0);
+                return positionCS;
+            }
+        #else
+            void BlinkClip(float2 pixel) { }
+            float4 BlinkJitter(float4 positionCS) { return positionCS; }
+        #endif
         ENDHLSL
 
         Pass
@@ -86,6 +155,7 @@ Shader "MiniChess/CharacterToon"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_local _ _BLINK
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
@@ -128,7 +198,7 @@ Shader "MiniChess/CharacterToon"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
 
                 VertexPositionInputs position = GetVertexPositionInputs(input.positionOS.xyz);
-                output.positionCS = position.positionCS;
+                output.positionCS = BlinkJitter(position.positionCS);
                 output.positionWS = position.positionWS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 output.uv = input.uv;
@@ -142,6 +212,18 @@ Shader "MiniChess/CharacterToon"
             half4 frag(Varyings input, bool frontFace : SV_IsFrontFace) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(input);
+
+                // 순간이동 노이즈: 문턱 아래 줄은 버리고, 문턱 바로 위 줄(edge)은 선 색, 일부 줄은 어둡게.
+                half blinkEdge = 0;
+                half blinkDark = 0;
+                #if _BLINK
+                    float dark;
+                    float noise = BlinkNoise(input.positionCS.xy, dark);
+                    float threshold = _Blink * (1.0 + _BlinkEdgeWidth);
+                    clip(noise - threshold);
+                    blinkEdge = 1.0 - saturate((noise - threshold) / max(_BlinkEdgeWidth, 0.001));
+                    blinkDark = dark * _BlinkDarken * saturate(_Blink * 4.0);
+                #endif
 
                 half3 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).rgb * _BaseColor.rgb;
                 half3 normalWS = NormalizeNormalPerPixel(input.normalWS * (frontFace ? 1.0 : -1.0));
@@ -171,6 +253,9 @@ Shader "MiniChess/CharacterToon"
                     color = lerp(color, _EmissionColor.rgb, input.emission);
                 #endif
 
+                color *= 1.0 - blinkDark;
+                color = lerp(color, _BlinkEdgeColor.rgb, blinkEdge * blinkEdge);
+
                 color = MixFog(color, input.fogFactor);
                 return half4(color, 1);
             }
@@ -186,6 +271,7 @@ Shader "MiniChess/CharacterToon"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_local _ _BLINK
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
 
@@ -234,7 +320,7 @@ Shader "MiniChess/CharacterToon"
                 float2 direction = normalize(normalCS.xy + 1e-5);
                 positionCS.xy += direction * pixels * 2.0 / _ScreenParams.xy * positionCS.w;
 
-                output.positionCS = positionCS;
+                output.positionCS = BlinkJitter(positionCS);
                 output.uv = input.uv;
                 output.fogFactor = ComputeFogFactor(positionCS.z);
                 return output;
@@ -243,6 +329,7 @@ Shader "MiniChess/CharacterToon"
             half4 frag(Varyings input) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(input);
+                BlinkClip(input.positionCS.xy);
                 half3 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).rgb * _BaseColor.rgb;
                 half3 color = _OutlineColor.rgb * lerp(half3(1, 1, 1), albedo, _OutlineAlbedo);
                 color = MixFog(color, input.fogFactor);
@@ -263,6 +350,7 @@ Shader "MiniChess/CharacterToon"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_local _ _BLINK
             #pragma multi_compile_instancing
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
 
@@ -298,7 +386,14 @@ Shader "MiniChess/CharacterToon"
                 return positionCS;
             }
 
-            half4 frag() : SV_Target { return 0; }
+            // 그림자 맵 화면은 줄무늬 좌표가 달라 절반쯤 사라졌을 때 그림자를 통째로 뺀다.
+            half4 frag() : SV_Target
+            {
+                #if _BLINK
+                    clip(0.5 - _Blink);
+                #endif
+                return 0;
+            }
             ENDHLSL
         }
 
@@ -313,6 +408,7 @@ Shader "MiniChess/CharacterToon"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_local _ _BLINK
             #pragma multi_compile_instancing
 
             struct Attributes
@@ -324,10 +420,15 @@ Shader "MiniChess/CharacterToon"
             float4 vert(Attributes input) : SV_POSITION
             {
                 UNITY_SETUP_INSTANCE_ID(input);
-                return TransformObjectToHClip(input.positionOS.xyz);
+                return BlinkJitter(TransformObjectToHClip(input.positionOS.xyz));
             }
 
-            half frag() : SV_Target { return 0; }
+            // 색 패스와 같은 줄무늬로 버린다(깊이만 남으면 지워진 자리 뒤 배경이 가려진다).
+            half frag(float4 positionCS : SV_POSITION) : SV_Target
+            {
+                BlinkClip(positionCS.xy);
+                return 0;
+            }
             ENDHLSL
         }
     }
