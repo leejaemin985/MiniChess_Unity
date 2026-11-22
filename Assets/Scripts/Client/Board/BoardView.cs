@@ -155,7 +155,7 @@ namespace MiniChess.Client.Board
                 var obstacle = cell.GetEffect(CellEffectLayer.Obstacle) as Obstacle;
                 bool obstacleModel = HasFieldVisual != null && HasFieldVisual(CellEffectKinds.Obstacle);
                 view.SetObstacle(
-                    obstacle != null, !obstacleModel, GetObstacleColor(obstacle), obstacle?.HitsRemaining ?? 0,
+                    obstacle != null, !obstacleModel, GetObstacleColor(obstacle), obstacle?.Hp ?? 0, obstacle?.MaxHp ?? 0,
                     top, obstacleSize * _coordinates.CellSize, obstacleHeight);
             }
         }
@@ -234,6 +234,15 @@ namespace MiniChess.Client.Board
                 return zoneEffect.Zone.OwnerTeam == Team.Player1 ? player1TrapColor : player2TrapColor;
 
             return otherFieldColor;
+        }
+
+        /// <summary>장애물 데미지 숫자를 띄울 자리(월드, 장애물 체력 바 바로 위). 보드 밖이면 null.</summary>
+        public Vector3? GetObstacleDamageAnchor(Position position)
+        {
+            if (!_cells.TryGetValue(position, out CellView cell))
+                return null;
+
+            return CellView.ObstacleBarPosition(cell.Top, obstacleHeight) + Vector3.up * 0.2f;
         }
 
         /// <summary>칸을 하이라이트한다. 같은 칸을 여러 번 하이라이트하면 마지막 종류가 남는다.</summary>

@@ -1,6 +1,6 @@
 using MiniChess.Client.Common;
+using MiniChess.Client.Units;
 using MiniChess.Core.Common;
-using TMPro;
 using UnityEngine;
 
 namespace MiniChess.Client.Board
@@ -36,10 +36,15 @@ namespace MiniChess.Client.Board
         private Renderer _strikeRenderer;
         private MaterialPropertyBlock _strikeBlock;
 
+        /// <summary>장애물 체력 바 크기(월드). 유닛 머리 위 바와 같은 모양.</summary>
+        private const float ObstacleBarWidth = 0.42f;
+        private const float ObstacleBarHeight = 0.06f;
+        private const float ObstacleBarGap = 0.12f;
+
         private GameObject _obstacle;
         private Renderer _obstacleRenderer;
         private MaterialPropertyBlock _obstacleBlock;
-        private TextMeshPro _obstacleLabel;
+        private UnitHpBar _obstacleBar;
 
         public Position Position { get; private set; }
 
@@ -80,7 +85,7 @@ namespace MiniChess.Client.Board
                     renderer.SetPropertyBlock(null);
             }
 
-            Destroy(this); // OnDestroy 가 칸 밖에 둔 표식(조준점, 장애물 숫자)을 지운다
+            Destroy(this); // OnDestroy 가 칸 밖에 둔 표식(조준점, 장애물 체력 바)을 지운다
         }
 
         private static void DestroyDetached(GameObject marker)
@@ -172,17 +177,17 @@ namespace MiniChess.Client.Board
         }
 
         /// <summary>
-        /// 장애물 블록을 보이거나 숨긴다. 칸 윗면 위에 놓인 상자이며, 위에 파괴까지 남은 피격 횟수를 표시한다.
-        /// drawBlock 이 false 면(장애물을 이펙트로 그림) 상자 없이 피격 횟수만 표시한다.
+        /// 장애물 블록을 보이거나 숨긴다. 칸 윗면 위에 놓인 상자이며, 위에 유닛과 같은 체력 바를 띄운다.
+        /// drawBlock 이 false 면(장애물을 이펙트로 그림) 상자 없이 체력 바만 띄운다.
         /// </summary>
-        public void SetObstacle(bool visible, bool drawBlock, Color color, int hitsRemaining, Vector3 worldTop, float size, float height)
+        public void SetObstacle(bool visible, bool drawBlock, Color color, int hp, int maxHp, Vector3 worldTop, float size, float height)
         {
             if (!visible)
             {
                 if (_obstacle != null)
                 {
                     _obstacle.SetActive(false);
-                    _obstacleLabel.gameObject.SetActive(false);
+                    _obstacleBar.gameObject.SetActive(false);
                 }
                 return;
             }
@@ -191,7 +196,7 @@ namespace MiniChess.Client.Board
                 CreateObstacle();
 
             _obstacle.SetActive(drawBlock);
-            _obstacleLabel.gameObject.SetActive(true);
+            _obstacleBar.gameObject.SetActive(true);
             _obstacle.transform.position = worldTop + Vector3.up * (height * 0.5f);
             _obstacle.transform.localScale = new Vector3(size, height, size);
 
@@ -199,8 +204,14 @@ namespace MiniChess.Client.Board
             _obstacleBlock.SetColor(ColorId, color);
             _obstacleRenderer.SetPropertyBlock(_obstacleBlock);
 
-            _obstacleLabel.transform.position = worldTop + Vector3.up * (height + 0.15f);
-            _obstacleLabel.text = hitsRemaining.ToString();
+            _obstacleBar.transform.position = ObstacleBarPosition(worldTop, height);
+            _obstacleBar.Set(hp, maxHp, shield: 0);
+        }
+
+        /// <summary>장애물 체력 바 중심(월드). 데미지 숫자는 이 위에 띄운다.</summary>
+        public static Vector3 ObstacleBarPosition(Vector3 worldTop, float height)
+        {
+            return worldTop + Vector3.up * (height + ObstacleBarGap + ObstacleBarHeight * 0.5f);
         }
 
         private void CreateObstacle()
@@ -212,17 +223,9 @@ namespace MiniChess.Client.Board
             _obstacleRenderer = _obstacle.GetComponent<Renderer>();
             _obstacleBlock = new MaterialPropertyBlock();
 
-            var labelObject = new GameObject($"Obstacle Hits {Position}");
-            labelObject.transform.SetParent(transform.parent, false);
-            labelObject.AddComponent<Billboard>();
-            _obstacleLabel = labelObject.AddComponent<TextMeshPro>();
-            KoreanFont.Apply(_obstacleLabel);
-            _obstacleLabel.fontSize = 3f;
-            _obstacleLabel.alignment = TextAlignmentOptions.Center;
-            _obstacleLabel.color = Color.white;
-            _obstacleLabel.outlineWidth = 0.25f;
-            _obstacleLabel.outlineColor = Color.black;
-            _obstacleLabel.rectTransform.sizeDelta = new Vector2(1f, 0.6f);
+            // 칸 오브젝트 밖(보드 아래)에 둔다: 칸 렌더러 목록에 섞이지 않게.
+            _obstacleBar = UnitHpBar.Create(transform.parent, ObstacleBarWidth, ObstacleBarHeight);
+            _obstacleBar.name = $"Obstacle Hp {Position}";
         }
 
         private void CreateTrapMarker()
@@ -237,8 +240,8 @@ namespace MiniChess.Client.Board
 
         private void OnDestroy()
         {
-            if (_obstacleLabel != null)
-                Destroy(_obstacleLabel.gameObject);
+            if (_obstacleBar != null)
+                Destroy(_obstacleBar.gameObject);
             if (_strikeMarker != null)
                 Destroy(_strikeMarker);
         }

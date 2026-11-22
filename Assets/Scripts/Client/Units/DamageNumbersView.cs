@@ -36,7 +36,10 @@ namespace MiniChess.Client.Units
 
         private sealed class Popup
         {
-            public int UnitId;
+            /// <summary>겹침(위로 쌓기)을 세는 대상 키. 유닛은 "u{Id}", 장애물은 "o{칸}".</summary>
+            public string Key;
+
+            /// <summary>따라갈 유닛. 장애물 숫자는 null(Anchor 고정).</summary>
             public UnitView Target;
             public Vector3 Anchor;
             public float StackOffset;
@@ -62,33 +65,41 @@ namespace MiniChess.Client.Units
             if (damaged == null || _units == null || !_units.TryGetView(damaged.TargetId, out UnitView view))
                 return;
 
-            Color color = damaged.Type == DamageType.Fatigue ? fatigueColor : damageColor;
             // 보호막 흡수와 HP 피해를 나누지 않고 받은 피해 전체를 숫자 하나로 보인다.
             int total = damaged.AppliedAmount + damaged.ShieldAbsorbed;
             if (total > 0)
-                Spawn(view, total, color);
+                Spawn($"u{view.Unit.Id}", view, view.DamageNumberPosition, total, ColorOf(damaged.Type));
         }
 
-        private void Spawn(UnitView view, int amount, Color color)
+        /// <summary>장애물 피해 숫자. anchor 는 장애물 체력 바 위(BoardView.GetObstacleDamageAnchor). 장애물이 부서져도 끝까지 남는다.</summary>
+        public void Play(ObstacleDamagedEvent damaged, Vector3 anchor)
+        {
+            if (damaged != null && damaged.AppliedAmount > 0)
+                Spawn($"o{damaged.Position}", null, anchor, damaged.AppliedAmount, ColorOf(damaged.Type));
+        }
+
+        private static Color ColorOf(DamageType type) => type == DamageType.Fatigue ? fatigueColor : damageColor;
+
+        private void Spawn(string key, UnitView target, Vector3 anchor, int amount, Color color)
         {
             int stack = 0;
             foreach (Popup popup in _popups)
             {
-                if (popup.UnitId == view.Unit.Id)
+                if (popup.Key == key)
                     stack++;
             }
 
             // 유닛 뷰가 아닌 전용 캔버스 아래에 두어 사망/스냅샷 Rebind 후에도 숫자는 끝까지 남는다.
             TextMeshProUGUI text = Rent();
-            text.gameObject.name = $"Damage {view.Unit.Id} {amount}";
+            text.gameObject.name = $"Damage {key} {amount}";
             text.text = amount.ToString(CultureInfo.InvariantCulture);
             text.color = color;
 
             var entry = new Popup
             {
-                UnitId = view.Unit.Id,
-                Target = view,
-                Anchor = view.DamageNumberPosition,
+                Key = key,
+                Target = target,
+                Anchor = anchor,
                 StackOffset = stack * stackHeight,
                 Text = text,
             };

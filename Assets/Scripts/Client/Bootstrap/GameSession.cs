@@ -976,7 +976,11 @@ namespace MiniChess.Client.Bootstrap
                         break;
                     case ObstacleHitEvent hit:
                         attackEffectsView.PlayOnCell(GetBasicAttackEffect(hit.AttackerId), hit.AttackerId, hit.Position);
-                        fieldEffectsView.PlayReaction(hit.Position, CellEffectLayer.Obstacle);
+                        break;
+                    case ObstacleDamagedEvent obstacleDamaged:
+                        fieldEffectsView.PlayReaction(obstacleDamaged.Position, CellEffectLayer.Obstacle);
+                        if (boardView.GetObstacleDamageAnchor(obstacleDamaged.Position) is Vector3 anchor)
+                            damageNumbersView.Play(obstacleDamaged, anchor);
                         break;
                     case SkillUsedEvent used:
                         // 스킬 클립에 Hit 이벤트가 있으면 모션과 아이콘은 PlayActionStart 가 타격 시점보다 먼저 시작했다.
