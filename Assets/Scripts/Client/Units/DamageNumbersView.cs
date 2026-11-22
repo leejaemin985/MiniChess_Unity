@@ -1,22 +1,38 @@
 using System.Collections.Generic;
 using System.Globalization;
 using MiniChess.Client.Common;
+using MiniChess.Client.UI;
 using MiniChess.Core.Combat;
 using MiniChess.Core.Events;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MiniChess.Client.Units
 {
-    /// <summary>확정된 피해 이벤트의 HP 피해/보호막 흡수량만 표시한다. HP 차이로 피해를 추측하지 않는다.</summary>
+    /// <summary>
+    /// 확정된 피해 이벤트의 HP 피해/보호막 흡수량만 표시한다. HP 차이로 피해를 추측하지 않는다.
+    /// 숫자는 전용 Screen Space Overlay 캔버스에 그려 3D 유닛/이펙트/월드 UI 에 가려지지 않고, 포스트 프로세싱(톤매핑)도 받지 않는다.
+    /// 위치만 유닛 머리 위 월드 좌표를 화면 좌표로 바꿔 따라간다. 거리/높이 값은 캔버스 기준 해상도(UiFactory.ReferenceResolution) 단위다.
+    /// </summary>
     public class DamageNumbersView : MonoBehaviour
     {
-        [SerializeField] private Color damageColor = new Color32(0xE0, 0x20, 0x20, 0xFF);
-        [SerializeField] private Color fatigueColor = new Color32(0x9A, 0x32, 0xE6, 0xFF);
-        [SerializeField, Min(0.1f)] private float duration = 0.9f;
-        [SerializeField, Min(0f)] private float riseDistance = 0.65f;
-        [SerializeField, Min(0f)] private float stackSpacing = 0.22f;
-        [SerializeField, Min(0.1f)] private float fontSize = 2.75f;
+        // Code-owned colors: Unity must not restore old instance values after script reload.
+        private static readonly Color damageColor = new Color32(0xFF, 0x50, 0x50, 0xFF);
+        private static readonly Color fatigueColor = new Color32(0x9A, 0x32, 0xE6, 0xFF);
+        [SerializeField, Min(0.1f)] private float duration = 1.5f;
+        [Tooltip("떠오르는 높이(캔버스 단위).")]
+        [SerializeField, Min(0f)] private float riseHeight = 70f;
+        [Tooltip("같은 유닛에 겹친 숫자 사이 간격(캔버스 단위).")]
+        [SerializeField, Min(0f)] private float stackHeight = 44f;
+        [Tooltip("글자 크기(캔버스 단위).")]
+        [SerializeField, Min(1f)] private float screenFontSize = 40f;
+        [Tooltip("숫자 외곽선 색.")]
+        [SerializeField] private Color outlineColor = Color.black;
+        [Tooltip("숫자 외곽선 두께(TMP SDF 단위, 0 이면 없음).")]
+        [SerializeField, Range(0f, 1f)] private float outlineWidth = 0.27f;
+        [Tooltip("HUD 캔버스보다 위에 그려 다른 UI 에도 묻히지 않게 한다.")]
+        [SerializeField] private int canvasSortingOrder = 100;
 
         private sealed class Popup
         {
@@ -25,12 +41,15 @@ namespace MiniChess.Client.Units
             public Vector3 Anchor;
             public float StackOffset;
             public float Age;
-            public TextMeshPro Text;
+            public TextMeshProUGUI Text;
         }
 
         private readonly List<Popup> _popups = new List<Popup>();
+        private readonly Stack<TextMeshProUGUI> _pool = new Stack<TextMeshProUGUI>();
         private UnitsView _units;
         private Camera _camera;
+        private Canvas _canvas;
+        private Material _outlineMaterial;
 
         public void Initialize(UnitsView units)
         {
@@ -59,29 +78,18 @@ namespace MiniChess.Client.Units
                     stack++;
             }
 
-            // 유닛 뷰의 자식으로 만들지 않아 사망/스냅샷 Rebind 후에도 숫자는 끝까지 남는다.
-            var go = new GameObject($"Damage {view.Unit.Id} {amount}");
-            go.transform.SetParent(transform, false);
-            var text = go.AddComponent<TextMeshPro>();
-            KoreanFont.Apply(text);
+            // 유닛 뷰가 아닌 전용 캔버스 아래에 두어 사망/스냅샷 Rebind 후에도 숫자는 끝까지 남는다.
+            TextMeshProUGUI text = Rent();
+            text.gameObject.name = $"Damage {view.Unit.Id} {amount}";
             text.text = amount.ToString(CultureInfo.InvariantCulture);
-            text.fontSize = fontSize;
-            text.fontStyle = FontStyles.Bold;
-            text.alignment = TextAlignmentOptions.Center;
-            text.enableWordWrapping = false;
-            text.raycastTarget = false;
             text.color = color;
-            text.outlineWidth = 0.2f;
-            text.outlineColor = Color.black;
-            text.rectTransform.sizeDelta = new Vector2(2f, 0.8f);
-            text.renderer.sortingOrder = 50;
 
             var entry = new Popup
             {
                 UnitId = view.Unit.Id,
                 Target = view,
                 Anchor = view.DamageNumberPosition,
-                StackOffset = stack * stackSpacing,
+                StackOffset = stack * stackHeight,
                 Text = text,
             };
             _popups.Add(entry);
@@ -100,8 +108,7 @@ namespace MiniChess.Client.Units
                 popup.Age += Time.unscaledDeltaTime;
                 if (popup.Text == null || popup.Age >= lifetime)
                 {
-                    if (popup.Text != null)
-                        Destroy(popup.Text.gameObject);
+                    Return(popup.Text);
                     _popups.RemoveAt(i);
                     continue;
                 }
@@ -114,22 +121,102 @@ namespace MiniChess.Client.Units
 
         private void Place(Popup popup, float progress)
         {
-            Vector3 up = _camera != null ? _camera.transform.up : Vector3.up;
-            popup.Text.transform.position = popup.Anchor + up * (popup.StackOffset + riseDistance * progress);
-            if (_camera != null)
-                popup.Text.transform.rotation = _camera.transform.rotation;
-            popup.Text.transform.localScale = Vector3.one * Mathf.Lerp(0.65f, 1f, Mathf.Clamp01(progress * 8f));
-            popup.Text.alpha = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1f, progress));
+            TextMeshProUGUI text = popup.Text;
+            Vector3 screen = _camera != null ? _camera.WorldToScreenPoint(popup.Anchor) : popup.Anchor;
+            if (_camera != null && screen.z <= 0f)
+            {
+                // 카메라 뒤: 화면에 뒤집혀 나타나지 않게 숨긴다.
+                text.alpha = 0f;
+                return;
+            }
+
+            // Overlay 캔버스의 월드 좌표는 화면 픽셀이므로, 캔버스 단위 오프셋은 scaleFactor 를 곱해 픽셀로 바꾼다.
+            float scale = _canvas != null ? _canvas.scaleFactor : 1f;
+            float offset = (popup.StackOffset + riseHeight * progress) * scale;
+            text.rectTransform.position = new Vector3(screen.x, screen.y + offset, 0f);
+            text.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.65f, 1f, Mathf.Clamp01(progress * 8f));
+            text.alpha = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1f, progress));
         }
 
         public void Clear()
         {
             foreach (Popup popup in _popups)
-            {
-                if (popup.Text != null)
-                    Destroy(popup.Text.gameObject);
-            }
+                Return(popup.Text);
             _popups.Clear();
+        }
+
+        private TextMeshProUGUI Rent()
+        {
+            while (_pool.Count > 0)
+            {
+                TextMeshProUGUI pooled = _pool.Pop();
+                if (pooled != null)
+                {
+                    pooled.gameObject.SetActive(true);
+                    return pooled;
+                }
+            }
+
+            EnsureCanvas();
+            TextMeshProUGUI text = UiFactory.CreateText(_canvas.transform, "Damage", screenFontSize, TextAlignmentOptions.Center);
+            text.fontStyle = FontStyles.Bold;
+            text.rectTransform.sizeDelta = new Vector2(240f, 96f);
+            // 외곽선은 공유 머티리얼 하나에 넣는다(텍스트마다 outlineWidth 를 주면 머티리얼이 복제되어 캔버스 배칭이 깨진다).
+            if (_outlineMaterial == null)
+            {
+                _outlineMaterial = new Material(text.fontSharedMaterial) { name = "DamageNumber Outline" };
+                ApplyOutline();
+            }
+            text.fontSharedMaterial = _outlineMaterial;
+            return text;
+        }
+
+        /// <summary>외곽선 색/두께를 공유 머티리얼에 넣는다. 모든 숫자가 이 머티리얼을 쓰므로 한 번에 바뀐다.</summary>
+        private void ApplyOutline()
+        {
+            if (_outlineMaterial == null)
+                return;
+
+            if (outlineWidth > 0f)
+                _outlineMaterial.EnableKeyword(ShaderUtilities.Keyword_Outline);
+            else
+                _outlineMaterial.DisableKeyword(ShaderUtilities.Keyword_Outline);
+            _outlineMaterial.SetFloat(ShaderUtilities.ID_OutlineWidth, outlineWidth);
+            _outlineMaterial.SetColor(ShaderUtilities.ID_OutlineColor, outlineColor);
+        }
+
+        // 플레이 중 인스펙터에서 바꾸면 떠 있는 숫자에도 바로 반영한다.
+        private void OnValidate()
+        {
+            ApplyOutline();
+        }
+
+        private void Return(TextMeshProUGUI text)
+        {
+            if (text == null)
+                return;
+            text.gameObject.SetActive(false);
+            _pool.Push(text);
+        }
+
+        private void EnsureCanvas()
+        {
+            if (_canvas != null)
+                return;
+
+            // 클릭을 받지 않으므로 GraphicRaycaster 없이 만든다.
+            var go = new GameObject("DamageNumbersCanvas", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            _canvas = go.AddComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = canvasSortingOrder;
+            UiFactory.ConfigureScaler(go.AddComponent<CanvasScaler>());
+        }
+
+        private void OnDestroy()
+        {
+            if (_outlineMaterial != null)
+                Destroy(_outlineMaterial);
         }
     }
 }
