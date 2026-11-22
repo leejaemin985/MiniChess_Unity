@@ -63,10 +63,10 @@ namespace MiniChess.Client.Units
                 return;
 
             Color color = damaged.Type == DamageType.Fatigue ? fatigueColor : damageColor;
-            if (damaged.AppliedAmount > 0)
-                Spawn(view, damaged.AppliedAmount, color);
-            if (damaged.ShieldAbsorbed > 0)
-                Spawn(view, damaged.ShieldAbsorbed, color);
+            // 보호막 흡수와 HP 피해를 나누지 않고 받은 피해 전체를 숫자 하나로 보인다.
+            int total = damaged.AppliedAmount + damaged.ShieldAbsorbed;
+            if (total > 0)
+                Spawn(view, total, color);
         }
 
         private void Spawn(UnitView view, int amount, Color color)
