@@ -32,20 +32,13 @@ namespace MiniChess.Client.Units
 
         [Tooltip("출발(MoveStart)에서 사라지기 시작하는 시점 차이. 음수면 출발 전부터.")]
         public float vanishOffset = 0f;
-        [Tooltip("출발할 때 사라지는 데 걸리는 시간.")]
-        [Min(0.01f)] public float vanishTime = 0.05f;
+        [Tooltip("사라지거나 나타나는 데 걸리는 시간. 출발·대상 위·착지 모두 같다(착지 시점에 다 나타난다).")]
+        [Min(0.01f)] public float blinkTime = 0.2f;
 
-        [Tooltip("대상 위에서 보이는 시간(나타나기 시작 ~ 다시 사라지기 시작). 대상 간격보다 길면 겹치지 않게 줄인다.")]
-        [Min(0.01f)] public float flashVisibleTime = 0.15f;
-        [Tooltip("대상 위에서 나타나는 데 걸리는 시간.")]
-        [Min(0.01f)] public float flashInTime = 0.03f;
-        [Tooltip("대상 위에서 다시 사라지는 데 걸리는 시간.")]
-        [Min(0.01f)] public float flashOutTime = 0.03f;
+        [Tooltip("대상 위에서 다 나타난 채로 머무는 시간. 대상 간격에 안 들어가면 겹치지 않게 줄인다.")]
+        [Min(0.01f)] public float flashHoldTime = 0.15f;
         [Tooltip("대상 위로 나타날 때 대상 칸 윗면에서 띄우는 높이.")]
         public float targetHeight = 0f;
-
-        [Tooltip("착지할 때 나타나는 데 걸리는 시간(착지 시점에 다 나타난다).")]
-        [Min(0.01f)] public float landInTime = 0.06f;
     }
 
     /// <summary>
@@ -139,27 +132,29 @@ namespace MiniChess.Client.Units
                 return flashTimes;
 
             // 다 사라진 뒤 ~ 착지 등장 전 구간을 대상 수 + 1 로 나눠 대상 위 등장을 고르게 놓는다.
-            // 보이는 시간은 다음 등장(또는 착지 등장) 전에 다시 다 사라질 수 있게 대상 간격에 맞춰 줄인다.
+            // 머무는 시간은 나타남 + 머묾 + 사라짐이 대상 간격 안에 들어가게 줄인다.
+            float blink = chainBlink.blinkTime;
             float vanishStart = start + chainBlink.vanishOffset;
-            float hidden = vanishStart + chainBlink.vanishTime;
-            float landAppear = Mathf.Max(hidden, land - chainBlink.landInTime);
+            float hidden = vanishStart + blink;
+            float landAppear = Mathf.Max(hidden, land - blink);
             float spacing = (landAppear - hidden) / (targets.Count + 1);
-            float visible = Mathf.Max(0.01f, Mathf.Min(chainBlink.flashVisibleTime, spacing - chainBlink.flashOutTime));
+            float hold = Mathf.Max(0.01f, Mathf.Min(chainBlink.flashHoldTime, spacing - blink * 2f));
+            float visible = blink + hold;
 
-            var steps = new List<(float Time, bool Vanish, float Duration)> { (vanishStart, true, chainBlink.vanishTime) };
+            var steps = new List<(float Time, bool Vanish, float Duration)> { (vanishStart, true, blink) };
             var spots = new List<(float Time, Vector3 Position)>();
             Vector3 lift = Vector3.up * chainBlink.targetHeight;
             for (int i = 0; i < targets.Count; i++)
             {
                 float center = hidden + spacing * (i + 1);
-                float appear = center - visible * 0.5f;
+                float appear = center - (visible + blink) * 0.5f;
                 flashTimes.Add(center);
                 spots.Add((appear, _coordinates.ToWorld(targets[i]) + lift));
-                steps.Add((appear, false, chainBlink.flashInTime));
-                steps.Add((appear + visible, true, chainBlink.flashOutTime));
+                steps.Add((appear, false, blink));
+                steps.Add((appear + visible, true, blink));
             }
             spots.Add((landAppear, _coordinates.ToWorld(landing)));
-            steps.Add((landAppear, false, chainBlink.landInTime));
+            steps.Add((landAppear, false, blink));
 
             float duration = Mathf.Max(land, BlinkPathStep);
             int count = Mathf.CeilToInt(duration / BlinkPathStep);
@@ -180,11 +175,16 @@ namespace MiniChess.Client.Units
             return flashTimes;
         }
 
+        /// <summary>
+        /// 사라짐/나타남을 차례로 건다. 사라지기 시작하면 다음에 나타날 때까지 무기 궤적을 끈다
+        /// (궤적은 몸과 따로 그려져 숨어 있는 동안의 휘두름과 순간이동 자리 바뀜이 허공에 남는다).
+        /// </summary>
         private System.Collections.IEnumerator RunBlinkSteps(UnitView view, List<(float Time, bool Vanish, float Duration)> steps)
         {
             float elapsed = 0f;
-            foreach ((float time, bool vanish, float duration) in steps)
+            for (int i = 0; i < steps.Count; i++)
             {
+                (float time, bool vanish, float duration) = steps[i];
                 while (elapsed < time)
                 {
                     yield return null;
@@ -194,9 +194,15 @@ namespace MiniChess.Client.Units
                 if (view == null)
                     yield break;
                 if (vanish)
+                {
                     view.BlinkOut(duration);
+                    float appear = i + 1 < steps.Count ? steps[i + 1].Time : time + duration;
+                    view.SuppressWeaponTrails(appear - time + BlinkPathStep * 2f);
+                }
                 else
+                {
                     view.BlinkIn(duration);
+                }
             }
         }
 
