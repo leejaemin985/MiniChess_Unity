@@ -43,9 +43,9 @@ Material:
     - _Intensity: 1
     - _TipBias: 2.6
     m_Colors:
-    - _CoreColor: {r: 4, g: 2, b: 2.6, a: 1}
+    - _CoreColor: {r: 2.2, g: 0.35, b: 0.8, a: 1}
     - _DarkColor: {r: 0.22, g: 0.01, b: 0.06, a: 0.45}
-    - _GlowColor: {r: 3, g: 0.42, b: 1.05, a: 1}
+    - _GlowColor: {r: 1.9, g: 0.16, b: 0.6, a: 1}
     - _NoiseTiling: {r: 2.5, g: 1.2, b: -2, a: 0}
     - _StreakTiling: {r: 1.2, g: 1, b: 1.5, a: 0}
   m_BuildTextureStacks: []

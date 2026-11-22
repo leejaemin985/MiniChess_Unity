@@ -30,5 +30,5 @@ Material:
     - _RimStrength: 0.55
     m_Colors:
     - _BaseColor: {r: 0.86, g: 0.88, b: 0.92, a: 1}
-    - _EmissionColor: {r: 5.5, g: 0.55, b: 1.7, a: 1}
+    - _EmissionColor: {r: 2.8, g: 0.2, b: 0.9, a: 1}
   m_BuildTextureStacks: []
