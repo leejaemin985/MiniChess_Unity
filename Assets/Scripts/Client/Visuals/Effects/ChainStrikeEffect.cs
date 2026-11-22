@@ -7,7 +7,7 @@ namespace MiniChess.Client.Visuals.Effects
     ///   - smoke: 몸 연기(bodySmoke)와 펑(puff)의 부모. 시전자를 따라다닌다(파티클은 World 라 지나간 자리에 남는다).
     ///     몸 연기는 보이는 동안만 뿜고, 사라질 때와 나타날 때 펑을 한 번씩 터뜨린다.
     ///   - cuts: 대상 위 베기 원호들. 차례로 돌려 쓰며, 대상 자리(+ cutHeight)에서 카메라 → 대상 시선 축으로 cutTilt 만큼 기울인다.
-    ///     번갈아 좌우를 뒤집어(거울상) 대각선 방향이 대상마다 바뀐다(원호가 한쪽이 끊긴 호라 각도만 뒤집으면 가파르게 보인다).
+    ///     대상마다 기울기 방향을 번갈아 바꾼다(↗ / ↖).
     /// 루트는 꺼낸 자리에 그대로 둔다(베기 원호는 Local 이라 루트가 움직이면 따라 움직인다). 끝나면 Finish 로 방출을 멈추고 풀로 돌아간다.
     /// </summary>
     public sealed class ChainStrikeEffect : EffectBase
@@ -79,8 +79,13 @@ namespace MiniChess.Client.Visuals.Effects
                     forward = Vector3.forward;
             }
 
-            cut.SetPositionAndRotation(ground + Vector3.up * cutHeight, Quaternion.LookRotation(forward) * Quaternion.Euler(0f, 0f, cutTilt));
-            cut.localScale = new Vector3(index % 2 == 0 ? 1f : -1f, 1f, 1f);
+            // 파티클은 음수 스케일(거울상)을 따르지 않으므로, 반대 방향은 기울기를 뒤집고 원호를 제 평면에서 180° 돌려
+            // 끊긴 쪽이 반대편에 오게 한다(각도만 뒤집으면 밝은 부분이 짧은 축에 놓여 가파르게 보인다).
+            Quaternion facing = Quaternion.LookRotation(forward);
+            Quaternion tilt = index % 2 == 0
+                ? Quaternion.Euler(0f, 0f, cutTilt)
+                : Quaternion.Euler(0f, 0f, -cutTilt) * Quaternion.Euler(0f, 180f, 0f);
+            cut.SetPositionAndRotation(ground + Vector3.up * cutHeight, facing * tilt);
             foreach (ParticleSystem particle in cut.GetComponentsInChildren<ParticleSystem>(true))
             {
                 particle.Clear(false);
