@@ -348,20 +348,14 @@ namespace MiniChess.Bot.Rules
                 case ApplyStatusEffect status:
                     return UnitsIn(g.Area, status.Filter, caster).Sum(unit => StatusValue(status.Status, caster, unit));
 
-                case ApplySelfStatusEffect self:
+                case SetInstalledEffect install:
                 {
-                    if (caster.FindStatus(self.Status.Id) != null)
-                        return SelfStatusValue(self.Status, caster);
-                    var selfGuess = new SkillGuess(caster, g.Skill, g.Action, new[] { caster.Position.Value }, g.ApAfter);
-                    return SelfStatusValue(self.Status, caster) + self.OnApplied.Sum(nested => EffectValue(nested, selfGuess));
-                }
-
-                case RemoveSelfStatusEffect remove:
-                {
-                    if (caster.FindStatus(remove.StatusId) == null)
+                    // 이미 그 값이면 아무 일도 없다(보호막도 다시 받지 않는다).
+                    if (caster.IsInstalled == install.Installed)
                         return 0;
                     var selfGuess = new SkillGuess(caster, g.Skill, g.Action, new[] { caster.Position.Value }, g.ApAfter);
-                    return RemoveSelfStatusValue(remove.StatusId, caster) + remove.OnRemoved.Sum(nested => EffectValue(nested, selfGuess));
+                    double own = install.Installed ? 0 : UninstallValue(caster);
+                    return own + install.OnChanged.Sum(nested => EffectValue(nested, selfGuess));
                 }
 
                 case ApplyShieldEffect shield:
@@ -475,7 +469,7 @@ namespace MiniChess.Bot.Rules
                 + Relocation(b, first, g.ApAfter, bFights, b == g.Caster ? g.Skill.Id : null);
         }
 
-        /// <summary>상태 부여 가치. 적에게는 제약/피해, 아군에게는 보호(호위), 자신에게는 SelfStatusValue.</summary>
+        /// <summary>상태 부여 가치. 적에게는 제약/피해, 아군에게는 보호(호위), 그 밖에는 OtherStatus.</summary>
         private double StatusValue(StatusDefinition status, Unit caster, Unit target)
         {
             if (status.Behavior is SealedBehavior)
@@ -493,9 +487,6 @@ namespace MiniChess.Bot.Rules
             }
 
             // 자기 지정(TargetFilter.Self) 상태도 ApplyStatusEffect 로 들어온다(암살자 차징 등).
-            if (target == caster)
-                return SelfStatusValue(status, caster);
-
             return _w.OtherStatus;
         }
 
@@ -541,26 +532,11 @@ namespace MiniChess.Bot.Rules
             return wouldDie ? _a.KillValue(target) * _a.Caution - lostTurn : -lostTurn;
         }
 
-        /// <summary>자신에게 거는 상태(설치 등)의 가치.</summary>
-        private double SelfStatusValue(StatusDefinition status, Unit caster)
-        {
-            switch (status.Behavior)
-            {
-                case InstalledBehavior _:
-                    return 0;
-                default:
-                    return _w.OtherStatus;
-            }
-        }
-
         /// <summary>
-        /// 자신의 상태를 푸는 가치. 설치 해체는 착탄 대기 중인 포격이 없고, 지금 포격으로 맞힐 수 있는 적이 없을 때만 이득.
+        /// 박격포 해체의 가치. 착탄 대기 중인 포격이 없고, 지금 포격으로 맞힐 수 있는 적이 없을 때만 이득.
         /// </summary>
-        private double RemoveSelfStatusValue(string statusId, Unit caster)
+        private double UninstallValue(Unit caster)
         {
-            if (statusId != StatusLibrary.InstalledId)
-                return 0;
-
             if (_a.State.ScheduledStrikes.Any(strike => strike.Source == caster))
                 return -_w.Uninstall;
 

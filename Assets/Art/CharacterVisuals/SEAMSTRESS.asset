@@ -20,8 +20,8 @@ MonoBehaviour:
   animatorController: {fileID: 22100000, guid: 576337f80e50b7e45817c256b14c4bac, type: 2}
   weaponPrefab: {fileID: 2124514505393277440, guid: 598b8a9c379b9d548a5c786ce492ad3f, type: 3}
   companions: []
-  statusStance:
-    statusId: 
+  installStance:
+    enabled: 0
     stowBone: 0
     stowPosition: {x: 0, y: 0, z: 0}
     stowEulerAngles: {x: 0, y: 0, z: 0}

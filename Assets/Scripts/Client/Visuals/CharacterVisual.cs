@@ -19,16 +19,16 @@ namespace MiniChess.Client.Visuals
     }
 
     /// <summary>
-    /// 상태에 따른 자세 바꾸기(StatusStance). statusId 가 비어 있으면 쓰지 않는다. 위치/회전은 모두 몸체 루트(칸 가운데 발밑, 앞 = +z) 기준.
-    /// 그 상태인 동안:
+    /// 박격포 설치(Unit.IsInstalled)에 따른 자세 바꾸기(InstallStance). enabled 가 꺼져 있으면 쓰지 않는다. 위치/회전은 모두 몸체 루트(칸 가운데 발밑, 앞 = +z) 기준.
+    /// 설치 중인 동안:
     ///   - 손에 쥔 무기를 stowBone 아래 보관 지점으로 옮긴다(위치/회전은 모델의 기본 자세(바인드 포즈)에서 잰다. 무기 루트(손잡이 지점)가 이 지점에 겹친다).
     ///   - 설치물(deployPrefab, 예: 박격포)을 칸에 보이고, 캐릭터 모델을 bodyPosition 으로 옮겨 bodyYaw 방향을 보게 한다.
     ///   - 보조 대기(AltIdle)를 재생한다.
     /// </summary>
     [Serializable]
-    public struct StatusStanceSettings
+    public struct InstallStanceSettings
     {
-        [CoreStatusId] public string statusId;
+        public bool enabled;
         public HumanBodyBones stowBone;
         public Vector3 stowPosition;
         public Vector3 stowEulerAngles;
@@ -66,8 +66,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField] private CharacterWeapon offHandWeaponPrefab;
         [Tooltip("몸체 곁에 늘 붙어 다니는 오브젝트(예: 화염술사 → 불 정령). 몸체 프리팹 생성 메뉴가 몸체 루트 아래에 붙인다.")]
         [SerializeField] private BodyCompanion[] companions = Array.Empty<BodyCompanion>();
-        [Tooltip("상태에 따른 자세(예: 박격포 설치 → 권총을 허리춤에 넣고 박격포 조작 대기). 상태를 비우면 쓰지 않는다. 몸체 프리팹 생성 메뉴가 붙인다.")]
-        [SerializeField] private StatusStanceSettings statusStance;
+        [Tooltip("박격포 설치 중 자세(권총을 허리춤에 넣고 박격포 조작 대기). enabled 를 끄면 쓰지 않는다. 몸체 프리팹 생성 메뉴가 붙인다.")]
+        [SerializeField] private InstallStanceSettings installStance;
         [Tooltip("기본 공격 타격 이펙트(예: 낫 → 몸통을 가로지르는 베기 선). 비우면 공용(CharacterVisualCatalog.BasicAttackEffect). 기본 공격 투사체가 있으면 비웠을 때 공용도 쓰지 않는다(투사체가 명중 연출을 맡는다).")]
         [SerializeField] private HitEffect basicAttackEffect;
         [Tooltip("기본 공격 투사체(예: 궁수 → 화살). 있으면 공격 클립 Hit 시점(없으면 기본 타격 시점)에 쏘고, 타격 이펙트와 피해 숫자는 도착할 때 보인다. 비우면 투사체 없이 바로 타격.")]
@@ -109,8 +109,8 @@ namespace MiniChess.Client.Visuals
         /// <summary>몸체 곁에 붙어 다니는 오브젝트들(없으면 빈 배열).</summary>
         public BodyCompanion[] Companions => companions ?? Array.Empty<BodyCompanion>();
 
-        /// <summary>상태에 따른 자세 설정. statusId 가 비어 있으면 쓰지 않는다.</summary>
-        public StatusStanceSettings StatusStance => statusStance;
+        /// <summary>박격포 설치 중 자세 설정. enabled 가 꺼져 있으면 쓰지 않는다.</summary>
+        public InstallStanceSettings InstallStance => installStance;
 
         /// <summary>이 캐릭터만의 기본 공격 타격 이펙트. 없으면 null(공용을 쓴다).</summary>
         public HitEffect BasicAttackEffect => basicAttackEffect;

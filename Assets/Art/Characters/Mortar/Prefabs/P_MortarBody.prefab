@@ -311,7 +311,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 616ba6bac61852b479c98e0948bde8df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  statusId: INSTALLED
   weapon: {fileID: 8268212639033319245}
   hand: {fileID: 7804873135031004569}
   stow: {fileID: 3232257883506309224}

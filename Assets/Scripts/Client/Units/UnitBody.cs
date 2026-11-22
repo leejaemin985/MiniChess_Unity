@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using MiniChess.Client.Common;
 using MiniChess.Client.Visuals;
-using MiniChess.Core.Statuses;
 using UnityEngine;
 
 namespace MiniChess.Client.Units
@@ -43,8 +42,8 @@ namespace MiniChess.Client.Units
         private Material[][] _originals;
         /// <summary>리깅된 모델 몸체의 Animator. 캡슐이나 리깅 안 된 모델이면 null.</summary>
         private Animator _animator;
-        /// <summary>상태에 따라 자세를 바꾸는 부품(박격포 설치 → 권총 허리춤 등). 없으면 빈 배열.</summary>
-        private StatusStance[] _stances;
+        /// <summary>설치 여부에 따라 자세를 바꾸는 부품(박격포 설치 → 권총 허리춤 등). 없으면 빈 배열.</summary>
+        private InstallStance[] _stances;
         private MaterialPropertyBlock _block;
         /// <summary>색을 칠하는 몸체인지. 캡슐만 칠하고, 모델은 텍스처 색이 덮이지 않게 칠하지 않는다.</summary>
         private bool _tintable;
@@ -152,11 +151,11 @@ namespace MiniChess.Client.Units
             return null;
         }
 
-        /// <summary>유닛에 걸린 상태를 몸체 자세(StatusStance: 무기 보관 위치, 보조 대기)에 반영한다. 자세 설정이 없는 몸체는 무시.</summary>
-        public void SyncStatuses(IReadOnlyList<StatusEffect> statuses)
+        /// <summary>박격포 설치 여부(Unit.IsInstalled)를 몸체 자세(InstallStance: 무기 보관 위치, 보조 대기)에 반영한다. 자세 설정이 없는 몸체는 무시.</summary>
+        public void SyncInstalled(bool installed)
         {
-            foreach (StatusStance stance in _stances)
-                stance.Sync(statuses);
+            foreach (InstallStance stance in _stances)
+                stance.Sync(installed);
         }
 
         /// <summary>몸체 색(팀 색, 행동 완료 색). 모델 몸체이거나 머티리얼 교체 중이면 기억만 하고 칠하지 않는다.</summary>
@@ -551,7 +550,7 @@ namespace MiniChess.Client.Units
             _block = new MaterialPropertyBlock();
             _renderers = GetComponentsInChildren<Renderer>(true);
             _animator = GetComponentInChildren<Animator>(true);
-            _stances = GetComponentsInChildren<StatusStance>(true);
+            _stances = GetComponentsInChildren<InstallStance>(true);
             if (_animator != null && !_animator.TryGetComponent(out UnitAnimationEvents _))
                 _animator.gameObject.AddComponent<UnitAnimationEvents>();
             _originals = new Material[_renderers.Length][];

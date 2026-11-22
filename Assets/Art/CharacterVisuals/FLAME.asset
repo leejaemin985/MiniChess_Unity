@@ -31,8 +31,8 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     followBone: 0
     bone: 0
-  statusStance:
-    statusId: 
+  installStance:
+    enabled: 0
     stowBone: 0
     stowPosition: {x: 0, y: 0, z: 0}
     stowEulerAngles: {x: 0, y: 0, z: 0}

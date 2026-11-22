@@ -21,8 +21,8 @@ MonoBehaviour:
   weaponPrefab: {fileID: 6679782776711041027, guid: 4f5e9ea2ea781794fbc2ed43f7fddb16, type: 3}
   offHandWeaponPrefab: {fileID: 0}
   companions: []
-  statusStance:
-    statusId: 
+  installStance:
+    enabled: 0
     stowBone: 0
     stowPosition: {x: 0, y: 0, z: 0}
     stowEulerAngles: {x: 0, y: 0, z: 0}

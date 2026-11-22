@@ -116,7 +116,7 @@ namespace MiniChess.Bot.Rules
         }
 
         public static bool IsRooted(Unit unit) => unit.FindStatus(StatusLibrary.RootId) != null;
-        public static bool IsInstalled(Unit unit) => unit.FindStatus(StatusLibrary.InstalledId) != null;
+        public static bool IsInstalled(Unit unit) => unit.IsInstalled;
         public static bool IsStunned(Unit unit) => unit.FindStatus(StatusLibrary.StunnedId) != null;
 
         /// <summary>이번 턴에 아직 쓰지 않은 기본 공격이나 스킬이 남아 있는지.</summary>

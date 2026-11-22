@@ -294,7 +294,7 @@ namespace MiniChess.Client.Units
                 _face.SetDimmed(acted);
 
             _statuses.Sync(Unit.Statuses);
-            _body.SyncStatuses(Unit.Statuses);
+            _body.SyncInstalled(Unit.IsInstalled);
             _hpBar.Set(Unit.Stats.CurrentHp, Unit.Stats.MaxHp, Unit.Stats.Shield);
             _statuses.transform.localPosition = Vector3.up * (_overheadHeight + _hpBar.Height + FaceGap * 0.5f + _statuses.BadgeSize * 0.5f);
         }

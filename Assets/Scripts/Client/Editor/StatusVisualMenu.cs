@@ -26,7 +26,6 @@ namespace MiniChess.Client.Editor
             { StatusLibrary.PoisonId, ("중독", new Color(0.7f, 0.4f, 0.95f)) },
             { StatusLibrary.DistanceLimitId, ("이동 제한", new Color(0.6f, 0.7f, 0.85f)) },
             { StatusLibrary.GuardId, ("호위", new Color(0.4f, 0.65f, 1f)) },
-            { StatusLibrary.InstalledId, ("설치", new Color(0.85f, 0.75f, 0.45f)) },
             { StatusLibrary.CurseMarkId, ("저주 표식", new Color(0.85f, 0.3f, 0.5f)) },
             { StatusLibrary.SealedId, ("봉인", new Color(0.55f, 0.9f, 0.95f)) },
             { StatusLibrary.StunnedId, ("기절", new Color(1f, 0.95f, 0.4f)) },

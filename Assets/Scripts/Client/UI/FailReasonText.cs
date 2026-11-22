@@ -68,6 +68,7 @@ namespace MiniChess.Client.UI
                 case AttackFailReason.NotEnoughAp: return "Not enough AP";
                 case AttackFailReason.ActionsEnded: return "This unit can't act this turn";
                 case AttackFailReason.BlockedByStatus: return "This unit can't attack now";
+                case AttackFailReason.Installed: return "Installed units can't attack";
                 case AttackFailReason.UnknownUnit: return "Unknown unit";
                 case AttackFailReason.NotYourUnit: return "Not your unit";
                 case AttackFailReason.AlreadyUsedThisTurn: return "Already attacked this turn";
