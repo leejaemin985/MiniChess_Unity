@@ -762,7 +762,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 22
+      scalar: 8
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -5705,7 +5705,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -7468,7 +7468,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -10643,7 +10643,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -12406,7 +12406,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -20477,7 +20477,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -22240,7 +22240,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -30347,7 +30347,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -35280,7 +35280,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -37043,7 +37043,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -40216,7 +40216,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -41979,7 +41979,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -50082,7 +50082,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -51845,7 +51845,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -54053,7 +54053,7 @@ MonoBehaviour:
   smoke: {fileID: 1082129552008992024}
   bodySmoke: {fileID: 8468589106942584972}
   puff: {fileID: 7633771261146418612}
-  puffCount: 14
+  puffCount: 5
   cuts:
   - {fileID: 5408691632642323250}
   - {fileID: 849529872589746716}
@@ -59974,7 +59974,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -69807,7 +69807,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -71570,7 +71570,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -79483,7 +79483,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 14
+        scalar: 5
         minScalar: 1
         maxCurve:
           serializedVersion: 2
@@ -84497,7 +84497,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -86260,7 +86260,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
   NoiseModule:
-    enabled: 1
+    enabled: 0
     strength:
       serializedVersion: 2
       minMaxState: 0
@@ -89398,7 +89398,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
@@ -104133,7 +104133,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 15
+        scalar: 8
         minScalar: 50
         maxCurve:
           serializedVersion: 2
