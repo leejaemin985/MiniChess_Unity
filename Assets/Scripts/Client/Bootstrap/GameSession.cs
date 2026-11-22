@@ -827,7 +827,7 @@ namespace MiniChess.Client.Bootstrap
         ///   - 스킬: 시전자의 스킬 클립에 Hit 이벤트가 있을 때만 스킬 모션과 시전 아이콘을 먼저 시작하고 그 시간을 기다린다.
         ///     Hit 이벤트가 없는 스킬은 지금처럼 PlayEvents 에서 바로 모션과 이펙트를 함께 재생한다.
         ///     조준하는 투사체(장거리 조준)가 있는 스킬은 모션과 함께 투사체를 먼저 쏘고, 명중까지 걸리는 시간을 타격 시점으로 쓴다.
-        ///     연속 베기는 모션과 함께 대상들을 지나는 곡선 이동을 시작하고, 착지 시간을 타격 시점으로 쓴다(PlayChainStrikeTravel).
+        ///     연속 베기는 모션과 함께 대상 위들을 거쳐 착지 칸으로 순간이동하는 연출을 시작하고, 착지 시간을 타격 시점으로 쓴다(PlayChainStrikeTravel).
         /// </summary>
         private float PlayActionStart(IReadOnlyList<GameEvent> events)
         {
@@ -861,7 +861,7 @@ namespace MiniChess.Client.Bootstrap
                         hitTime = unitsView.GetHitTime(actorId, action);
                         if (State.Skills.Find(used.SkillId)?.Targeting is ChainStrikeTargeting)
                         {
-                            // 연속 베기는 대상들을 곡선으로 지나 착지할 때까지 상태 반영을 미루고, 대상마다 지나는 순간 피해를 띄운다.
+                            // 연속 베기는 대상 위들을 거쳐 착지할 때까지 상태 반영을 미루고, 대상 위에 나타나는 순간 피해를 띄운다.
                             hitTime = PlayChainStrikeTravel(events, used, action);
                         }
                         else if (skillEffectsView.HasAimedProjectile(used.SkillId))
@@ -888,8 +888,9 @@ namespace MiniChess.Client.Bootstrap
         }
 
         /// <summary>
-        /// 연속 베기(ChainStrikeTargeting) 시작 연출. 시전자가 스킬 클립의 MoveStart 이벤트 시간에 출발해 지정한 대상들을 곡선으로 지나
-        /// Land 이벤트 시간에 착지 칸에 닿게 하고(몸 방향은 그대로, 모션은 계속 재생), 대상마다 지나는 순간 그 대상의 피해 숫자를 띄운다.
+        /// 연속 베기(ChainStrikeTargeting) 시작 연출. 시전자가 스킬 클립의 MoveStart 이벤트 시간에 순간이동 노이즈로 사라지고,
+        /// 대상마다 그 대상 위로 순간이동해 잠깐 보였다가 다시 사라지고, 착지 칸으로 순간이동해 Land 이벤트 시간에 나타난다
+        /// (몸 방향은 그대로, 모션은 계속 재생, 타이밍은 UnitsView 인스펙터의 chainBlink). 대상 위에 보이는 순간 그 대상의 피해 숫자를 띄운다.
         /// 착지 시간(초)을 돌려주며 상태 반영(HP, 사망)은 그때 한다. 이벤트가 없으면 0초 출발, 클립 끝 착지.
         /// </summary>
         private float PlayChainStrikeTravel(IReadOnlyList<GameEvent> events, SkillUsedEvent used, UnitAction action)
@@ -899,9 +900,9 @@ namespace MiniChess.Client.Bootstrap
             land = Mathf.Max(land, start + MinChainTravelTime);
 
             IReadOnlyList<Position> targetCells = ChainStrikeTargeting.GetTargetCells(used.Targets);
-            var waypoints = new List<Position>(targetCells) { used.Targets[used.Targets.Count - 1] };
-            List<float> passTimes = unitsView.PlayCurvedMove(used.CasterId, waypoints, start, land - start);
-            if (passTimes.Count == 0 || Coordinates == null)
+            Position landing = used.Targets[used.Targets.Count - 1];
+            List<float> flashTimes = unitsView.PlayChainBlinkStrike(used.CasterId, targetCells, landing, start, land);
+            if (flashTimes.Count == 0 || Coordinates == null)
                 return land;
 
             int castIndex = 0;
@@ -924,7 +925,7 @@ namespace MiniChess.Client.Bootstrap
                         continue;
 
                     _deferredDamage.Add(damaged);
-                    _deferredRoutines.Add(StartCoroutine(PlayDamageAfter(damaged, passTimes[k])));
+                    _deferredRoutines.Add(StartCoroutine(PlayDamageAfter(damaged, flashTimes[k])));
                     break;
                 }
             }

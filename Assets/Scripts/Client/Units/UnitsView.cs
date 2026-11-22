@@ -21,6 +21,34 @@ namespace MiniChess.Client.Units
     }
 
     /// <summary>
+    /// 연속 베기 순간이동 연출 타이밍(초). 출발(MoveStart)에 노이즈로 사라지고, 대상마다 그 대상 위로 순간이동해 잠깐 보였다가 다시 사라지고,
+    /// 마지막에 착지 칸으로 순간이동해 착지(Land)에 맞춰 나타난다. 대상 위 등장은 사라진 뒤 ~ 착지 등장 전 구간에 고르게 나눈다.
+    /// </summary>
+    [System.Serializable]
+    public class ChainBlinkTiming
+    {
+        [Tooltip("끄면 노이즈 없이 보인 채로 순간이동만 한다.")]
+        public bool enabled = true;
+
+        [Tooltip("출발(MoveStart)에서 사라지기 시작하는 시점 차이. 음수면 출발 전부터.")]
+        public float vanishOffset = 0f;
+        [Tooltip("출발할 때 사라지는 데 걸리는 시간.")]
+        [Min(0.01f)] public float vanishTime = 0.05f;
+
+        [Tooltip("대상 위에서 보이는 시간(나타나기 시작 ~ 다시 사라지기 시작). 대상 간격보다 길면 겹치지 않게 줄인다.")]
+        [Min(0.01f)] public float flashVisibleTime = 0.15f;
+        [Tooltip("대상 위에서 나타나는 데 걸리는 시간.")]
+        [Min(0.01f)] public float flashInTime = 0.03f;
+        [Tooltip("대상 위에서 다시 사라지는 데 걸리는 시간.")]
+        [Min(0.01f)] public float flashOutTime = 0.03f;
+        [Tooltip("대상 위로 나타날 때 대상 칸 윗면에서 띄우는 높이.")]
+        public float targetHeight = 0f;
+
+        [Tooltip("착지할 때 나타나는 데 걸리는 시간(착지 시점에 다 나타난다).")]
+        [Min(0.01f)] public float landInTime = 0.06f;
+    }
+
+    /// <summary>
     /// 경기의 모든 유닛 뷰를 Unit.Id 기준으로 관리한다.
     /// 경기 중에 생기는 유닛(분신 등 소환물)은 Sync 때 뷰를 새로 만든다.
     /// </summary>
@@ -52,16 +80,16 @@ namespace MiniChess.Client.Units
         [SerializeField, Min(0f)] private float knockbackCellDuration = 0.1f;
         [Tooltip("밀려남/당겨짐이 출발하기 전 기다리는 시간(초). 스킬 타격 연출(심판 둔기 등)이 닿는 시점과 맞춘다.")]
         [SerializeField, Min(0f)] private float knockbackDelay = 0.15f;
-        [Tooltip("스킬 곡선 이동(연속 베기)이 경로 가운데에서 살짝 뜨는 높이. 0 이면 바닥을 따라 간다.")]
-        [SerializeField, Min(0f)] private float curvedMoveHopHeight = 0.1f;
+        [Tooltip("연속 베기 순간이동 연출 타이밍.")]
+        [SerializeField] private ChainBlinkTiming chainBlink = new ChainBlinkTiming();
         [Tooltip("동작 동안 무기 궤적을 끌 때 클립 길이에 더하는 시간(초). 동작으로 들어가는 전환(AC_Unit 0.1)과 끝나고 대기로 돌아가는 전환(0.18) 동안의 휘두름까지 끈다.")]
         [SerializeField, Min(0f)] private float actionTrailMargin = 0.35f;
 
         /// <summary>돌진 전체에 걸리는 시간(초).</summary>
         public float DashDuration => dashDuration;
 
-        /// <summary>곡선 이동에서 거쳐 갈 칸 사이 구간 하나를 찍는 점 수.</summary>
-        private const int CurveSamplesPerSegment = 16;
+        /// <summary>순간이동 경로를 찍는 시간 간격(초). 자리는 이 간격 안에서 넘어간다(그동안은 숨어 있다).</summary>
+        private const float BlinkPathStep = 0.01f;
 
         private readonly List<Vector3> _movePoints = new List<Vector3>();
         /// <summary>방금 소환되어 뷰를 만들 때 솟아오르는 연출을 할 소환물 Id(ExpectSummon).</summary>
@@ -98,68 +126,78 @@ namespace MiniChess.Client.Units
         }
 
         /// <summary>
-        /// 유닛을 지금 자리에서 waypoints(거쳐 갈 칸들, 마지막이 도착 칸)를 부드러운 곡선(Catmull-Rom)으로 지나 옮긴다(연속 베기). Sync 전에 호출한다.
-        /// delay 초 뒤 출발해 duration 초 동안 일정한 속도로 가며, 몸 방향은 바꾸지 않는다. 경로 가운데에서 curvedMoveHopHeight 만큼 살짝 뜬다.
-        /// waypoints 마다 그 칸을 지나는 시간(초, 지금부터)을 돌려준다. 뷰가 없으면 빈 목록.
+        /// 연속 베기 순간이동 연출(chainBlink 타이밍). Sync 전에 호출한다. 시간은 모두 지금부터(초).
+        /// start(MoveStart)에 노이즈로 사라지고, targets 마다 그 칸 위로 순간이동해 잠깐 보였다가 다시 사라지고,
+        /// landing 칸으로 순간이동해 land(Land)에 다 나타난다. 몸 방향과 모션은 그대로다.
+        /// 자리는 숨어 있는 동안에만 바꾼다(BeginMove 경로를 일정한 간격으로 찍고, 바뀌는 곳은 한 간격 안에서 넘어간다).
+        /// 대상마다 보이는 구간의 가운데 시간(피해 숫자 시점)을 돌려준다. 뷰가 없으면 빈 목록.
         /// </summary>
-        public List<float> PlayCurvedMove(int unitId, IReadOnlyList<Position> waypoints, float delay, float duration)
+        public List<float> PlayChainBlinkStrike(int unitId, IReadOnlyList<Position> targets, Position landing, float start, float land)
         {
-            var passTimes = new List<float>();
-            if (_coordinates == null || waypoints == null || waypoints.Count == 0 || !TryGetView(unitId, out UnitView view))
-                return passTimes;
+            var flashTimes = new List<float>();
+            if (_coordinates == null || !TryGetView(unitId, out UnitView view))
+                return flashTimes;
 
-            var knots = new List<Vector3> { view.transform.localPosition };
-            foreach (Position cell in waypoints)
-                knots.Add(_coordinates.ToWorld(cell));
+            // 다 사라진 뒤 ~ 착지 등장 전 구간을 대상 수 + 1 로 나눠 대상 위 등장을 고르게 놓는다.
+            // 보이는 시간은 다음 등장(또는 착지 등장) 전에 다시 다 사라질 수 있게 대상 간격에 맞춰 줄인다.
+            float vanishStart = start + chainBlink.vanishOffset;
+            float hidden = vanishStart + chainBlink.vanishTime;
+            float landAppear = Mathf.Max(hidden, land - chainBlink.landInTime);
+            float spacing = (landAppear - hidden) / (targets.Count + 1);
+            float visible = Mathf.Max(0.01f, Mathf.Min(chainBlink.flashVisibleTime, spacing - chainBlink.flashOutTime));
 
-            // 구간마다 곡선을 촘촘히 찍고, 각 거쳐 갈 칸까지의 길이를 잰다.
-            var curve = new List<Vector3> { knots[0] };
-            var knotLengths = new List<float>();
-            float length = 0f;
-            for (int i = 0; i < knots.Count - 1; i++)
+            var steps = new List<(float Time, bool Vanish, float Duration)> { (vanishStart, true, chainBlink.vanishTime) };
+            var spots = new List<(float Time, Vector3 Position)>();
+            Vector3 lift = Vector3.up * chainBlink.targetHeight;
+            for (int i = 0; i < targets.Count; i++)
             {
-                Vector3 p0 = knots[Mathf.Max(i - 1, 0)], p1 = knots[i], p2 = knots[i + 1], p3 = knots[Mathf.Min(i + 2, knots.Count - 1)];
-                for (int s = 1; s <= CurveSamplesPerSegment; s++)
-                {
-                    Vector3 point = CatmullRom(p0, p1, p2, p3, (float)s / CurveSamplesPerSegment);
-                    length += Vector3.Distance(curve[curve.Count - 1], point);
-                    curve.Add(point);
-                }
-                knotLengths.Add(length);
+                float center = hidden + spacing * (i + 1);
+                float appear = center - visible * 0.5f;
+                flashTimes.Add(center);
+                spots.Add((appear, _coordinates.ToWorld(targets[i]) + lift));
+                steps.Add((appear, false, chainBlink.flashInTime));
+                steps.Add((appear + visible, true, chainBlink.flashOutTime));
             }
+            spots.Add((landAppear, _coordinates.ToWorld(landing)));
+            steps.Add((landAppear, false, chainBlink.landInTime));
 
-            foreach (float knotLength in knotLengths)
-                passTimes.Add(delay + (length > 0f ? duration * knotLength / length : duration));
-
-            // 같은 간격으로 다시 찍어 BeginMove(구간마다 같은 시간)가 일정한 속도가 되게 하고, 가운데에서 살짝 띄운다.
+            float duration = Mathf.Max(land, BlinkPathStep);
+            int count = Mathf.CeilToInt(duration / BlinkPathStep);
+            Vector3 current = view.transform.localPosition;
+            int next = 0;
             _movePoints.Clear();
-            int count = Mathf.Max(1, CurveSamplesPerSegment * (knots.Count - 1));
-            int index = 1;
-            float walked = 0f;
             for (int k = 1; k <= count; k++)
             {
-                float target = length * k / count;
-                while (index < curve.Count - 1 && walked + Vector3.Distance(curve[index - 1], curve[index]) < target)
-                {
-                    walked += Vector3.Distance(curve[index - 1], curve[index]);
-                    index++;
-                }
-
-                float step = Vector3.Distance(curve[index - 1], curve[index]);
-                Vector3 point = step > 0f ? Vector3.Lerp(curve[index - 1], curve[index], (target - walked) / step) : curve[index];
-                if (k < count)
-                    point.y += curvedMoveHopHeight * Mathf.Sin(Mathf.PI * k / count);
-                _movePoints.Add(point);
+                float time = duration * k / count;
+                while (next < spots.Count && spots[next].Time <= time)
+                    current = spots[next++].Position;
+                _movePoints.Add(current);
             }
 
-            view.BeginMove(_movePoints, duration, easeOut: false, delay);
-            return passTimes;
+            view.BeginMove(_movePoints, duration, easeOut: false);
+            if (chainBlink.enabled)
+                StartCoroutine(RunBlinkSteps(view, steps));
+            return flashTimes;
         }
 
-        private static Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+        private System.Collections.IEnumerator RunBlinkSteps(UnitView view, List<(float Time, bool Vanish, float Duration)> steps)
         {
-            float t2 = t * t, t3 = t2 * t;
-            return 0.5f * (2f * p1 + (p2 - p0) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (3f * p1 - p0 - 3f * p2 + p3) * t3);
+            float elapsed = 0f;
+            foreach ((float time, bool vanish, float duration) in steps)
+            {
+                while (elapsed < time)
+                {
+                    yield return null;
+                    elapsed += Time.deltaTime;
+                }
+
+                if (view == null)
+                    yield break;
+                if (vanish)
+                    view.BlinkOut(duration);
+                else
+                    view.BlinkIn(duration);
+            }
         }
 
         /// <summary>유닛 동작 클립에서 eventName 이벤트의 시간(초). 뷰, 애니메이션, 이벤트 중 하나라도 없으면 null.</summary>
@@ -342,6 +380,7 @@ namespace MiniChess.Client.Units
 
         public void Clear()
         {
+            StopAllCoroutines();
             foreach (UnitView view in _views.Values)
             {
                 if (view != null)
