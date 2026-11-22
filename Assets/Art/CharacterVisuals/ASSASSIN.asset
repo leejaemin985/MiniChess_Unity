@@ -31,7 +31,7 @@ MonoBehaviour:
     deployEulerAngles: {x: 0, y: 0, z: 0}
     bodyPosition: {x: 0, y: 0, z: 0}
     bodyYaw: 0
-  basicAttackEffect: {fileID: 0}
+  basicAttackEffect: {fileID: 2468013579246801357, guid: 314535b4b992ade4fa5ab89938d8ca11, type: 3}
   basicAttackProjectile: {fileID: 0}
   summonBodyMaterial: {fileID: 0}
   summonAura: {fileID: 0}
