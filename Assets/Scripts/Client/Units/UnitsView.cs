@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using MiniChess.Client.Common;
 using MiniChess.Client.Visuals;
+using MiniChess.Client.Visuals.Effects;
 using MiniChess.Core.Common;
 using MiniChess.Core.State;
 using UnityEngine;
@@ -39,6 +40,9 @@ namespace MiniChess.Client.Units
         [Min(0.01f)] public float flashHoldTime = 0.15f;
         [Tooltip("대상 위로 나타날 때 대상 칸 윗면에서 띄우는 높이.")]
         public float targetHeight = 0f;
+
+        [Tooltip("착지(Land) 뒤에도 몸 연기를 뿜는 시간(초). 연속 베기 연출(chainStrikeEffect)이 있을 때만.")]
+        [Min(0f)] public float smokeTail = 0.3f;
     }
 
     /// <summary>
@@ -85,6 +89,8 @@ namespace MiniChess.Client.Units
         private const float BlinkPathStep = 0.01f;
 
         private readonly List<Vector3> _movePoints = new List<Vector3>();
+        /// <summary>진행 중인 연속 베기 연출(Clear 때 끝낸다).</summary>
+        private readonly List<ChainStrikeEffect> _chainEffects = new List<ChainStrikeEffect>();
         /// <summary>방금 소환되어 뷰를 만들 때 솟아오르는 연출을 할 소환물 Id(ExpectSummon).</summary>
         private readonly HashSet<int> _appearing = new HashSet<int>();
 
@@ -124,12 +130,18 @@ namespace MiniChess.Client.Units
         /// landing 칸으로 순간이동해 land(Land)에 다 나타난다. 몸 방향과 모션은 그대로다.
         /// 자리는 숨어 있는 동안에만 바꾼다(BeginMove 경로를 일정한 간격으로 찍고, 바뀌는 곳은 한 간격 안에서 넘어간다).
         /// 대상마다 보이는 구간의 가운데 시간(피해 숫자 시점)을 돌려준다. 뷰가 없으면 빈 목록.
+        /// effect(연속 베기 연출)가 있으면 사라질 때/나타날 때 펑을 터뜨리고, 보이는 동안만 몸 연기를 뿜고, 대상 위에 나타날 때 베기를 그린다.
+        /// 착지로 다 나타난 뒤 chainBlink.smokeTail 만큼 지나면 끝낸다.
         /// </summary>
-        public List<float> PlayChainBlinkStrike(int unitId, IReadOnlyList<Position> targets, Position landing, float start, float land)
+        public List<float> PlayChainBlinkStrike(int unitId, IReadOnlyList<Position> targets, Position landing, float start, float land, ChainStrikeEffect effect = null)
         {
             var flashTimes = new List<float>();
             if (_coordinates == null || !TryGetView(unitId, out UnitView view))
+            {
+                if (effect != null)
+                    effect.Finish();
                 return flashTimes;
+            }
 
             // 다 사라진 뒤 ~ 착지 등장 전 구간을 대상 수 + 1 로 나눠 대상 위 등장을 고르게 놓는다.
             // 머무는 시간은 나타남 + 머묾 + 사라짐이 대상 간격 안에 들어가게 줄인다.
@@ -141,20 +153,22 @@ namespace MiniChess.Client.Units
             float hold = Mathf.Max(0.01f, Mathf.Min(chainBlink.flashHoldTime, spacing - blink * 2f));
             float visible = blink + hold;
 
-            var steps = new List<(float Time, bool Vanish, float Duration)> { (vanishStart, true, blink) };
+            // Cut: 대상 위에 나타날 때 베기를 그릴 대상 칸(뷰 부모 기준). 착지 등장은 없음.
+            var steps = new List<BlinkStep> { new BlinkStep(vanishStart, true, blink, null) };
             var spots = new List<(float Time, Vector3 Position)>();
             Vector3 lift = Vector3.up * chainBlink.targetHeight;
             for (int i = 0; i < targets.Count; i++)
             {
                 float center = hidden + spacing * (i + 1);
                 float appear = center - (visible + blink) * 0.5f;
+                Vector3 cell = _coordinates.ToWorld(targets[i]);
                 flashTimes.Add(center);
-                spots.Add((appear, _coordinates.ToWorld(targets[i]) + lift));
-                steps.Add((appear, false, blink));
-                steps.Add((appear + visible, true, blink));
+                spots.Add((appear, cell + lift));
+                steps.Add(new BlinkStep(appear, false, blink, cell));
+                steps.Add(new BlinkStep(appear + visible, true, blink, null));
             }
             spots.Add((landAppear, _coordinates.ToWorld(landing)));
-            steps.Add((landAppear, false, blink));
+            steps.Add(new BlinkStep(landAppear, false, blink, null));
 
             float duration = Mathf.Max(land, BlinkPathStep);
             int count = Mathf.CeilToInt(duration / BlinkPathStep);
@@ -170,39 +184,89 @@ namespace MiniChess.Client.Units
             }
 
             view.BeginMove(_movePoints, duration, easeOut: false);
-            if (chainBlink.enabled)
-                StartCoroutine(RunBlinkSteps(view, steps));
+            if (chainBlink.enabled || effect != null)
+            {
+                if (effect != null)
+                    _chainEffects.Add(effect);
+                StartCoroutine(RunBlinkSteps(view, steps, effect, land + chainBlink.smokeTail));
+            }
             return flashTimes;
         }
 
+        /// <summary>순간이동 한 단계: 시간(지금부터), 사라짐/나타남, 걸리는 시간, 나타날 때 베기를 그릴 대상 칸(뷰 부모 기준, 없으면 null).</summary>
+        private readonly struct BlinkStep
+        {
+            public readonly float Time;
+            public readonly bool Vanish;
+            public readonly float Duration;
+            public readonly Vector3? Cut;
+
+            public BlinkStep(float time, bool vanish, float duration, Vector3? cut)
+            {
+                Time = time;
+                Vanish = vanish;
+                Duration = duration;
+                Cut = cut;
+            }
+        }
+
         /// <summary>
-        /// 사라짐/나타남을 차례로 건다. 사라지기 시작하면 다음에 나타날 때까지 무기 궤적을 끈다
+        /// 사라짐/나타남을 차례로 건다(chainBlink.enabled 일 때). 사라지기 시작하면 다음에 나타날 때까지 무기 궤적을 끈다
         /// (궤적은 몸과 따로 그려져 숨어 있는 동안의 휘두름과 순간이동 자리 바뀜이 허공에 남는다).
+        /// effect 가 있으면 단계마다 펑/몸 연기/베기를 부르고, end 에 끝낸다.
         /// </summary>
-        private System.Collections.IEnumerator RunBlinkSteps(UnitView view, List<(float Time, bool Vanish, float Duration)> steps)
+        private System.Collections.IEnumerator RunBlinkSteps(UnitView view, List<BlinkStep> steps, ChainStrikeEffect effect, float end)
         {
             float elapsed = 0f;
             for (int i = 0; i < steps.Count; i++)
             {
-                (float time, bool vanish, float duration) = steps[i];
-                while (elapsed < time)
+                BlinkStep step = steps[i];
+                while (elapsed < step.Time)
                 {
                     yield return null;
                     elapsed += Time.deltaTime;
                 }
 
                 if (view == null)
-                    yield break;
-                if (vanish)
+                    break;
+                if (step.Vanish)
                 {
-                    view.BlinkOut(duration);
-                    float appear = i + 1 < steps.Count ? steps[i + 1].Time : time + duration;
-                    view.SuppressWeaponTrails(appear - time + BlinkPathStep * 2f);
+                    if (effect != null)
+                    {
+                        effect.Puff();
+                        effect.SetSmoke(false);
+                    }
+                    if (chainBlink.enabled)
+                        view.BlinkOut(step.Duration);
+                    float appear = i + 1 < steps.Count ? steps[i + 1].Time : step.Time + step.Duration;
+                    view.SuppressWeaponTrails(appear - step.Time + BlinkPathStep * 2f);
                 }
                 else
                 {
-                    view.BlinkIn(duration);
+                    if (chainBlink.enabled)
+                        view.BlinkIn(step.Duration);
+                    if (effect != null)
+                    {
+                        effect.Puff();
+                        effect.SetSmoke(true);
+                        if (step.Cut.HasValue)
+                        {
+                            Transform space = view.transform.parent;
+                            effect.Cut(space != null ? space.TransformPoint(step.Cut.Value) : step.Cut.Value);
+                        }
+                    }
                 }
+            }
+
+            if (effect != null)
+            {
+                while (elapsed < end && view != null)
+                {
+                    yield return null;
+                    elapsed += Time.deltaTime;
+                }
+                effect.Finish();
+                _chainEffects.Remove(effect);
             }
         }
 
@@ -387,6 +451,12 @@ namespace MiniChess.Client.Units
         public void Clear()
         {
             StopAllCoroutines();
+            foreach (ChainStrikeEffect effect in _chainEffects)
+            {
+                if (effect != null)
+                    effect.Finish();
+            }
+            _chainEffects.Clear();
             foreach (UnitView view in _views.Values)
             {
                 if (view != null)

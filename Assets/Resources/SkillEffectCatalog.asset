@@ -24,6 +24,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: MORTAR_BOMBARD
     prefab: {fileID: 0}
     castEffect: {fileID: 3951989144858904478, guid: 4a64577007cda824c925fe74687473c3, type: 3}
@@ -35,6 +36,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: WARRIOR_SMASH
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -46,6 +48,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: ARCHER_AIMED_SHOT
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -57,6 +60,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: ARCHER_BOLA
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -68,6 +72,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: WARRIOR_DASH
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -79,6 +84,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: ASSASSIN_CHAIN_SLASH
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -90,6 +96,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 1342942935608503998, guid: ec9be3de64bca734ba751d4aae11519d, type: 3}
   - skillId: ASSASSIN_SHURIKEN
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -101,6 +108,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: FLAME_COMPRESSED_SHELL
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -112,6 +120,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: GARDENER_SINGLE_SHIELD
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -123,6 +132,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: CHAIN_GUARD_CHAIN_BIND
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -134,6 +144,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: CHAIN_GUARD_GUARD
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -145,6 +156,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: INQUISITOR_PURIFY
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -156,6 +168,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: INQUISITOR_JUDGMENT
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -167,6 +180,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: MORTAR_SHOCK_SHELL
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -178,6 +192,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: SEAMSTRESS_WARP
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -189,6 +204,7 @@ MonoBehaviour:
     warpEffect: {fileID: 9182663622605788441, guid: 4a898e0828b5f3b45af7be4af42f89a4, type: 3}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: SCULPTOR_CORRECTION
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -200,6 +216,7 @@ MonoBehaviour:
     warpEffect: {fileID: 0}
     pushEffect: {fileID: 7308400959056003178, guid: 50403b8c7f396bb47aa5a294878fc213, type: 3}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
   - skillId: SCYTHE_CLONE_SWAP
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
@@ -211,3 +228,4 @@ MonoBehaviour:
     warpEffect: {fileID: 3169119360114960061, guid: 5c445d31802452443a257e024c54dadd, type: 3}
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}

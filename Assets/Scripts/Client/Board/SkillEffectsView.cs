@@ -145,6 +145,21 @@ namespace MiniChess.Client.Board
             return effect;
         }
 
+        /// <summary>
+        /// 연속 베기 순간이동 연출을 시전자 자리에서 꺼내 시전자를 따라 몸 연기를 뿜기 시작하고 돌려준다(이후 단계는 UnitsView 가 부른다).
+        /// 이펙트가 없거나 시전자 뷰가 없으면 null.
+        /// </summary>
+        public ChainStrikeEffect PlayChainStrike(int casterId, string skillId)
+        {
+            ChainStrikeEffect prefab = _catalog != null ? _catalog.FindChainStrike(skillId) : null;
+            if (prefab == null || _casters == null || _units == null || !_units.TryGetView(casterId, out UnitView caster))
+                return null;
+
+            ChainStrikeEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(caster.transform.position);
+            effect.Begin(caster.transform);
+            return effect;
+        }
+
         /// <summary>소환 연출(분신: 그림자가 소환 칸으로 미끄러져 가 연기로 솟음)을 소환자 → 소환 칸으로 재생한다. 소환물 데이터가 없거나 소환자 뷰가 없으면 재생하지 않는다.</summary>
         public void PlaySummon(int ownerId, Position cell)
         {

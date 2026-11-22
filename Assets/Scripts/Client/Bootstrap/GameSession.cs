@@ -891,6 +891,7 @@ namespace MiniChess.Client.Bootstrap
         /// 연속 베기(ChainStrikeTargeting) 시작 연출. 시전자가 스킬 클립의 MoveStart 이벤트 시간에 순간이동 노이즈로 사라지고,
         /// 대상마다 그 대상 위로 순간이동해 잠깐 보였다가 다시 사라지고, 착지 칸으로 순간이동해 Land 이벤트 시간에 나타난다
         /// (몸 방향은 그대로, 모션은 계속 재생, 타이밍은 UnitsView 인스펙터의 chainBlink). 대상 위에 보이는 순간 그 대상의 피해 숫자를 띄운다.
+        /// 스킬 이펙트 카탈로그에 연속 베기 연출(chainStrikeEffect)이 있으면 몸 연기, 사라짐/나타남 펑, 대상 위 베기를 함께 재생한다.
         /// 착지 시간(초)을 돌려주며 상태 반영(HP, 사망)은 그때 한다. 이벤트가 없으면 0초 출발, 클립 끝 착지.
         /// </summary>
         private float PlayChainStrikeTravel(IReadOnlyList<GameEvent> events, SkillUsedEvent used, UnitAction action)
@@ -901,7 +902,8 @@ namespace MiniChess.Client.Bootstrap
 
             IReadOnlyList<Position> targetCells = ChainStrikeTargeting.GetTargetCells(used.Targets);
             Position landing = used.Targets[used.Targets.Count - 1];
-            List<float> flashTimes = unitsView.PlayChainBlinkStrike(used.CasterId, targetCells, landing, start, land);
+            ChainStrikeEffect strikeEffect = skillEffectsView != null ? skillEffectsView.PlayChainStrike(used.CasterId, used.SkillId) : null;
+            List<float> flashTimes = unitsView.PlayChainBlinkStrike(used.CasterId, targetCells, landing, start, land, strikeEffect);
             if (flashTimes.Count == 0 || Coordinates == null)
                 return land;
 
