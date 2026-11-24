@@ -9,7 +9,7 @@ using UnityEngine;
 namespace MiniChess.Client.Units
 {
     /// <summary>
-    /// 유닛 하나의 표시(몸체 + 발밑 팀 고리 + 머리 위 작은 얼굴, HP 바, 상태 아이콘). 몸체는 캐릭터 모델 프리팹이 있으면 그것을, 없으면 캡슐을 쓴다(UnitBody).
+    /// 유닛 하나의 표시(몸체 + 발밑 팀 고리 + 머리 위 작은 얼굴, HP 바, 상태 아이콘, 실드가 있으면 몸을 감싸는 공용 실드 막). 몸체는 캐릭터 모델 프리팹이 있으면 그것을, 없으면 캡슐을 쓴다(UnitBody).
     /// 이름과 정확한 HP 숫자는 머리 위에 띄우지 않고 하단 유닛 카드에서 본다.
     /// 모델 몸체는 팀 색을 칠하지 않으므로 팀은 발밑 고리로 구분하고, 이번 턴 행동을 마치면 고리를 어둡게 한다. 몸체는 상대 진영 쪽(facingYaw)을 본다.
     /// 얼굴은 시각 데이터가 있을 때만 몸체 위에 띄운다. 코어 Unit 을 읽기만 하며, Sync 로 상태를 그대로 반영한다.
@@ -44,6 +44,8 @@ namespace MiniChess.Client.Units
         /// <summary>발밑 팀 색 고리(Resources, MiniChess/GlowMarker)와 지름(월드).</summary>
         private const string TeamRingPath = "Materials/TeamRing";
         private const float TeamRingSize = 0.8f;
+        /// <summary>실드가 있는 동안 몸을 감싸는 공용 실드 막(Resources).</summary>
+        private const string SharedShieldPath = "Effects/FX_SharedShield";
         private static readonly int ColorId = Shader.PropertyToID("_BaseColor");
         /// <summary>그림자 소환물의 얼굴 색(보라 그림자 톤, 반투명).</summary>
         private static readonly Color SummonFaceTint = new Color(0.75f, 0.55f, 1f, 0.7f);
@@ -53,6 +55,7 @@ namespace MiniChess.Client.Units
         /// <summary>지금 몸체 머티리얼을 정한 상태 표시(없으면 null). 바뀔 때 굳기/깨지기 연출 시간을 여기서 읽는다.</summary>
         private StatusVisual _bodyStatus;
         private UnitHpBar _hpBar;
+        private SharedShield _shield;
         private FaceBadge _face;
         private StatusBadgeRow _statuses;
         /// <summary>머리 위 표시(HP 바 → 상태 아이콘 줄)가 시작되는 높이(얼굴 위).</summary>
@@ -120,6 +123,7 @@ namespace MiniChess.Client.Units
             view._body = UnitBody.Create(root.transform, bodyPrefab, BodyHeight, BodyWidth, scale);
             view._body.transform.localRotation = Quaternion.Euler(0f, facingYaw, 0f) * view._body.transform.localRotation;
             view.CreateTeamRing();
+            view.CreateSharedShield(scale);
             view._pickBodyTop = BodyHeight * scale;
             float labelHeight = BodyHeight * scale + FaceGap;
             view._iconHeight = labelHeight + IconSize * 0.5f;
@@ -255,6 +259,18 @@ namespace MiniChess.Client.Units
             SetRingColor(_ringColor);
         }
 
+        /// <summary>공용 실드 막을 몸에 붙인다(처음엔 숨김). 소환물은 몸 크기에 맞춰 줄인다. 프리팹이 없으면 막 없이 HP 바로만 실드를 보인다.</summary>
+        private void CreateSharedShield(float scale)
+        {
+            SharedShield prefab = Resources.Load<SharedShield>(SharedShieldPath);
+            if (prefab == null)
+                return;
+
+            _shield = Instantiate(prefab, transform, false);
+            _shield.name = "Shared Shield";
+            _shield.transform.localScale = Vector3.one * scale;
+        }
+
         private void SetRingColor(Color color)
         {
             if (_ring == null)
@@ -296,6 +312,8 @@ namespace MiniChess.Client.Units
             _statuses.Sync(Unit.Statuses);
             _body.SyncInstalled(Unit.IsInstalled);
             _hpBar.Set(Unit.Stats.CurrentHp, Unit.Stats.MaxHp, Unit.Stats.Shield);
+            if (_shield != null)
+                _shield.Set(Unit.Stats.Shield > 0);
             _statuses.transform.localPosition = Vector3.up * (_overheadHeight + _hpBar.Height + FaceGap * 0.5f + _statuses.BadgeSize * 0.5f);
         }
 

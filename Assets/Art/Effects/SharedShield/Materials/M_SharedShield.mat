@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_SharedShield
+  m_Shader: {fileID: 4800000, guid: b33a73227b57b63438009b412adcd06d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Alpha: 1
+    - _BottomFade: 0.15
+    - _EdgeSoftness: 0.08
+    - _Fill: 0.03
+    - _PulseAmount: 0.12
+    - _PulseSpeed: 1.2
+    - _RimGlow: 1.4
+    - _RimPower: 2.5
+    m_Colors:
+    - _Color: {r: 0, g: 1, b: 0.5503297, a: 1}
+  m_BuildTextureStacks: []
