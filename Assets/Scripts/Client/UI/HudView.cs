@@ -15,7 +15,7 @@ using UnityEngine.UI;
 namespace MiniChess.Client.UI
 {
     /// <summary>
-    /// 턴 종료 버튼, 상태이상 설명 창, 실패 이유/점령 알림 토스트, 경기 종료 패널. 위 정보 바(TopBar)와 아래 유닛 패널(UnitInfoPanel), 시작 화면 접속 패널(ConnectPanel)은 프리팹으로 띄운다.
+    /// 턴 종료 버튼, 상태이상 설명 창, 실패 이유/점령 알림 토스트, 경기 종료 패널, 로컬 경기 설정 창(LocalSettingsPanelView).위 정보 바(TopBar)와 아래 유닛 패널(UnitInfoPanel), 시작 화면 접속 패널(ConnectPanel)은 프리팹으로 띄운다.
     /// GameSession 이벤트를 받아 상태를 다시 그리고, 버튼 입력은 GameSession 에 요청한다.
     /// </summary>
     public class HudView : MonoBehaviour
@@ -26,6 +26,13 @@ namespace MiniChess.Client.UI
 
         /// <summary>턴 종료 버튼(과 전투 정보 창)의 위쪽 끝. 위 정보 바 바로 아래.</summary>
         private const float EndTurnTop = TopBarHeight + 16f;
+
+        /// <summary>경기 종료 화면의 RESTART / 설정 버튼 배치.</summary>
+        private const float GameOverButtonY = -80f;
+        private const float GameOverButtonHeight = 100f;
+        private const float GameOverButtonGap = 20f;
+        private const float RestartWidth = 320f;
+        private const float SettingsWidth = 200f;
 
         [SerializeField] private float toastDuration = 1.5f;
 
@@ -39,6 +46,9 @@ namespace MiniChess.Client.UI
         private TextMeshProUGUI _toastText;
         private GameObject _gameOverPanel;
         private TextMeshProUGUI _gameOverText;
+        private Button _restartButton;
+        private Button _gameOverSettingsButton;
+        private LocalSettingsPanelView _localSettings;
         private Coroutine _toastRoutine;
         /// <summary>점령을 알린 경기(GameSession.MatchId). 온라인은 상태마다 GameState 객체가 새로 만들어지므로 번호로 비교한다.</summary>
         private int _captureAnnouncedFor = -1;
@@ -106,8 +116,11 @@ namespace MiniChess.Client.UI
 
             _gameOverPanel.SetActive(state.IsGameOver);
             if (state.IsGameOver)
+            {
                 _gameOverText.text = state.Winner.HasValue ? $"{TeamLabel(state.Winner.Value)} WINS"
                     : state.EndReason == GameEndReason.Aborted ? "NO CONTEST" : "DRAW";
+                LayoutGameOverButtons();
+            }
         }
 
         /// <summary>점령이 완료되면 한 번 토스트로 알린다(진행도는 TopBar 가 보여준다).</summary>
@@ -198,8 +211,9 @@ namespace MiniChess.Client.UI
             CreatePrefabPanel<UnitInfoPanel>(UnitInfoPanel.ResourcePath)?.Bind(_session, _teamColor);
             PlacementPanelView.Create(root, _session, _session.Placement);
             BuildToast(root);
+            _localSettings = LocalSettingsPanelView.Create(transform, _session);
             BuildGameOverPanel(root);
-            CreatePrefabPanel<ConnectPanelView>(ConnectPanelView.ResourcePath)?.Bind(_session);
+            CreatePrefabPanel<ConnectPanelView>(ConnectPanelView.ResourcePath)?.Bind(_session, _localSettings.Open);
         }
 
         /// <summary>어두운 바탕 + 옅은 둥근 테두리 버튼(위 정보 바의 버튼과 같은 모양).</summary>
@@ -256,10 +270,32 @@ namespace MiniChess.Client.UI
             _gameOverText.fontSizeMax = 96f;
             _gameOverText.fontStyle = FontStyles.Bold;
 
-            Button restart = UiFactory.CreateButton(overlay.transform, "Restart", "RESTART", new Color(0.2f, 0.5f, 0.3f, 1f), OnRestartClicked);
-            UiFactory.Place((RectTransform)restart.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, -80f), new Vector2(320f, 100f));
+            _restartButton = UiFactory.CreateButton(overlay.transform, "Restart", "RESTART", new Color(0.2f, 0.5f, 0.3f, 1f), OnRestartClicked);
+            UiFactory.Place((RectTransform)_restartButton.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, GameOverButtonY), new Vector2(RestartWidth, GameOverButtonHeight));
+
+            // 로컬 경기에서만 RESTART 오른쪽에 설정 버튼을 띄운다(LayoutGameOverButtons).
+            _gameOverSettingsButton = CreateFramedButton(overlay.transform, "LocalSettings", "설정", 36f, _localSettings.Open);
+            UiFactory.Place((RectTransform)_gameOverSettingsButton.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, GameOverButtonY), new Vector2(SettingsWidth, GameOverButtonHeight));
 
             _gameOverPanel.SetActive(false);
+        }
+
+        /// <summary>로컬이면 RESTART 와 설정 버튼을 한 묶음으로 가운데 정렬하고, 온라인이면 설정 버튼 없이 RESTART 만 가운데에 둔다.</summary>
+        private void LayoutGameOverButtons()
+        {
+            bool local = !_session.IsOnline;
+            _gameOverSettingsButton.gameObject.SetActive(local);
+
+            float restartX = 0f;
+            if (local)
+            {
+                float left = -(RestartWidth + GameOverButtonGap + SettingsWidth) * 0.5f;
+                restartX = left + RestartWidth * 0.5f;
+                ((RectTransform)_gameOverSettingsButton.transform).anchoredPosition =
+                    new Vector2(left + RestartWidth + GameOverButtonGap + SettingsWidth * 0.5f, GameOverButtonY);
+            }
+
+            ((RectTransform)_restartButton.transform).anchoredPosition = new Vector2(restartX, GameOverButtonY);
         }
 
         #endregion

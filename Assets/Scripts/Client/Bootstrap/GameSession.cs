@@ -192,6 +192,48 @@ namespace MiniChess.Client.Bootstrap
             return team == Team.Player1 ? player1BotDifficulty : player2BotDifficulty;
         }
 
+        #region Local Match Settings
+
+        // 인게임 설정 창(LocalSettingsPanelView)이 Inspector 값을 바꾼다. 저장하지 않으므로 앱을 다시 켜면 Inspector 값으로 돌아간다.
+        // 설정 창은 경기가 없을 때(시작 화면, 경기 종료)만 열리고, 바꾼 값은 다음 로컬 경기 시작(StartLocal/StartNewGame)부터 쓰인다.
+
+        public PlayerControl GetControl(Team team)
+        {
+            return team == Team.Player1 ? player1Control : player2Control;
+        }
+
+        public void SetControl(Team team, PlayerControl control)
+        {
+            if (team == Team.Player1)
+                player1Control = control;
+            else
+                player2Control = control;
+        }
+
+        public void SetBotDifficulty(Team team, BotDifficulty difficulty)
+        {
+            if (team == Team.Player1)
+                player1BotDifficulty = difficulty;
+            else
+                player2BotDifficulty = difficulty;
+        }
+
+        /// <summary>Test Mode: 사람 팀의 이동/기본 공격/스킬이 AP 를 쓰지 않는다.</summary>
+        public bool TestFreeAp
+        {
+            get => testFreeAp;
+            set => testFreeAp = value;
+        }
+
+        /// <summary>Test Mode: 사람 팀의 기본 공격/스킬 턴당 1회 제한과 행동 종료를 무시한다.</summary>
+        public bool TestUnlimitedActions
+        {
+            get => testUnlimitedActions;
+            set => testUnlimitedActions = value;
+        }
+
+        #endregion
+
         /// <summary>난이도가 Custom 일 때 쓰는 팀의 탐색 설정.</summary>
         public BotSearchConfig GetBotSearch(Team team)
         {

@@ -1,3 +1,4 @@
+using System;
 using MiniChess.Client.Bootstrap;
 using MiniChess.Client.Common;
 using MiniChess.Client.Network;
@@ -26,7 +27,8 @@ namespace MiniChess.Client.UI
 
         private GameSession _session;
 
-        public void Bind(GameSession session)
+        /// <param name="openLocalSettings">로컬 경기 설정 창을 여는 동작. 주면 로컬 플레이 버튼 옆에 설정 버튼을 만든다.</param>
+        public void Bind(GameSession session, Action openLocalSettings = null)
         {
             _session = session;
 
@@ -40,10 +42,43 @@ namespace MiniChess.Client.UI
             connectButton.onClick.AddListener(OnConnectClicked);
             ipInput.onSubmit.AddListener(_ => OnConnectClicked());
             if (localButton != null)
+            {
                 localButton.onClick.AddListener(OnLocalClicked);
+                if (openLocalSettings != null)
+                    CreateSettingsButton(openLocalSettings);
+            }
 
             _session.StateChanged += Refresh;
             Refresh();
+        }
+
+        /// <summary>
+        /// 로컬 플레이 버튼을 복제해 오른쪽에 설정 버튼을 둔다(같은 모양). 두 버튼이 원래 로컬 플레이 버튼 자리를 나눠 쓴다.
+        /// 프리팹은 그대로 두고 코드로만 만든다.
+        /// </summary>
+        private void CreateSettingsButton(Action openLocalSettings)
+        {
+            const float gap = 20f;
+            const float settingsWidth = 200f;
+
+            var localRect = (RectTransform)localButton.transform;
+            Vector2 size = localRect.sizeDelta;
+            Vector2 center = localRect.anchoredPosition;
+            float total = size.x + gap + settingsWidth;
+            float left = center.x - total * 0.5f;
+
+            Button settings = Instantiate(localButton, localRect.parent);
+            settings.name = "LocalSettings";
+            settings.onClick = new Button.ButtonClickedEvent();
+            settings.onClick.AddListener(() => openLocalSettings());
+            TextMeshProUGUI label = settings.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null)
+                label.text = "설정";
+
+            localRect.anchoredPosition = new Vector2(left + size.x * 0.5f, center.y);
+            var settingsRect = (RectTransform)settings.transform;
+            settingsRect.sizeDelta = new Vector2(settingsWidth, size.y);
+            settingsRect.anchoredPosition = new Vector2(left + size.x + gap + settingsWidth * 0.5f, center.y);
         }
 
         private void OnDestroy()
