@@ -17,6 +17,7 @@ namespace MiniChess.Client.Visuals.Effects
     ///   - 밀기(pushEffect): 대상과 방향을 고르는 밀기 스킬 사용 때 대상 칸에서 고른 방향으로, 실제로 밀려난 도착 칸까지 재생한다(자리 교정 등).
     ///   - 피해 타격(damageHitEffect): 스킬로 직접 피해를 준 유닛마다 재생한다(돌진 등). 시전자가 돌진했으면 도착한 뒤에 재생한다.
     ///   - 연속 베기(chainStrikeEffect): 연속 베기 순간이동 동안 시전자 몸 연기, 사라짐/나타남 펑, 대상 위 베기를 재생한다.
+    ///   - 손 시전(handCastEffect): 스킬 모션이 시작될 때 시전자 손 소켓에 붙어 손을 따라다닌다(정원사 실드 등).
     /// 목록에 없는 스킬은 이펙트 없이 시전 아이콘만 띄운다.
     /// GameSession 에 직접 연결하거나, Resources/SkillEffectCatalog 에 두면 자동으로 불러온다.
     /// </summary>
@@ -52,6 +53,8 @@ namespace MiniChess.Client.Visuals.Effects
             public HitEffect damageHitEffect;
             [Tooltip("연속 베기 순간이동 연출(몸 연기, 사라짐/나타남 펑, 대상 위 베기). 비우면 재생 안 함.")]
             public ChainStrikeEffect chainStrikeEffect;
+            [Tooltip("스킬 모션이 시작될 때 시전자 손 소켓에 붙여 재생하는 이펙트(손, 켜는/멈추는 프레임은 프리팹에서). 비우면 재생 안 함.")]
+            public HandCastEffect handCastEffect;
         }
 
         [SerializeField] private List<Entry> entries = new List<Entry>();
@@ -120,6 +123,12 @@ namespace MiniChess.Client.Visuals.Effects
         public ChainStrikeEffect FindChainStrike(string skillId)
         {
             return FindEntry(skillId, entry => entry.chainStrikeEffect != null)?.chainStrikeEffect;
+        }
+
+        /// <summary>스킬 모션 시작 때 시전자 손에 붙는 이펙트 프리팹. 없으면 null.</summary>
+        public HandCastEffect FindHandCast(string skillId)
+        {
+            return FindEntry(skillId, entry => entry.handCastEffect != null)?.handCastEffect;
         }
 
         private Entry FindEntry(string skillId, Predicate<Entry> hasEffect)

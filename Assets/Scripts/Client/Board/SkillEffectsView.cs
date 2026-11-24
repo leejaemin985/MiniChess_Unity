@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using MiniChess.Client.Common;
 using MiniChess.Client.Units;
+using MiniChess.Client.Visuals;
 using MiniChess.Client.Visuals.Effects;
 using MiniChess.Core.Common;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace MiniChess.Client.Board
     /// 스킬 이펙트를 재생한다. 이펙트는 시전자(EffectCaster)의 풀에서 꺼낸다.
     ///   - 라인(Play): 범위 칸 순서(모양 정의 순)의 첫 칸에서 마지막 칸으로 쓸고 지나가며, 양 끝 칸의 바깥 가장자리까지 늘린다.
     ///   - 시전(PlayCast): 시전자 자리에서 재생한다.
+    ///   - 손 시전(PlayHandCast): 스킬 모션 시작 때 시전자 손 소켓에 붙여 재생한다.
     ///   - 타격(PlayHit): 범위 각 칸에서 시전자 → 칸 방향으로 재생한다.
     ///   - 투사체(PlayProjectile): 시전자에서 범위 각 칸으로 날아가 명중한다. 명중까지 걸리는 시간을 돌려준다.
     ///   - 경로(PlayPath): 시전자가 직접 이동한 경로의 출발 칸에서 도착 칸까지 재생하고, 이동 이펙트는 시전자에게 붙여 따라가게 한다.
@@ -68,6 +70,26 @@ namespace MiniChess.Client.Board
             Vector3 position = _coordinates.ToWorld(view.Unit.Position.Value);
             CastEffect effect = _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(position);
             effect.Place(position);
+        }
+
+        /// <summary>
+        /// 스킬 모션이 시작될 때 시전자 손 소켓에 붙여 재생하는 연출(정원사 실드의 손 빛 등). 켜는 시점은 이펙트가 모션 시작 기준 프레임으로 정한다.
+        /// 이펙트가 없거나 시전자 몸체에 손 소켓(CharacterHandRig)이 없으면 재생하지 않는다.
+        /// </summary>
+        public void PlayHandCast(int casterId, string skillId)
+        {
+            HandCastEffect prefab = _catalog != null ? _catalog.FindHandCast(skillId) : null;
+            if (prefab == null || _casters == null || _units == null)
+                return;
+            if (!_units.TryGetView(casterId, out UnitView view))
+                return;
+
+            CharacterHandRig rig = view.GetComponentInChildren<CharacterHandRig>();
+            Transform socket = rig != null ? rig.GetSocket(prefab.Hand) : null;
+            if (socket == null)
+                return;
+
+            _casters.Get(casterId, GetCasterName(casterId)).GetPool(prefab, poolSize).Get(socket.position).Attach(socket);
         }
 
         /// <summary>

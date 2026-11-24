@@ -916,6 +916,7 @@ namespace MiniChess.Client.Bootstrap
                             continue;
                         _startedSkills.Add(used);
                         ShowActionIcon(actorId, characterVisuals?.SkillCastIcon);
+                        skillEffectsView.PlayHandCast(used.CasterId, used.SkillId);
                         break;
                     default:
                         continue;
@@ -1025,11 +1026,12 @@ namespace MiniChess.Client.Bootstrap
                             damageNumbersView.Play(obstacleDamaged, anchor);
                         break;
                     case SkillUsedEvent used:
-                        // 스킬 클립에 Hit 이벤트가 있으면 모션과 아이콘은 PlayActionStart 가 타격 시점보다 먼저 시작했다.
+                        // 스킬 클립에 Hit 이벤트가 있으면 모션, 아이콘, 손 시전 이펙트는 PlayActionStart 가 타격 시점보다 먼저 시작했다.
                         if (!_startedSkills.Remove(used))
                         {
                             unitsView.PlayAction(used.CasterId, GetSkillAction(used.CasterId, used.SkillId));
                             ShowActionIcon(used.CasterId, characterVisuals?.SkillCastIcon);
+                            skillEffectsView.PlayHandCast(used.CasterId, used.SkillId);
                         }
 
                         skillEffectsView.Play(used.CasterId, used.SkillId, used.AffectedCells);
