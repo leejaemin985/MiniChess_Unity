@@ -143,6 +143,19 @@ MonoBehaviour:
     damageHitEffect: {fileID: 0}
     chainStrikeEffect: {fileID: 0}
     handCastEffect: {fileID: 1728049088316190302, guid: 7cec8798a4cb7caca6ae12b96b0f21de, type: 3}
+  - skillId: GARDENER_HEALING_MEADOW
+    prefab: {fileID: 0}
+    castEffect: {fileID: 0}
+    hitEffect: {fileID: 0}
+    projectileEffect: {fileID: 0}
+    pathEffect: {fileID: 0}
+    travelEffect: {fileID: 0}
+    strikeEffect: {fileID: 0}
+    warpEffect: {fileID: 0}
+    pushEffect: {fileID: 0}
+    damageHitEffect: {fileID: 0}
+    chainStrikeEffect: {fileID: 0}
+    handCastEffect: {fileID: 8645194598895337227, guid: f39e55bc256e4468a8529707330de8e3, type: 3}
   - skillId: CHAIN_GUARD_CHAIN_BIND
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
