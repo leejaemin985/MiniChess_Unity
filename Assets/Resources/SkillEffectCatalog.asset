@@ -181,7 +181,7 @@ MonoBehaviour:
     pushEffect: {fileID: 0}
     damageHitEffect: {fileID: 0}
     chainStrikeEffect: {fileID: 0}
-    handCastEffect: {fileID: 0}
+    handCastEffect: {fileID: 5912513187312338577, guid: 83c4f9a53571c8541b265cfce00ff7fb, type: 3}
   - skillId: INQUISITOR_PURIFY
     prefab: {fileID: 0}
     castEffect: {fileID: 0}
