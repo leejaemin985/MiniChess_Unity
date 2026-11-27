@@ -183,10 +183,10 @@ MonoBehaviour:
   dangleStart: {fileID: 3726292279336862818}
   linkMesh: {fileID: 4300000, guid: 527cc6a53d2383a44872fbecce2c5fcc, type: 2}
   linkMaterial: {fileID: 2100000, guid: 3ed46157f7ad41d69b4db9bf89e4aee1, type: 2}
-  linkScale: 0.3
-  linkSpacing: 0.036
+  linkScale: 0.6
+  linkSpacing: 0.072
   castShadows: 1
-  nodeCount: 12
+  nodeCount: 7
   gravity: {x: 0, y: -25, z: 0}
   damping: 0.08
   follow: 0.6
@@ -194,8 +194,10 @@ MonoBehaviour:
   armCoil: 1
   coilRange: {x: 0.35, y: 0.95}
   coilTurns: 3
-  coilRadius: 0.032
+  coilRadius: 0.036
+  coilLinkScale: 0.6
   whipState: Attack
+  whipFrames: 45
   whipWeight:
     serializedVersion: 2
     m_Curve:
@@ -301,7 +303,7 @@ MonoBehaviour:
   tipTrail: {fileID: 4977396386953201721}
   trailBase: {fileID: 5933611758434115398}
   trailTip: {fileID: 6784479450900780400}
-  trailSpan: 11
+  trailSpan: 5
   trailFrames: {x: 13, y: 22}
 --- !u!1 &9122763208706339474
 GameObject:

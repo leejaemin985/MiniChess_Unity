@@ -46,6 +46,8 @@ namespace MiniChess.Client.Visuals
         [SerializeField, Min(0.1f)] private float coilTurns = 3f;
         [Tooltip("팔 축에서 사슬까지 거리(팔 두께 + 고리 두께).")]
         [SerializeField, Min(0.001f)] private float coilRadius = 0.032f;
+        [Tooltip("팔에 감긴 고리 크기 배율(늘어진 사슬 linkScale 과 따로 정한다). 고리 간격도 linkSpacing 을 linkScale 대비 이 비율로 맞춰 쓴다.")]
+        [SerializeField, Min(0.01f)] private float coilLinkScale = 0.3f;
 
         [Header("Whip")]
         [Tooltip("이 Animator 상태를 재생하는 동안 사슬을 채찍 모양으로 끌어당긴다(기본 공격 등).")]
@@ -160,7 +162,7 @@ namespace MiniChess.Client.Visuals
             Vector3 u = Vector3.Cross(axis, Mathf.Abs(axis.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
             Vector3 v = Vector3.Cross(axis, u);
             float radius = coilRadius / scale;
-            float spacing = linkSpacing / scale;
+            float spacing = linkSpacing * (coilLinkScale / linkScale) / scale;
 
             Vector3 Helix(float t)
             {
@@ -198,7 +200,7 @@ namespace MiniChess.Client.Visuals
                 Transform link = CreateLink("CoilLink" + i, bone);
                 link.localPosition = mid;
                 link.localRotation = look;
-                link.localScale = Vector3.one * (linkScale / scale);
+                link.localScale = Vector3.one * (coilLinkScale / scale);
                 _coilLinks.Add(link);
             }
         }
