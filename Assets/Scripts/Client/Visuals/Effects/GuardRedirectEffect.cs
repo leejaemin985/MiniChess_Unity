@@ -5,7 +5,8 @@ namespace MiniChess.Client.Visuals.Effects
     /// <summary>
     /// 호위 반응: 보호 대상이 맞을 피해를 호위자가 대신 받음(FX_GuardRedirect). StatusVisual(GUARD) 의 반응 이펙트로 쓴다.
     /// 보호 대상 앞에 방패 문양이 번쩍이며 막아내고(block), boltDelay 뒤 푸른 빛(bolt)이 사슬 줄(tether)을 끌며 호위자에게 날아가
-    /// 호위자 자리에서 피격 섬광(hit)이 터진다. 줄은 도착 뒤 tetherFade 동안 사라진다.
+    /// 호위자 자리에서 피격 섬광(hit, 공기 왜곡 충격파 + 불티)이 터진다. 줄은 도착 뒤 tetherFade 동안 사라진다.
+    /// hit 의 +Z 는 호위자 정면 → 몸 쪽(SetGuardFacing)이라, 충격파가 정면에서 몸으로 밀려 들어온다.
     /// </summary>
     public sealed class GuardRedirectEffect : LineEffect
     {
@@ -34,6 +35,9 @@ namespace MiniChess.Client.Visuals.Effects
         private bool _boltLaunched;
         private bool _arrived;
 
+        /// <summary>Place 부터 빛이 호위자에게 닿을 때까지(초). 호위자 막기 반응 모션을 이 시점에 맞춘다.</summary>
+        public float ArriveTime => boltDelay + travelTime;
+
         protected override bool PlayParticlesOnSpawn => false;
 
         protected override bool IsFinished => !_playing && !IsAnyParticleAlive();
@@ -54,7 +58,7 @@ namespace MiniChess.Client.Visuals.Effects
             _to = to + Vector3.up * height;
             transform.SetPositionAndRotation(_from, Quaternion.identity);
             block.transform.position = _from;
-            hit.transform.position = _to;
+            hit.transform.SetPositionAndRotation(_to, Quaternion.identity);
             Vector3 direction = _to - _from;
             bolt.SetPositionAndRotation(_from, direction.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(direction) : Quaternion.identity);
 
@@ -64,6 +68,14 @@ namespace MiniChess.Client.Visuals.Effects
             _arrived = false;
             tether.enabled = false;
             block.Play(true);
+        }
+
+        /// <summary>호위자가 바라보는 방향을 알려 준다(Place 다음에 호출). 피격 연출이 정면에서 몸 쪽을 향하게 돌린다.</summary>
+        public void SetGuardFacing(Vector3 forward)
+        {
+            Vector3 back = new Vector3(-forward.x, 0f, -forward.z);
+            if (back.sqrMagnitude > 0.0001f)
+                hit.transform.rotation = Quaternion.LookRotation(back);
         }
 
         protected override void OnReleased()

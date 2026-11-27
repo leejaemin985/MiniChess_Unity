@@ -51,18 +51,26 @@ namespace MiniChess.Client.Board
             _casters.Get(targetId, targetName).GetPool(prefab, poolSize).Get(target.transform.position).Place(target.transform.position);
         }
 
-        /// <summary>상태 반응 이펙트를 걸린 유닛 → 건 유닛으로 재생한다. 이펙트가 없거나 두 유닛 중 하나라도 보드에 없으면 재생하지 않는다.</summary>
-        public void PlayReaction(string statusId, int targetId, int sourceId)
+        /// <summary>
+        /// 상태 반응 이펙트를 걸린 유닛 → 건 유닛으로 재생한다. 이펙트가 없거나 두 유닛 중 하나라도 보드에 없으면 재생하지 않는다.
+        /// 반응이 건 유닛에 닿기까지 걸리는 시간(초, 호위: 빛이 호위자에게 도착)을 돌려준다. 재생하지 않았거나 바로 닿으면 0.
+        /// </summary>
+        public float PlayReaction(string statusId, int targetId, int sourceId)
         {
             LineEffect prefab = statusVisuals != null ? statusVisuals.Find(statusId)?.ReactionEffect : null;
             if (prefab == null || _casters == null || _units == null)
-                return;
+                return 0f;
             if (!_units.TryGetView(targetId, out UnitView target) || !_units.TryGetView(sourceId, out UnitView source))
-                return;
+                return 0f;
 
             string sourceName = $"{source.Unit.Stats.Base.Id}#{source.Unit.Id} ({source.Unit.Team})";
             LineEffect effect = _casters.Get(sourceId, sourceName).GetPool(prefab, poolSize).Get(target.transform.position);
             effect.Place(target.transform.position, source.transform.position);
+            if (!(effect is GuardRedirectEffect redirect))
+                return 0f;
+
+            redirect.SetGuardFacing(source.Forward);
+            return redirect.ArriveTime;
         }
     }
 }

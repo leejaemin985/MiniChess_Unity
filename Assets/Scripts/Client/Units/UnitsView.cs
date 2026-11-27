@@ -404,6 +404,12 @@ namespace MiniChess.Client.Units
                 view.PlayAction(action);
         }
 
+        /// <summary>유닛 캐릭터가 동작 클립을 바꿔 끼웠는지(막기 반응 등). 뷰가 없으면 false.</summary>
+        public bool HasAction(int unitId, UnitAction action)
+        {
+            return TryGetView(unitId, out UnitView view) && view.HasAction(action);
+        }
+
         /// <summary>유닛 동작 클립의 타격 시점(초, Hit 이벤트). 뷰, 애니메이션, Hit 이벤트 중 하나라도 없으면 null.</summary>
         public float? GetHitTime(int unitId, UnitAction action)
         {

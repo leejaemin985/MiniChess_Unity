@@ -1202,6 +1202,7 @@ namespace MiniChess.Client.Bootstrap
         /// <summary>
         /// 호위자가 피해를 대신 받았으면(Redirected) 보호 대상 → 호위자로 호위 반응 이펙트를 재생한다.
         /// 보호 대상은 이 뒤에 기록되는 같은 출처의 직접 피해 대상이다(호위 가로채기가 원래 피해 처리 도중에 일어나므로).
+        /// 호위자 캐릭터에 막기 반응(Block) 클립이 있으면, 클립의 Hit 시점(가장 세게 밀어내는 순간)이 반응이 닿는 순간과 겹치게 재생한다.
         /// </summary>
         private void PlayGuardReaction(IReadOnlyList<GameEvent> events, int redirectIndex, UnitDamagedEvent redirected)
         {
@@ -1209,10 +1210,23 @@ namespace MiniChess.Client.Bootstrap
             {
                 if (events[i] is UnitDamagedEvent original && original.Type == DamageType.Direct && original.SourceId == redirected.SourceId)
                 {
-                    statusEffectsView.PlayReaction(StatusLibrary.GuardId, original.TargetId, redirected.TargetId);
+                    float arrive = statusEffectsView.PlayReaction(StatusLibrary.GuardId, original.TargetId, redirected.TargetId);
+                    int guardId = redirected.TargetId;
+                    if (unitsView.HasAction(guardId, UnitAction.Block))
+                    {
+                        float delay = Mathf.Max(0f, arrive - (unitsView.GetHitTime(guardId, UnitAction.Block) ?? 0f));
+                        _deferredRoutines.Add(StartCoroutine(PlayActionAfter(guardId, UnitAction.Block, delay)));
+                    }
                     return;
                 }
             }
+        }
+
+        private IEnumerator PlayActionAfter(int unitId, UnitAction action, float delay)
+        {
+            if (delay > 0f)
+                yield return new WaitForSeconds(delay);
+            unitsView.PlayAction(unitId, action);
         }
 
         /// <summary>

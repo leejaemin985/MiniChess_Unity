@@ -125,6 +125,13 @@ namespace MiniChess.Client.Units
             return null;
         }
 
+        /// <summary>캐릭터가 동작 슬롯 클립을 바꿔 끼웠는지(오버라이드). 공용 자리 표시 클립 그대로면 false.</summary>
+        public bool HasActionClip(UnitAction action)
+        {
+            AnimationClip clip = FindActionClip(action);
+            return clip != null && clip.name != UnitActions.SlotClipName(action);
+        }
+
         /// <summary>동작 클립 길이(초). 애니메이션이 없으면 0.</summary>
         public float GetActionLength(UnitAction action)
         {

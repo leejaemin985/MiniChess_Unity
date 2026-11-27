@@ -93,6 +93,9 @@ namespace MiniChess.Client.Units
 
         public Unit Unit { get; private set; }
 
+        /// <summary>몸체가 바라보는 방향(월드). 몸체 모델은 +z 를 앞으로 만든다.</summary>
+        public Vector3 Forward => _body.transform.forward;
+
         /// <summary>피해 숫자의 기준 위치. 사망 처리로 코어의 Position 이 없어져도 현재 뷰 위치를 사용한다.</summary>
         public Vector3 DamageNumberPosition => transform.TransformPoint(Vector3.up * (_overheadHeight + 0.3f));
 
@@ -419,6 +422,12 @@ namespace MiniChess.Client.Units
         public void PlayAction(UnitAction action)
         {
             _body.PlayAction(action);
+        }
+
+        /// <summary>캐릭터가 동작 클립을 바꿔 끼웠는지(막기 반응처럼 캐릭터마다 있을 수도 없을 수도 있는 동작에 쓴다).</summary>
+        public bool HasAction(UnitAction action)
+        {
+            return _body.HasActionClip(action);
         }
 
         /// <summary>동작 클립의 타격 시점(초, Hit 이벤트). 애니메이션이나 Hit 이벤트가 없으면 null.</summary>

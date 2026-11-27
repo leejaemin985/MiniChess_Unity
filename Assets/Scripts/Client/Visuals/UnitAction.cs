@@ -16,6 +16,9 @@ namespace MiniChess.Client.Visuals
 
         /// <summary>스킬 2번 칸(그 밖의 추가 스킬은 Skill1).</summary>
         Skill2,
+
+        /// <summary>막기 반응(호위로 피해를 대신 받을 때 등). 캐릭터가 슬롯 클립을 바꿔 끼웠을 때만 재생한다.</summary>
+        Block,
     }
 
     public static class UnitActions
@@ -37,6 +40,7 @@ namespace MiniChess.Client.Visuals
             Animator.StringToHash(nameof(UnitAction.Attack)),
             Animator.StringToHash(nameof(UnitAction.Skill1)),
             Animator.StringToHash(nameof(UnitAction.Skill2)),
+            Animator.StringToHash(nameof(UnitAction.Block)),
         };
 
         private static readonly string[] SlotClipNames =
@@ -44,6 +48,7 @@ namespace MiniChess.Client.Visuals
             "Slot_" + nameof(UnitAction.Attack),
             "Slot_" + nameof(UnitAction.Skill1),
             "Slot_" + nameof(UnitAction.Skill2),
+            "Slot_" + nameof(UnitAction.Block),
         };
 
         /// <summary>동작의 Animator 트리거 해시.</summary>
