@@ -80,6 +80,18 @@ namespace MiniChess.Client.Visuals.Effects
             PushedTo = cellTop;
         }
 
+        /// <summary>시전자 뷰(UnitView). 모르면 null.</summary>
+        protected Transform Caster { get; private set; }
+
+        /// <summary>시전자 뷰를 알려 준다(Place 다음에 호출). 시전자 손/무기에서 이어지는 연출(사슬 속박 등)이 발사 때부터 쓴다.</summary>
+        public void SetCaster(Transform caster)
+        {
+            Caster = caster;
+        }
+
+        /// <summary>0 보다 크면 거리와 상관없이 이 시간(초)에 도착한다. 기본은 인스펙터의 travelTime, 타임라인으로 도착 시점이 정해진 이펙트가 바꾼다.</summary>
+        protected virtual float TravelTime => travelTime;
+
         private ParticleSystem[] ProjectileParticles =>
             _projectileParticles ?? (_projectileParticles = projectile.GetComponentsInChildren<ParticleSystem>(true));
 
@@ -87,7 +99,7 @@ namespace MiniChess.Client.Visuals.Effects
         public float GetFlightTime(Vector3 from, Vector3 to)
         {
             (Vector3 launch, Vector3 hit) = GetFlightPoints(from, to);
-            return travelTime > 0f ? travelTime : (hit - launch).magnitude / speed;
+            return TravelTime > 0f ? TravelTime : (hit - launch).magnitude / speed;
         }
 
         /// <summary>from → to 로 Place 했을 때 명중까지 걸리는 시간(초, 발사 전 대기 + 날아가는 시간).</summary>
@@ -111,6 +123,7 @@ namespace MiniChess.Client.Visuals.Effects
 
             _duration = GetFlightTime(from, to);
             PushedTo = null;
+            Caster = null;
             _elapsed = 0f;
             _flying = true;
             _launched = false;

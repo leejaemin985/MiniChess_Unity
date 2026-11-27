@@ -133,6 +133,7 @@ namespace MiniChess.Client.Board
                 Vector3 to = _coordinates.ToWorld(cell);
                 ProjectileEffect effect = pool.Get(from);
                 effect.Place(from, to);
+                effect.SetCaster(caster.transform);
                 if (pushedTo != null && pushedTo.TryGetValue(cell, out Position destination))
                     effect.SetPushedTo(_coordinates.ToWorld(destination));
                 arrival = Mathf.Max(arrival, prefab.GetArrivalTime(from, to));

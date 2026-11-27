@@ -85,7 +85,20 @@ namespace MiniChess.Client.Visuals
         private readonly List<WhipPoint> _pathPoints = new List<WhipPoint>();
         private Animator _animator;
 
-        private Transform Anchor => dangleStart != null ? dangleStart : transform;
+        /// <summary>늘어진 사슬이 시작되는 지점(손). 사슬을 던지는 연출(사슬 속박)이 여기서 출발한다.</summary>
+        public Transform Anchor => dangleStart != null ? dangleStart : transform;
+
+        /// <summary>
+        /// 늘어진 사슬을 숨기거나 다시 보인다(팔에 감긴 사슬은 그대로). 던진 사슬이 손 사슬을 대신하는 동안 숨긴다.
+        /// 다시 보일 때는 손 아래로 곧게 늘어뜨린 자리에서 시작한다(숨긴 동안의 출렁임을 남기지 않게).
+        /// </summary>
+        public void SetDangleVisible(bool visible)
+        {
+            if (visible && _nodes != null)
+                ResetNodes();
+            foreach (Transform link in _links)
+                link.GetComponent<MeshRenderer>().enabled = visible;
+        }
 
         private void OnEnable()
         {
