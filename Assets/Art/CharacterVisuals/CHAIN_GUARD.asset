@@ -17,7 +17,7 @@ MonoBehaviour:
   faceCenter: {x: 0.6375, y: 0.74583334}
   faceSize: 0.37
   bodyPrefab: {fileID: 5148685519625721789, guid: 47df4d2053f4cbd438e9c3823541cd82, type: 3}
-  animatorController: {fileID: 0}
+  animatorController: {fileID: 22100000, guid: 692891b1c2d133c4bb9707ec3ba6e5da, type: 2}
   weaponPrefab: {fileID: 763278735504707708, guid: 71ad47821a6dea140a63a748bb317fb6, type: 3}
   offHandWeaponPrefab: {fileID: 6503239977470898136, guid: 64bca3b2565e228478bb4331b8b8d3f3, type: 3}
   companions: []
