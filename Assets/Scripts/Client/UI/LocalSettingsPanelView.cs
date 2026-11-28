@@ -114,6 +114,7 @@ namespace MiniChess.Client.UI
             AddText(window.transform, "TestHeader", "테스트 모드 (사람 팀에만 적용)", 34f, 64f).color = HudPalette.ButtonBorder;
             AddToggleRow(window.transform, "AP 무한", () => _session.TestFreeAp, value => _session.TestFreeAp = value);
             AddToggleRow(window.transform, "행동 제한 없음", () => _session.TestUnlimitedActions, value => _session.TestUnlimitedActions = value);
+            AddToggleRow(window.transform, "장판 개수 제한 없음", () => _session.TestUnlimitedZones, value => _session.TestUnlimitedZones = value);
 
             AddText(window.transform, "Hint", "다음 경기 시작부터 적용됩니다", 30f, 56f).color = HudPalette.ButtonBorder;
 

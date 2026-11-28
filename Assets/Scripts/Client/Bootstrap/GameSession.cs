@@ -70,6 +70,8 @@ namespace MiniChess.Client.Bootstrap
         [SerializeField] private bool testFreeAp;
         [Tooltip("기본 공격과 스킬의 턴당 1회 제한, 행동 종료(행동이 끝나는 스킬)를 무시한다.")]
         [SerializeField] private bool testUnlimitedActions;
+        [Tooltip("장판 스킬의 시전자당 동시 설치 수 한도를 무시한다.")]
+        [SerializeField] private bool testUnlimitedZones;
 
         [Header("Quick Start (켜면 배치 단계를 건너뛰고 아래 라인업을 자동 배치)")]
         [SerializeField] private bool quickStart;
@@ -230,6 +232,13 @@ namespace MiniChess.Client.Bootstrap
         {
             get => testUnlimitedActions;
             set => testUnlimitedActions = value;
+        }
+
+        /// <summary>Test Mode: 사람 팀의 장판 동시 설치 수 한도를 무시한다.</summary>
+        public bool TestUnlimitedZones
+        {
+            get => testUnlimitedZones;
+            set => testUnlimitedZones = value;
         }
 
         #endregion
@@ -609,12 +618,13 @@ namespace MiniChess.Client.Bootstrap
         private GameRuleData CreateLocalRules()
         {
             GameRuleData rules = PrototypeTestPreset.CreateRules();
-            if (testFreeAp || testUnlimitedActions)
+            if (testFreeAp || testUnlimitedActions || testUnlimitedZones)
             {
                 rules.Test = new TestRuleData
                 {
                     FreeAp = testFreeAp,
                     UnlimitedActions = testUnlimitedActions,
+                    UnlimitedZones = testUnlimitedZones,
                     Teams = new[] { Team.Player1, Team.Player2 }.Where(team => !IsBot(team)).ToArray(),
                 };
             }
